@@ -89,8 +89,8 @@ def generate_session_layout(profiles: list[dict], fob_dir: Path) -> Path:
         + _chrome_template()
         + f'    tab name="{name}" {{\n'
         + f'{panes}\n'
+        + _floating_cheat_block(fob_dir, indent="        ")
         + '    }\n'
-        + _floating_cheat_block(fob_dir, indent="    ")
         + '}\n'
     )
     _save_layout(profile, layout)
