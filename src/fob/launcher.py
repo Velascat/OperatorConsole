@@ -110,6 +110,26 @@ wait $ZPID
     os.execvp("bash", ["bash", str(tmp)])
 
 
+def _delete_dead_session(session_name: str) -> None:
+    try:
+        r = subprocess.run(
+            ["zellij", "list-sessions"],
+            capture_output=True, text=True,
+        )
+        import re
+        ansi = re.compile(r"\033\[[0-9;]*m")
+        for line in r.stdout.splitlines():
+            clean = ansi.sub("", line).strip()
+            if clean.split()[0] == session_name and "EXITED" in clean:
+                subprocess.run(
+                    ["zellij", "delete-session", session_name],
+                    capture_output=True,
+                )
+                break
+    except Exception:
+        pass
+
+
 def _list_tabs(session_name: str) -> set[str]:
     try:
         r = subprocess.run(
@@ -130,6 +150,8 @@ def attach(session_name: str = FOB_SESSION) -> None:
 def launch(profiles: list[dict], fob_dir: Path, reset_layout: bool = False) -> None:
     for profile in profiles:
         check_branch(Path(profile["repo_root"]))
+
+    _delete_dead_session(FOB_SESSION)
 
     if session_exists(FOB_SESSION):
         existing_tabs = _list_tabs(FOB_SESSION)
