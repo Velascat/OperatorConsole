@@ -31,6 +31,77 @@ BANNER = r"""
 """
 
 
+def _dep_status_line() -> str:
+    import subprocess
+    deps = ["zellij", "claude", "lazygit", "git", "python3", "fzf"]
+    parts = []
+    for d in deps:
+        try:
+            ok = subprocess.run(["which", d], capture_output=True).returncode == 0
+        except Exception:
+            ok = False
+        parts.append(f"{c('✓', 'GRN') if ok else c('✗', 'YLW')} {c(d, 'DIM')}")
+    return "  " + "  ".join(parts)
+
+
+def show_menu(_: list[str]) -> None:
+    import subprocess
+    print(c(BANNER, "CYN", "B"))
+    print(c("    forward operating base\n", "DIM"))
+    print(_dep_status_line())
+    print()
+
+    options = [
+        ("brief",   "pick and launch a workspace"),
+        ("status",  "repo, branch, session state"),
+        ("resume",  "print mission brief"),
+        ("doctor",  "full dependency check + install"),
+        ("rice",    "terminal tools installer"),
+        ("cheat",   "keybinding reference"),
+        ("help",    "full command reference"),
+    ]
+
+    try:
+        result = subprocess.run(["fzf", "--version"], capture_output=True)
+        has_fzf = result.returncode == 0
+    except FileNotFoundError:
+        has_fzf = False
+
+    if has_fzf:
+        fzf_input = "\n".join(f"{cmd:<10} {desc}" for cmd, desc in options)
+        result = subprocess.run(
+            ["fzf", "--prompt", "  fob > ", "--height", "~12",
+             "--border", "--no-sort", "--tabstop", "1"],
+            input=fzf_input, text=True, capture_output=True,
+        )
+        if result.returncode != 0 or not result.stdout.strip():
+            sys.exit(0)
+        chosen = result.stdout.strip().split()[0]
+    else:
+        for i, (cmd, desc) in enumerate(options, 1):
+            print(f"  {c(str(i), 'CYN')}  {c(cmd, 'B'):<12}  {c(desc, 'DIM')}")
+        print(f"  {c('q', 'CYN')}  quit")
+        print()
+        try:
+            choice = input(c("  > ", "B")).strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            sys.exit(0)
+        if choice in ("q", "Q"):
+            sys.exit(0)
+        if choice.isdigit() and 1 <= int(choice) <= len(options):
+            chosen = options[int(choice) - 1][0]
+        elif choice in {cmd for cmd, _ in options}:
+            chosen = choice
+        else:
+            print(c("✗ Invalid selection", "RED"))
+            sys.exit(1)
+
+    # Re-enter main with chosen command
+    sys.argv = [sys.argv[0], chosen]
+    main()
+
+
 def show_help(_: list[str]) -> None:
     print(c(BANNER, "CYN", "B"))
     print(c("    forward operating base\n", "DIM"))
@@ -163,15 +234,20 @@ def _require_zellij() -> None:
 
 def main() -> None:
     argv = sys.argv[1:]
-    cmd = argv[0] if argv else "help"
+    cmd = argv[0] if argv else "menu"
     args = argv[1:]
 
     if cmd in ("-h", "--help"):
         cmd = "help"
+    if cmd == "--menu":
+        cmd = "menu"
 
     from fob import commands
 
     match cmd:
+
+        case "menu":
+            show_menu(args)
 
         case "help":
             show_help(args)
