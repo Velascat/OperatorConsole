@@ -125,4 +125,4 @@ hr
 echo
 }
 
-_cheat_content | less -R
+_cheat_content | less -r
