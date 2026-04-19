@@ -36,6 +36,7 @@ CMD "fob test"              "run project tests"
 CMD "fob audit"             "run project audit"
 CMD "fob doctor"            "check all dependencies"
 CMD "fob loadout"           "install and configure dev tools"
+CMD "fob clear [--all]"    "delete saved layout (this repo or all)"
 CMD "fob cheat"             "this screen"
 echo
 

@@ -326,6 +326,31 @@ def cmd_loadout(args: list[str], scripts_dir: Path) -> None:
     os.execvp("bash", ["bash", str(script)] + args)
 
 
+# ── clear ────────────────────────────────────────────────────────────────────
+
+def cmd_clear(args: list[str], default_profile: dict | None) -> None:
+    clear_all = "--all" in args
+    if clear_all:
+        github_dir = Path.home() / "Documents" / "GitHub"
+        targets = list(github_dir.glob("*/.fob/layout-state.kdl")) if github_dir.exists() else []
+        if not targets:
+            print(c("  No saved layouts found.", "DIM"))
+            return
+        for f in targets:
+            f.unlink()
+            print(c(f"  ✓ cleared  {f}", "GRN"))
+        print()
+        print(c(f"  {len(targets)} layout(s) cleared.", "B"))
+    else:
+        repo_root = Path(default_profile["repo_root"]) if default_profile else Path.cwd()
+        saved = repo_root / ".fob" / "layout-state.kdl"
+        if saved.exists():
+            saved.unlink()
+            print(c(f"  ✓ cleared  {saved}", "GRN"))
+        else:
+            print(c(f"  No saved layout for {repo_root.name}", "DIM"))
+
+
 # ── install ───────────────────────────────────────────────────────────────────
 
 def cmd_install(args: list[str], fob_dir: Path) -> None:

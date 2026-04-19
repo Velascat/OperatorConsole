@@ -113,6 +113,7 @@ def show_help(_: list[str]) -> None:
             ("brief --reset-layout", "Regenerate layout from profile, discarding saved state"),
             ("attach",            "Re-attach to the fob Zellij session"),
             ("exit",              "Kill the fob session and all panes"),
+            ("clear [--all]",    "Delete saved layout state (current repo or all)"),
             ("init    [repo]",    "Initialize .fob/ state files in repo"),
             ("resume",            "Print Claude resume context from .fob/"),
             ("doctor",            "Check dependencies (Zellij, Claude, lazygit…)"),
@@ -361,6 +362,9 @@ def main() -> None:
 
         case "exit":
             commands.cmd_exit(args)
+
+        case "clear":
+            commands.cmd_clear(args, _profile_for_cwd())
 
         case "attach":
             _require_zellij()

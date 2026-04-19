@@ -75,7 +75,9 @@ FOB saves the generated Zellij layout to `.fob/layout-state.kdl` after each fres
 
 To reset to profile defaults:
 ```bash
-fob brief --reset-layout
+fob clear               # reset current repo's layout
+fob clear --all         # reset all saved layouts
+fob brief --reset-layout  # reset and immediately relaunch
 ```
 
 ## Example: Configured Profile

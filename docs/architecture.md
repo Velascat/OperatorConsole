@@ -53,13 +53,11 @@ FOB uses a **single named session**: `fob`. Each project opens as a **named tab*
 Layout files:
 - Session start: `/tmp/fob-session.kdl` — includes `default_tab_template` + named first tab + floating cheat pane; saved to `.fob/layout-state.kdl`
 - New tabs: `/tmp/fob-tab-<name>.kdl` — panes + explicit chrome + floating cheat pane
-- `fob brief --reset-layout` regenerates from defaults, ignoring saved state
+- `fob brief --reset-layout` or `fob clear` regenerates from defaults, ignoring saved state
 
 Pane arrangement per tab:
-- **Left 60%**: Claude pane (`claude --continue`)
-- **Top-right 34%**: Git pane (`lazygit`)
-- **Mid-right 33%**: Logs pane (`tail -f .fob/runtime.log`)
-- **Bottom-right**: Shell pane (welcome screen + `bash`)
+- **Left 35% stacked**: Git (`lazygit`), Logs (`tail -f .fob/runtime.log`), Shell (`bash`), btop — focused pane expands, others collapse to title strip
+- **Right 65%**: Claude pane (`claude --continue`)
 - **Floating**: Cheat sheet pane (toggle with Ctrl+p f)
 
 ## Profiles
