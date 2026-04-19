@@ -51,10 +51,43 @@ def _save_layout(profile: dict, layout: str) -> None:
         (fob_state / "layout-state.kdl").write_text(layout)
 
 
+def _chrome_template() -> str:
+    """default_tab_template block — injects chrome into every tab including new ones."""
+    return (
+        '    default_tab_template {\n'
+        '        pane size=1 borderless=true {\n'
+        '            plugin location="tab-bar"\n'
+        '        }\n'
+        '        children\n'
+        '        pane size=2 borderless=true {\n'
+        '            plugin location="status-bar"\n'
+        '        }\n'
+        '    }\n'
+    )
+
+
 def generate_session_layout(profiles: list[dict], fob_dir: Path) -> Path:
-    """Session layout: tab-bar + first profile panes + status-bar.
-    Additional profiles are added as tabs after session creation."""
+    """Session layout with default_tab_template so all tabs inherit chrome."""
     profile = profiles[0]
+    name = profile["name"]
+    panes = _pane_block(profile, fob_dir, indent="        ")
+    layout = (
+        'layout {\n'
+        + _chrome_template()
+        + f'    tab name="{name}" {{\n'
+        + f'{panes}\n'
+        + '    }\n'
+        + '}\n'
+    )
+    _save_layout(profile, layout)
+    tmp = Path(tempfile.gettempdir()) / "fob-session.kdl"
+    tmp.write_text(layout)
+    return tmp
+
+
+def generate_tab_layout(profile: dict, fob_dir: Path) -> Path:
+    """Tab layout with explicit chrome (default_tab_template doesn't apply to new-tab action)."""
+    name = profile["name"]
     panes = _pane_block(profile, fob_dir, indent="    ")
     layout = (
         'layout {\n'
@@ -65,21 +98,6 @@ def generate_session_layout(profiles: list[dict], fob_dir: Path) -> Path:
         '    pane size=2 borderless=true {\n'
         '        plugin location="status-bar"\n'
         '    }\n'
-        '}\n'
-    )
-    _save_layout(profile, layout)
-    tmp = Path(tempfile.gettempdir()) / "fob-session.kdl"
-    tmp.write_text(layout)
-    return tmp
-
-
-def generate_tab_layout(profile: dict, fob_dir: Path) -> Path:
-    """Tab layout for adding to an existing session (panes only)."""
-    name = profile["name"]
-    panes = _pane_block(profile, fob_dir, indent="    ")
-    layout = (
-        'layout {\n'
-        f'{panes}\n'
         '}\n'
     )
     tmp = Path(tempfile.gettempdir()) / f"fob-tab-{name}.kdl"
@@ -153,7 +171,10 @@ def launch(profiles: list[dict], fob_dir: Path, reset_layout: bool = False) -> N
 
     _delete_dead_session(FOB_SESSION)
 
-    if session_exists(FOB_SESSION):
+    # ZELLIJ_SESSION_NAME is authoritative — if we're inside the target session,
+    # skip the subprocess query which can fail or return stale state.
+    already_in_session = os.environ.get("ZELLIJ_SESSION_NAME") == FOB_SESSION
+    if already_in_session or session_exists(FOB_SESSION):
         existing_tabs = _list_tabs(FOB_SESSION)
         for profile in profiles:
             if profile["name"] in existing_tabs:
@@ -173,7 +194,7 @@ def launch(profiles: list[dict], fob_dir: Path, reset_layout: bool = False) -> N
             attach(FOB_SESSION)
     else:
         saved = Path(profiles[0]["repo_root"]) / ".fob" / "layout-state.kdl"
-        if not reset_layout and saved.exists():
+        if not reset_layout and saved.exists() and "tab-bar" in saved.read_text():
             layout_path = saved
             print(f"  → Restoring saved layout")
         else:
