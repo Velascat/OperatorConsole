@@ -82,7 +82,6 @@ def generate_tab_layout(profile: dict, fob_dir: Path) -> Path:
         f'{panes}\n'
         '}\n'
     )
-    _save_layout(profile, layout)
     tmp = Path(tempfile.gettempdir()) / f"fob-tab-{name}.kdl"
     tmp.write_text(layout)
     return tmp
