@@ -55,9 +55,9 @@ def show_help(_: list[str]) -> None:
             ("vf workspace",      "Spawn full gnome-terminal layout"),
         ]),
         ("TOOLS", [
-            ("dump [path]",       "Dump repo structure to text chunks"),
+            ("cheat",             "Open full cheatsheet in floating pane"),
             ("rice",              "Terminal ricing guide & tool installer"),
-            ("install",           "Add dev to PATH via ~/.bashrc"),
+            ("install",           "Add fob to PATH via ~/.bashrc"),
         ]),
     ]
 
@@ -175,9 +175,8 @@ def main() -> None:
         case "vf":
             commands.cmd_vf(args, VF_DIR)
 
-        case "dump":
-            commands.cmd_dump(args, SCRIPTS_DIR)
-
+        case "cheat":
+            commands.cmd_cheat(args, SCRIPTS_DIR)
 
         case "rice":
             commands.cmd_rice(args, SCRIPTS_DIR)
@@ -187,7 +186,7 @@ def main() -> None:
 
         case _:
             print(c(f"✗ Unknown command: {cmd}", "RED"))
-            print(c("  Run: dev help", "DIM"))
+            print(c("  Run: fob help", "DIM"))
             sys.exit(1)
 
 

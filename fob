@@ -1,27 +1,22 @@
 #!/usr/bin/env bash
-# dev — personal workflow CLI
+# fob — forward operating base CLI
 # Thin shell wrapper. Logic lives in src/fob/cli.py
-# Bootstrap the environment first with: ./run-main.sh
+# First-time setup: ./bootstrap.sh
 set -euo pipefail
 
 FOB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BUILD_ENV="utility-cockpit"
+VENV="$FOB_DIR/.venv"
 
-# Activate pyenv virtualenv when available
-if command -v pyenv &>/dev/null; then
-  eval "$(pyenv init --path)" 2>/dev/null || true
-  eval "$(pyenv init -)"      2>/dev/null || true
-  eval "$(pyenv virtualenv-init -)" 2>/dev/null || true
-  if pyenv virtualenvs 2>/dev/null | grep -q "$BUILD_ENV"; then
-    pyenv activate "$BUILD_ENV" 2>/dev/null || true
+# Use local venv if available, otherwise fall back to system python
+if [[ -f "$VENV/bin/python3" ]]; then
+  PYTHON="$VENV/bin/python3"
+else
+  PYTHON="python3"
+  if ! python3 -c "import yaml" 2>/dev/null; then
+    echo "⚠  Python dependencies missing. Run: ./bootstrap.sh" >&2
+    exit 1
   fi
 fi
 
-# Guard: verify Python deps are available
-if ! python3 -c "import yaml" 2>/dev/null; then
-  echo "⚠  Python dependencies missing. Run: ./run-main.sh" >&2
-  exit 1
-fi
-
 export PYTHONPATH="$FOB_DIR/src${PYTHONPATH:+:$PYTHONPATH}"
-exec python3 -m fob.cli "$@"
+exec "$PYTHON" -m fob.cli "$@"

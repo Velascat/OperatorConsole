@@ -191,7 +191,6 @@ DEPS = [
     ("lazygit", "Git TUI — brew install lazygit / apt install lazygit"),
     ("git", "Version control"),
     ("python3", "Python 3.x runtime"),
-    ("tmux", "Fallback terminal multiplexer"),
     ("fzf", "Fuzzy finder"),
 ]
 
@@ -247,13 +246,13 @@ def cmd_vf(args: list[str], vf_dir: Path) -> None:
     os.execvp(cmd_parts[0], cmd_parts)
 
 
-# ── dump ──────────────────────────────────────────────────────────────────────
-
-def cmd_dump(args: list[str], scripts_dir: Path) -> None:
-    target = args[0] if args else "."
-    target_abs = str(Path(target).resolve())
-    print(c(f"▶ Dumping: {target_abs}", "CYN"))
-    os.execvp("bash", ["bash", str(scripts_dir / "dump_it.sh"), target_abs])
+def cmd_cheat(args: list[str], scripts_dir: Path) -> None:
+    script = scripts_dir / "cheat.sh"
+    if os.environ.get("ZELLIJ"):
+        os.execvp("zellij", ["zellij", "action", "new-pane", "--floating",
+                              "--", "bash", str(script)])
+    else:
+        os.execvp("bash", ["bash", str(script)])
 
 
 def cmd_rice(args: list[str], scripts_dir: Path) -> None:
