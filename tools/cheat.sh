@@ -99,6 +99,12 @@ echo -e "\n  ${B}rg — ripgrep${R}"
 CMD "rg <pattern>"        "search files recursively"
 CMD "rg <pattern> -t py"  "search only Python files"
 CMD "rg <pattern> -l"     "list matching files only"
+
+echo -e "\n  ${B}fd — smart find${R}"
+CMD "fd <name>"           "find files by name (respects .gitignore)"
+CMD "fd -e py"            "find by extension"
+CMD "fd -t d <name>"      "find directories only"
+CMD "fd <name> src/"      "search within a directory"
 echo
 
 hr

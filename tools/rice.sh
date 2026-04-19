@@ -27,7 +27,6 @@ EOF
 # Tool table: "name|apt_pkg|check_cmd|description"
 # check_cmd can be space-separated alternatives (e.g. "bat batcat")
 TOOLS=(
-  "tmux|tmux|tmux|Terminal multiplexer — sessions, windows, panes"
   "fzf|fzf|fzf|Fuzzy finder — supercharges Ctrl+R, file & dir search"
   "bat|bat|bat batcat|Syntax-highlighted cat with line numbers"
   "eza|eza|eza|Modern ls — colors, icons, git status, tree view"
