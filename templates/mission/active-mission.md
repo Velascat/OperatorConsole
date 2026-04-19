@@ -1,4 +1,4 @@
-# Current Focus
+# Active Mission
 
 _Update this file when the active objective changes._
 

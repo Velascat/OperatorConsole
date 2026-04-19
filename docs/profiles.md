@@ -34,8 +34,8 @@ helpers:
 
 ## Adding a Profile
 
-1. Create `config/profiles/<name>.yaml` with at minimum `name` and `repo_root`
-2. Run `fob init <repo_root>` if `.fob/` doesn't exist yet
+1. Create `config/profiles/<name>.yaml` — minimum required fields are `name` and `repo_root`
+2. Run `fob init <repo_root>` if `.fob/` doesn't exist in the target repo yet
 3. Launch: `fob brief <name>` or pick it from the interactive picker
 
 ## Profile Constraints

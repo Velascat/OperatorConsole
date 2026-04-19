@@ -1,4 +1,4 @@
-# Session Notes
+# Mission Log
 
 Scratch pad for continuity across sessions. Recent decisions, blockers, and context.
 

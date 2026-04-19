@@ -1,25 +1,41 @@
-// brief.kdl — reference layout
+// brief.kdl — reference layout (do not use directly)
 // The launcher generates a runtime version of this at launch time.
-// See: src/fob/launcher.py  generate_layout()
+// See: src/fob/launcher.py  generate_session_layout()
 //
-// Four-pane layout:
-//   Left (60%)  : Claude pane
-//   Right (40%) : git / logs / shell stacked vertically
+// Session layout: default_tab_template injects chrome (tab-bar + status-bar)
+// into every tab. Tab content is the four-pane split below.
+//
+// Pane arrangement per tab:
+//   Left (60%)       : Claude pane — claude --continue
+//   Top-right (34%)  : git pane   — lazygit
+//   Mid-right (33%)  : logs pane  — tail -f .fob/runtime.log
+//   Bottom-right     : shell pane — bash
 
 layout {
-    pane split_direction="vertical" {
-        pane name="claude" size="60%" command="bash" {
-            args "-c" "echo 'run fob brief to launch with a profile'"
+    default_tab_template {
+        pane size=1 borderless=true {
+            plugin location="tab-bar"
         }
-        pane size="40%" split_direction="horizontal" {
-            pane name="git" size="34%" command="bash" {
-                args "-c" "lazygit"
+        children
+        pane size=2 borderless=true {
+            plugin location="status-bar"
+        }
+    }
+    tab name="<profile-name>" {
+        pane split_direction="vertical" {
+            pane name="claude" size="60%" command="bash" {
+                args "-c" "cd '<repo_root>' && claude --continue"
             }
-            pane name="logs" size="33%" command="bash" {
-                args "-c" "echo 'logs pane'"
-            }
-            pane name="shell" command="bash" {
-                args "-c" "exec bash -l"
+            pane size="40%" split_direction="horizontal" {
+                pane name="git" size="34%" command="bash" {
+                    args "-c" "cd '<repo_root>' && lazygit; exec bash -l"
+                }
+                pane name="logs" size="33%" command="bash" {
+                    args "-c" "cd '<repo_root>' && tail -f .fob/runtime.log 2>/dev/null; exec bash -l"
+                }
+                pane name="shell" command="bash" {
+                    args "-c" "cd '<repo_root>' && bash '<welcome.sh>'"
+                }
             }
         }
     }

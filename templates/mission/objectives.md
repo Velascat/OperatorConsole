@@ -1,4 +1,4 @@
-# Todo
+# Objectives
 
 Active work list. Update after each meaningful chunk of progress.
 
@@ -17,4 +17,4 @@ Active work list. Update after each meaningful chunk of progress.
 
 ---
 
-_Keep this list short and focused. Completed items can be archived to session.md._
+_Keep this list short and focused. Completed items can be archived to mission-log.md._

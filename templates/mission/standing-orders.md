@@ -1,4 +1,4 @@
-# Guardrails
+# Standing Orders
 
 Operating rules for Claude in this repo.
 
@@ -10,22 +10,22 @@ Operating rules for Claude in this repo.
 
 ## Before Acting
 
-1. Read `.fob/current-focus.md` — understand the active objective.
-2. Read `.fob/todo.md` — check what's in progress and what's next.
-3. Read `.fob/session.md` — review recent decisions and context.
-4. Summarize your plan before making edits.
+1. Read `.fob/active-mission.md` — understand the current objective.
+2. Read `.fob/objectives.md` — check what's in progress and what's next.
+3. Read `.fob/mission-log.md` — review recent decisions and context.
+4. Summarize your plan before making any edits.
 
 ## During Work
 
-- Run `./dev test` before and after changes, not broad validation suites.
-- Use `./dev audit` for linting and static checks.
-- Prefer `./dev status` over raw git commands to check workspace state.
+- Run `fob test` before and after changes.
+- Use `fob audit` for linting and static checks.
+- Use `fob status` to check repo and session state.
 - Prefer small, targeted edits over large rewrites.
 
 ## After Meaningful Progress
 
-- Update `.fob/todo.md` to reflect completed and remaining work.
-- Update `.fob/session.md` with decisions made and rationale.
+- Update `.fob/objectives.md` to reflect completed and remaining work.
+- Update `.fob/mission-log.md` with decisions made and rationale.
 - Summarize what changed and what's next.
 
 ## What Not to Do
