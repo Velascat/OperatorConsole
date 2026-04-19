@@ -60,7 +60,17 @@ def generate_session_layout(profiles: list[dict], fob_dir: Path) -> Path:
         panes = _pane_block(profile, fob_dir, indent="        ")
         tabs.append(f'    tab name="{name}"{focus} {{\n{panes}\n    }}')
 
-    layout = "layout {\n" + "\n".join(tabs) + "\n}\n"
+    layout = (
+        'layout {\n'
+        '    pane size=1 borderless=true {\n'
+        '        plugin location="zellij:tab-bar"\n'
+        '    }\n'
+        + "\n".join(tabs) + "\n"
+        '    pane size=2 borderless=true {\n'
+        '        plugin location="zellij:status-bar"\n'
+        '    }\n'
+        '}\n'
+    )
     _save_layout(profiles[0], layout)
 
     tmp = Path(tempfile.gettempdir()) / f"fob-session.kdl"
@@ -72,7 +82,17 @@ def generate_tab_layout(profile: dict, fob_dir: Path) -> Path:
     """Single-tab layout for adding to an existing session."""
     name = profile["name"]
     panes = _pane_block(profile, fob_dir, indent="        ")
-    layout = f'layout {{\n    tab name="{name}" {{\n{panes}\n    }}\n}}\n'
+    layout = (
+        'layout {\n'
+        '    pane size=1 borderless=true {\n'
+        '        plugin location="zellij:tab-bar"\n'
+        '    }\n'
+        f'    tab name="{name}" {{\n{panes}\n    }}\n'
+        '    pane size=2 borderless=true {\n'
+        '        plugin location="zellij:status-bar"\n'
+        '    }\n'
+        '}\n'
+    )
     _save_layout(profile, layout)
     tmp = Path(tempfile.gettempdir()) / f"fob-tab-{name}.kdl"
     tmp.write_text(layout)
