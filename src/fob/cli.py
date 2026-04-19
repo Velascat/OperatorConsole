@@ -111,6 +111,7 @@ def show_help(_: list[str]) -> None:
             ("brief [profile]", "Pick or launch a workspace profile"),
             ("brief --reset-layout", "Regenerate layout from profile, discarding saved state"),
             ("attach",            "Re-attach to the fob Zellij session"),
+            ("exit",              "Kill the fob session and all panes"),
             ("init    [repo]",    "Initialize .fob/ state files in repo"),
             ("resume",            "Print Claude resume context from .fob/"),
             ("doctor",            "Check dependencies (Zellij, Claude, lazygit…)"),
@@ -315,6 +316,9 @@ def main() -> None:
             names = ", ".join(p["name"] for p in profiles)
             print(c(f"\n  Brief: {names}", "B", "CYN"))
             launch(profiles, FOB_DIR, reset_layout=reset_layout)
+
+        case "exit":
+            commands.cmd_exit(args)
 
         case "attach":
             _require_zellij()

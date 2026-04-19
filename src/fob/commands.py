@@ -271,6 +271,16 @@ def cmd_vf(args: list[str], vf_dir: Path) -> None:
     os.execvp(cmd_parts[0], cmd_parts)
 
 
+def cmd_exit(args: list[str]) -> None:
+    from fob.launcher import FOB_SESSION
+    from fob.session import session_exists
+    if not session_exists(FOB_SESSION):
+        print(c(f"  No active session '{FOB_SESSION}'", "DIM"))
+        return
+    print(c(f"  Killing session '{FOB_SESSION}' and all panes...", "YLW"))
+    os.execvp("zellij", ["zellij", "kill-session", FOB_SESSION])
+
+
 def cmd_cheat(args: list[str], scripts_dir: Path) -> None:
     script = scripts_dir / "cheat.sh"
     if os.environ.get("ZELLIJ"):
