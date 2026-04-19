@@ -154,32 +154,59 @@ def _load_default_profile() -> dict | None:
         return None
 
 
-def _pick_profiles() -> list[str]:
-    import subprocess
+def _discover_repos() -> dict[str, dict]:
+    """Scan ~/Documents/GitHub/ for git repos, return name→profile dict."""
     import yaml
+    github_dir = Path.home() / "Documents" / "GitHub"
+    found: dict[str, dict] = {}
+    if not github_dir.exists():
+        return found
+    for d in sorted(github_dir.iterdir()):
+        if d.is_dir() and (d / ".git").exists():
+            name = d.name.lower()
+            found[name] = {"name": name, "repo_root": str(d)}
+    # Overlay configured profiles (they override auto-discovered by repo_root match)
+    for p in PROFILES_DIR.glob("*.yaml"):
+        try:
+            data = yaml.safe_load(p.read_text())
+            if not data:
+                continue
+            from fob.profile_loader import _expand_paths
+            _expand_paths(data)
+            repo = Path(data.get("repo_root", ""))
+            # Replace any auto-discovered entry for the same repo
+            for name, entry in list(found.items()):
+                if Path(entry["repo_root"]).resolve() == repo.resolve():
+                    found[name] = data
+                    break
+            else:
+                found[data["name"]] = data
+        except Exception:
+            pass
+    return found
+
+
+def _pick_profiles() -> list[dict]:
+    import subprocess
     from fob.session import session_exists
     from fob.launcher import FOB_SESSION
 
-    profiles = sorted(p.stem for p in PROFILES_DIR.glob("*.yaml"))
-    if not profiles:
-        print(c("✗ No profiles found in config/profiles/", "RED"))
+    all_profiles = _discover_repos()
+    if not all_profiles:
+        print(c("✗ No repos found", "RED"))
         sys.exit(1)
+
+    names = sorted(all_profiles.keys())
 
     # Auto-select by cwd only when launching from outside Zellij
     if not os.environ.get("ZELLIJ"):
         cwd = Path.cwd()
-        for name in profiles:
-            try:
-                data = yaml.safe_load((PROFILES_DIR / f"{name}.yaml").read_text())
-                repo = Path(data.get("repo_root", "")).expanduser().resolve()
-                if cwd == repo or cwd.is_relative_to(repo):
-                    return [name]
-            except Exception:
-                pass
+        for name, profile in all_profiles.items():
+            repo = Path(profile["repo_root"]).resolve()
+            if cwd == repo or cwd.is_relative_to(repo):
+                return [profile]
 
     session_running = session_exists(FOB_SESSION)
-
-    entries = [(name, session_running) for name in profiles]
 
     try:
         result = subprocess.run(["fzf", "--version"], capture_output=True)
@@ -187,43 +214,48 @@ def _pick_profiles() -> list[str]:
     except FileNotFoundError:
         has_fzf = False
 
+    dot = "●" if session_running else "○"
+    session_label = "  (session running)" if session_running else ""
+
     if has_fzf:
-        session_label = c("  (session running)", "GRN") if session_running else ""
-        fzf_lines = "\n".join(f"{'● ' if session_running else '○ '}{n}" for n in profiles)
+        fzf_lines = "\n".join(f"{dot} {n}" for n in names)
         result = subprocess.run(
             ["fzf", "--prompt", "  brief > ", "--height", "~12",
-             "--border", "--ansi", "--no-sort",
+             "--border", "--no-sort",
              "--multi", "--bind", "tab:toggle+down",
              "--header", f"Tab to select multiple · Enter to open{session_label}"],
             input=fzf_lines, text=True, capture_output=True,
         )
         if result.returncode != 0 or not result.stdout.strip():
             sys.exit(0)
-        return [line.lstrip("●○ ").strip() for line in result.stdout.strip().splitlines()]
+        selected_names = [line.lstrip("●○ ").strip() for line in result.stdout.strip().splitlines()]
+        return [all_profiles[n] for n in selected_names if n in all_profiles]
 
     # Numbered menu fallback
     print()
-    print(c("  SELECT PROFILES", "B", "CYN"))
+    print(c("  SELECT REPOS", "B", "CYN"))
     if session_running:
-        print(c(f"  session '{FOB_SESSION}' is running — selected profiles open as new tabs", "GRN"))
+        print(c(f"  session running — selected repos open as new tabs", "GRN"))
     print(c("─" * 44, "DIM"))
-    dot = c("●", "GRN") if session_running else c("○", "DIM")
-    for i, name in enumerate(profiles, 1):
-        print(f"  {c(str(i), 'CYN')}  {dot}  {name}")
+    sym = c("●", "GRN") if session_running else c("○", "DIM")
+    for i, name in enumerate(names, 1):
+        configured = "claude_cfg" in all_profiles[name] or "panes" in all_profiles[name]
+        tag = c("  configured", "DIM") if configured else ""
+        print(f"  {c(str(i), 'CYN')}  {sym}  {name}{tag}")
     print()
     print(c("  Enter numbers separated by spaces (e.g. 1 2)", "DIM"))
     try:
-        choice = input(c("  profiles: ", "B")).strip()
+        choice = input(c("  repos: ", "B")).strip()
     except (EOFError, KeyboardInterrupt):
         print()
         sys.exit(0)
 
     selected = []
     for token in choice.replace(",", " ").split():
-        if token.isdigit() and 1 <= int(token) <= len(profiles):
-            selected.append(profiles[int(token) - 1])
-        elif token in profiles:
-            selected.append(token)
+        if token.isdigit() and 1 <= int(token) <= len(names):
+            selected.append(all_profiles[names[int(token) - 1]])
+        elif token in all_profiles:
+            selected.append(all_profiles[token])
     if not selected:
         print(c("✗ No valid selection", "RED"))
         sys.exit(1)
@@ -274,20 +306,22 @@ def main() -> None:
             )
             from pathlib import Path
 
-            profile_names = named if named else _pick_profiles()
-            profiles = []
-            for pname in profile_names:
-                try:
-                    p = load_profile(pname, PROFILES_DIR)
-                except FileNotFoundError as e:
-                    print(c(f"✗ {e}", "RED")); sys.exit(1)
-                errs = validate_profile(p)
-                if errs:
-                    print(c(f"✗ Profile '{pname}' validation errors:", "RED"))
-                    for e in errs:
-                        print(c(f"  · {e}", "DIM"))
-                    sys.exit(1)
-                profiles.append(p)
+            if named:
+                profiles = []
+                for pname in named:
+                    try:
+                        p = load_profile(pname, PROFILES_DIR)
+                    except FileNotFoundError as e:
+                        print(c(f"✗ {e}", "RED")); sys.exit(1)
+                    errs = validate_profile(p)
+                    if errs:
+                        print(c(f"✗ Profile '{pname}' validation errors:", "RED"))
+                        for e in errs:
+                            print(c(f"  · {e}", "DIM"))
+                        sys.exit(1)
+                    profiles.append(p)
+            else:
+                profiles = _pick_profiles()
 
             for profile in profiles:
                 claude_cfg = profile.get("claude", {})
