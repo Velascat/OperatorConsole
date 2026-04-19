@@ -66,6 +66,19 @@ def _chrome_template() -> str:
     )
 
 
+def _floating_cheat_block(fob_dir: Path, indent: str = "    ") -> str:
+    """Floating cheat pane block for inclusion in any layout."""
+    cheat = str(fob_dir / "tools" / "cheat.sh").replace("'", "'\\''")
+    i = indent
+    return (
+        f'{i}floating_panes {{\n'
+        f'{i}    pane name="cheat" command="bash" {{\n'
+        f'{i}        args "-c" "bash \'{cheat}\'"\n'
+        f'{i}    }}\n'
+        f'{i}}}\n'
+    )
+
+
 def generate_session_layout(profiles: list[dict], fob_dir: Path) -> Path:
     """Session layout with default_tab_template so all tabs inherit chrome."""
     profile = profiles[0]
@@ -77,6 +90,7 @@ def generate_session_layout(profiles: list[dict], fob_dir: Path) -> Path:
         + f'    tab name="{name}" {{\n'
         + f'{panes}\n'
         + '    }\n'
+        + _floating_cheat_block(fob_dir, indent="    ")
         + '}\n'
     )
     _save_layout(profile, layout)
@@ -98,7 +112,8 @@ def generate_tab_layout(profile: dict, fob_dir: Path) -> Path:
         '    pane size=2 borderless=true {\n'
         '        plugin location="status-bar"\n'
         '    }\n'
-        '}\n'
+        + _floating_cheat_block(fob_dir, indent="    ")
+        + '}\n'
     )
     tmp = Path(tempfile.gettempdir()) / f"fob-tab-{name}.kdl"
     tmp.write_text(layout)
