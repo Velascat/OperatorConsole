@@ -37,6 +37,7 @@ def _pane_block(profile: dict, fob_dir: Path, indent: str = "        ") -> str:
         f'{i}        pane name="shell" command="bash" {{\n'
         f'{i}            args "-c" "cd \'{safe_repo}\' && bash \'{welcome}\'"\n'
         f'{i}        }}\n'
+        f'{i}        pane name="btop" command="btop" {{}}\n'
         f'{i}    }}\n'
         f'{i}    pane name="claude" command="bash" {{\n'
         f'{i}        args "-c" "cd \'{safe_repo}\' && {claude_cmd}"\n'
