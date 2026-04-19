@@ -28,7 +28,7 @@ echo -e "  ${B}TOOL STATUS${R}"
 hr
 chk lazygit  && ok lazygit  "git TUI"            || miss lazygit  "run: fob rice"
 chk fzf      && ok fzf      "fuzzy finder"       || miss fzf      "run: fob rice"
-chk bat      || command -v batcat &>/dev/null \
+(chk bat || command -v batcat &>/dev/null) \
              && ok bat      "syntax cat"         || miss bat      "run: fob rice"
 chk eza      && ok eza      "modern ls"          || miss eza      "run: fob rice"
 chk rg       && ok rg       "fast grep"          || miss rg       "run: fob rice"

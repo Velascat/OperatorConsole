@@ -138,7 +138,8 @@ def _delete_dead_session(session_name: str) -> None:
         ansi = re.compile(r"\033\[[0-9;]*m")
         for line in r.stdout.splitlines():
             clean = ansi.sub("", line).strip()
-            if clean.split()[0] == session_name and "EXITED" in clean:
+            parts = clean.split()
+            if parts and parts[0] == session_name and "EXITED" in clean:
                 subprocess.run(
                     ["zellij", "delete-session", session_name],
                     capture_output=True,

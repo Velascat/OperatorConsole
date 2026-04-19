@@ -131,7 +131,7 @@ def show_help(_: list[str]) -> None:
         ("TOOLS", [
             ("cheat",             "Open full cheatsheet in floating pane"),
             ("rice",              "Terminal ricing guide & tool installer"),
-            ("install",           "Add fob to PATH via ~/.bashrc"),
+            ("install",           "Symlink fob to ~/.local/bin"),
         ]),
     ]
 
@@ -142,16 +142,18 @@ def show_help(_: list[str]) -> None:
         print()
 
 
-def _load_default_profile() -> dict | None:
-    from fob.profile_loader import load_profile, validate_profile
+def _profile_for_cwd() -> dict | None:
+    """Find the profile whose repo_root contains the current working directory."""
+    cwd = Path.cwd()
     try:
-        profile = load_profile("default", PROFILES_DIR)
-        errs = validate_profile(profile)
-        if errs:
-            return None
-        return profile
+        repos = _discover_repos()
+        for profile in repos.values():
+            repo = Path(profile["repo_root"]).resolve()
+            if cwd == repo or cwd.is_relative_to(repo):
+                return profile
     except Exception:
-        return None
+        pass
+    return None
 
 
 def _discover_repos() -> dict[str, dict]:
@@ -371,16 +373,16 @@ def main() -> None:
             commands.cmd_init(args, FOB_DIR)
 
         case "resume":
-            commands.cmd_resume(args, _load_default_profile())
+            commands.cmd_resume(args, _profile_for_cwd())
 
         case "status":
-            commands.cmd_status(args, FOB_DIR, _load_default_profile())
+            commands.cmd_status(args, FOB_DIR, _profile_for_cwd())
 
         case "test":
-            commands.cmd_test(args, _load_default_profile())
+            commands.cmd_test(args, _profile_for_cwd())
 
         case "audit":
-            commands.cmd_audit(args, _load_default_profile())
+            commands.cmd_audit(args, _profile_for_cwd())
 
         case "doctor":
             commands.cmd_doctor(args, SCRIPTS_DIR)

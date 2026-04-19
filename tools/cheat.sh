@@ -24,8 +24,8 @@ echo -e "${R}"
 
 # ── FOB Commands ──────────────────────────────────────────────────────────────
 sec "FOB COMMANDS"
-CMD "fob brief [profile]"   "launch or attach to Zellij workspace"
-CMD "fob attach [profile]"  "attach to existing session"
+CMD "fob brief [repo]"      "pick repos and launch workspace (or add tabs)"
+CMD "fob attach"            "re-attach to running fob session"
 CMD "fob status"            "repo, branch, session, .fob/ state"
 CMD "fob resume"            "print Claude mission brief"
 CMD "fob init [repo]"       "initialize .fob/ mission files"
