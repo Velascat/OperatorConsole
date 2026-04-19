@@ -20,7 +20,7 @@ banner() {
   ██║  ██║██║╚██████╗███████╗
   ╚═╝  ╚═╝╚═╝ ╚═════╝╚══════╝
 EOF
-  echo -e "${DIM}  terminal ricing guide${R}"
+  echo -e "${DIM}  dev toolchain installer${R}"
   echo
 }
 
@@ -91,10 +91,18 @@ install_lazygit() {
 install_eza() {
   echo -e "${CYN}▶ Installing eza from GitHub releases...${R}"
   local url="https://github.com/eza-community/eza/releases/latest/download/eza_x86_64-unknown-linux-musl.tar.gz"
+  mkdir -p /tmp/eza-extract
   curl -Lo /tmp/eza.tar.gz "$url"
-  tar xf /tmp/eza.tar.gz -C /tmp eza
-  sudo install /tmp/eza /usr/local/bin/eza
-  rm -f /tmp/eza.tar.gz /tmp/eza
+  tar xf /tmp/eza.tar.gz -C /tmp/eza-extract/
+  local bin
+  bin=$(find /tmp/eza-extract -name 'eza' -type f | head -1)
+  if [[ -z "$bin" ]]; then
+    echo -e "${RED}✗ eza binary not found in archive${R}"
+    rm -rf /tmp/eza.tar.gz /tmp/eza-extract
+    return 1
+  fi
+  sudo install "$bin" /usr/local/bin/eza
+  rm -rf /tmp/eza.tar.gz /tmp/eza-extract
 }
 
 install_delta() {
