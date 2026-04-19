@@ -286,13 +286,33 @@ def cmd_rice(args: list[str], scripts_dir: Path) -> None:
 # ── install ───────────────────────────────────────────────────────────────────
 
 def cmd_install(args: list[str], fob_dir: Path) -> None:
+    local_bin = Path.home() / ".local" / "bin"
+    local_bin.mkdir(parents=True, exist_ok=True)
+
+    src = fob_dir / "fob"
+    link = local_bin / "fob"
+
+    if link.exists() or link.is_symlink():
+        if link.is_symlink() and link.resolve() == src.resolve():
+            print(c("✓ fob already installed", "GRN"))
+            print(c(f"  {link} → {src}", "DIM"))
+            return
+        link.unlink()
+
+    link.symlink_to(src)
+    print(c("✓ Installed fob", "GRN"))
+    print(c(f"  {link} → {src}", "DIM"))
+
+    # ~/.local/bin must be in PATH — add to .bashrc if missing
     rc = Path.home() / ".bashrc"
-    line = f'export PATH="{fob_dir}:$PATH"'
-    path_entries = os.environ.get("PATH", "").split(":")
-    if str(fob_dir) in path_entries:
-        print(c("✓ Already in PATH", "GRN"))
-        return
-    with rc.open("a") as f:
-        f.write(f"\n# fob\n{line}\n")
-    print(c("✓ Added to PATH in ~/.bashrc", "GRN"))
-    print(c(f"  Run: source ~/.bashrc", "DIM"))
+    local_bin_str = str(local_bin)
+    if local_bin_str not in os.environ.get("PATH", "").split(":"):
+        if rc.exists() and local_bin_str in rc.read_text():
+            pass  # already in .bashrc, just not sourced yet
+        else:
+            with rc.open("a") as f:
+                f.write(f'\nexport PATH="{local_bin_str}:$PATH"\n')
+            print(c(f"  Added {local_bin_str} to PATH in ~/.bashrc", "DIM"))
+        print(c("  Run: source ~/.bashrc  (or open a new shell)", "DIM"))
+    else:
+        print(c("  Available in all shells immediately", "GRN"))
