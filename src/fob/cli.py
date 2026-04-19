@@ -398,9 +398,6 @@ def main() -> None:
         case "loadout":
             commands.cmd_loadout(args, SCRIPTS_DIR)
 
-        case "rice":  # backwards-compat alias
-            commands.cmd_loadout(args, SCRIPTS_DIR)
-
         case "install":
             commands.cmd_install(args, FOB_DIR)
 

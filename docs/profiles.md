@@ -1,6 +1,6 @@
 # Profiles
 
-Profiles are **optional**. Any git repo under `~/Documents/GitHub/` is auto-discovered and appears in `fob brief` without a profile. Create a profile when you need custom Claude context, peer cross-repo awareness, or non-default helper commands.
+Profiles are **optional**. Any git repo under `~/Documents/GitHub/` is auto-discovered and appears when you run `fob` without a profile. Create a profile when you need custom Claude context, peer cross-repo awareness, or non-default helper commands.
 
 Profiles live in `config/profiles/<name>.yaml`.
 
@@ -36,7 +36,7 @@ helpers:
 
 1. Create `config/profiles/<name>.yaml` — minimum required fields are `name` and `repo_root`
 2. Run `fob init <repo_root>` if `.fob/` doesn't exist in the target repo yet
-3. Launch: `fob brief <name>` or pick it from the interactive picker
+3. Launch: `fob brief <name>` or just run `fob` from inside the repo
 
 ## Profile Constraints
 

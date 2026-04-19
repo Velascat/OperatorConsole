@@ -12,7 +12,7 @@ Create a working branch before launching:
 ```bash
 cd <repo>
 git checkout -b feature/<description>
-fob brief
+fob
 ```
 
 ## Intended Claude Usage Model

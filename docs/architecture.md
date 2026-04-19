@@ -13,18 +13,32 @@ fob (shell wrapper)
     └── commands.py             ← all helper command implementations
 ```
 
+## Entry Point
+
+Running `fob` (no subcommand) is equivalent to `fob brief`. The shell wrapper (`fob`) runs first:
+
+1. Check for `.venv/bin/python3` — if absent, run `bootstrap.sh` automatically (first run only)
+2. Set `PYTHONPATH` to `src/`
+3. Exec `python3 -m fob.cli` with any arguments
+
+`fob brief` is preserved as an explicit alias; both paths are identical.
+
 ## Launcher Flow
 
-`fob brief`:
+`fob` / `fob brief`:
 
 1. Scan `~/Documents/GitHub/` for git repos; overlay any YAML profiles from `config/profiles/`
-2. If outside Zellij and cwd is inside a known repo → auto-select that repo
-3. Otherwise show interactive picker (fzf or numbered menu); Tab to multi-select
+2. If outside Zellij and cwd is inside a known repo → auto-select that repo, skip picker
+3. Otherwise show interactive picker (fzf or numbered fallback menu); Tab to multi-select
 4. For each selected repo: initialize `.fob/` if missing, write `.fob/.briefing`, ensure `CLAUDE.md`
 5. Ensure Zellij serialization is enabled in `~/.config/zellij/config.kdl`
 6. Check branch via `guardrails.py` — warn if on main/master
 7. If session `fob` exists → add each repo as a new named tab (skip if tab already open)
-8. Otherwise → generate KDL layout with `default_tab_template` chrome, launch `zellij --session fob --new-session-with-layout <kdl>`
+8. Otherwise → generate KDL layout, launch `zellij --session fob --new-session-with-layout <kdl>`
+
+## Python Environment
+
+FOB uses an isolated venv at `.venv/` inside the FOB repo root. `bootstrap.sh` creates it and installs `PyYAML` from `requirements.txt`. The `fob` wrapper triggers this automatically on first run — no manual setup step required.
 
 ## Zellij Session Model
 
@@ -32,20 +46,21 @@ FOB uses a **single named session**: `fob`. Each project opens as a **named tab*
 
 - Session survives terminal close, SSH disconnects, and reboots (Zellij serialization)
 - Tab bar and status bar are present in every tab via explicit chrome panes in each layout
-- `fob brief` from inside the running session adds tabs without re-attaching
+- Running `fob` from inside the session adds tabs without re-attaching
 - Dead (EXITED) sessions are auto-deleted before creating a new one
 - `fob exit` kills the session and all panes
 
 Layout files:
-- Session start: `/tmp/fob-session.kdl` — includes `default_tab_template` + named first tab; saved to `.fob/layout-state.kdl`
-- New tabs: `/tmp/fob-tab-<name>.kdl` — panes + explicit chrome (tab-bar/status-bar)
+- Session start: `/tmp/fob-session.kdl` — includes `default_tab_template` + named first tab + floating cheat pane; saved to `.fob/layout-state.kdl`
+- New tabs: `/tmp/fob-tab-<name>.kdl` — panes + explicit chrome + floating cheat pane
 - `fob brief --reset-layout` regenerates from defaults, ignoring saved state
 
 Pane arrangement per tab:
 - **Left 60%**: Claude pane (`claude --continue`)
 - **Top-right 34%**: Git pane (`lazygit`)
 - **Mid-right 33%**: Logs pane (`tail -f .fob/runtime.log`)
-- **Bottom-right**: Shell pane (`bash`)
+- **Bottom-right**: Shell pane (welcome screen + `bash`)
+- **Floating**: Cheat sheet pane (toggle with Ctrl+p f)
 
 ## Profiles
 
@@ -64,8 +79,10 @@ See [profiles.md](profiles.md) for format reference.
 
 `_discover_repos()` in `cli.py`:
 1. Scans `~/Documents/GitHub/` for directories containing `.git/`
-2. Builds a `name → {name, repo_root}` dict using lowercased directory names
+2. Builds a `name → {name, repo_root}` dict (lowercase key, original-case display name)
 3. Overlays configured YAML profiles: any profile whose `repo_root` matches a discovered repo replaces the auto-generated entry
+
+`_profile_for_cwd()` uses the same discovery to find which profile's `repo_root` contains the current directory — used by `fob status`, `fob resume`, `fob test`, and `fob audit`.
 
 ## Mission Files
 
@@ -78,11 +95,11 @@ Each repo maintains `.fob/` with four files:
 | `objectives.md` | Ordered work list with in-progress / up-next / done sections |
 | `mission-log.md` | Scratch continuity — decisions, blockers, notes |
 
-`fob init` creates these from `templates/mission/` if missing.
+`fob init` creates these from `templates/mission/` if missing. `fob` auto-inits them on first launch of a repo.
 
 `CLAUDE.md` in the repo root tells Claude to read these files at the start of each session.
 
-## Bootstrap / Resume Behavior
+## Mission Brief / Resume Behavior
 
 `bootstrap.py` reads the `.fob/` files and builds a formatted mission brief written to `.fob/.briefing`.
 
@@ -91,3 +108,9 @@ At launch, this file is refreshed before Zellij starts. The Claude pane runs `cl
 `fob resume` prints this brief to stdout so the operator can inspect what Claude will see.
 
 If `claude.peers` is set in the profile, `active-mission.md` and `objectives.md` from each peer repo are appended as `PEER: <name>` sections, giving Claude cross-repo context.
+
+## Dev Toolchain
+
+`fob loadout` runs `tools/loadout.sh` — an interactive installer for the recommended dev toolchain (fzf, bat, eza, ripgrep, fd, zoxide, delta, lazygit, btop, starship, fastfetch). Tools not available in Ubuntu's standard apt repos (eza, git-delta, fastfetch) use custom GitHub release installers.
+
+`fob doctor` checks both core FOB dependencies and all loadout tools, with install status for each.
