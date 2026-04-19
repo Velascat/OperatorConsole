@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """fob — forward operating base CLI entrypoint."""
 from __future__ import annotations
+import os
 import sys
 from pathlib import Path
 
