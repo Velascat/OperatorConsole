@@ -51,50 +51,63 @@ def _save_layout(profile: dict, layout: str) -> None:
         (fob_state / "layout-state.kdl").write_text(layout)
 
 
-_TAB_CHROME = (
-    '    default_tab_template {\n'
-    '        pane size=1 borderless=true {\n'
-    '            plugin location="zellij:tab-bar"\n'
-    '        }\n'
-    '        children\n'
-    '        pane size=2 borderless=true {\n'
-    '            plugin location="zellij:status-bar"\n'
-    '        }\n'
-    '    }\n'
-)
-
-
 def generate_session_layout(profiles: list[dict], fob_dir: Path) -> Path:
-    """Multi-tab layout for creating a new session."""
-    tabs = []
-    for i, profile in enumerate(profiles):
-        focus = " focus=true" if i == 0 else ""
-        name = profile["name"]
-        panes = _pane_block(profile, fob_dir, indent="        ")
-        tabs.append(f'    tab name="{name}"{focus} {{\n{panes}\n    }}')
-
-    layout = 'layout {\n' + _TAB_CHROME + "\n".join(tabs) + "\n}\n"
-    _save_layout(profiles[0], layout)
-
+    """Session layout: tab-bar + first profile panes + status-bar.
+    Additional profiles are added as tabs after session creation."""
+    profile = profiles[0]
+    panes = _pane_block(profile, fob_dir, indent="    ")
+    layout = (
+        'layout {\n'
+        '    pane size=1 borderless=true {\n'
+        '        plugin location="tab-bar"\n'
+        '    }\n'
+        f'{panes}\n'
+        '    pane size=2 borderless=true {\n'
+        '        plugin location="status-bar"\n'
+        '    }\n'
+        '}\n'
+    )
+    _save_layout(profile, layout)
     tmp = Path(tempfile.gettempdir()) / "fob-session.kdl"
     tmp.write_text(layout)
     return tmp
 
 
 def generate_tab_layout(profile: dict, fob_dir: Path) -> Path:
-    """Single-tab layout for adding to an existing session."""
-    name = profile["name"]
-    panes = _pane_block(profile, fob_dir, indent="        ")
+    """Tab layout for adding to an existing session (panes only)."""
+    panes = _pane_block(profile, fob_dir, indent="    ")
     layout = (
         'layout {\n'
-        + _TAB_CHROME
-        + f'    tab name="{name}" {{\n{panes}\n    }}\n'
-        + '}\n'
+        f'{panes}\n'
+        '}\n'
     )
     _save_layout(profile, layout)
     tmp = Path(tempfile.gettempdir()) / f"fob-tab-{name}.kdl"
     tmp.write_text(layout)
     return tmp
+
+
+def _launch_with_extra_tabs(extra_profiles: list[dict], fob_dir: Path, layout_path: Path) -> None:
+    """Start session then add extra tabs via a background wrapper script."""
+    import shlex
+    adds = []
+    for profile in extra_profiles:
+        tab_layout = generate_tab_layout(profile, fob_dir)
+        adds.append(
+            f"zellij --session {FOB_SESSION} action new-tab --name {shlex.quote(profile['name'])} --layout {shlex.quote(str(tab_layout))}"
+        )
+    # Write a wrapper that starts zellij then adds tabs once session is ready
+    script = f"""#!/usr/bin/env bash
+zellij --session {FOB_SESSION} --new-session-with-layout {shlex.quote(str(layout_path))} &
+ZPID=$!
+sleep 2
+{"".join(f'{cmd}\n' for cmd in adds)}
+wait $ZPID
+"""
+    tmp = Path(tempfile.gettempdir()) / "fob-launch.sh"
+    tmp.write_text(script)
+    tmp.chmod(0o755)
+    os.execvp("bash", ["bash", str(tmp)])
 
 
 def _list_tabs(session_name: str) -> set[str]:
@@ -128,22 +141,25 @@ def launch(profiles: list[dict], fob_dir: Path, reset_layout: bool = False) -> N
             subprocess.run([
                 "zellij", "--session", FOB_SESSION,
                 "action", "new-tab",
-                "--layout", str(layout_path),
                 "--name", profile["name"],
+                "--layout", str(layout_path),
             ])
         print(f"  → Attached to session: {FOB_SESSION}")
         attach(FOB_SESSION)
     else:
         saved = Path(profiles[0]["repo_root"]) / ".fob" / "layout-state.kdl"
-        if not reset_layout and len(profiles) == 1 and saved.exists():
+        if not reset_layout and saved.exists():
             layout_path = saved
             print(f"  → Restoring saved layout")
         else:
             layout_path = generate_session_layout(profiles, fob_dir)
-            names = ", ".join(p["name"] for p in profiles)
-            print(f"  → Creating session '{FOB_SESSION}' with tabs: {names}")
+            print(f"  → Creating session '{FOB_SESSION}'")
         print(f"  → Layout: {layout_path}")
-        os.execvp(
-            "zellij",
-            ["zellij", "--session", FOB_SESSION, "--new-session-with-layout", str(layout_path)],
-        )
+        # For multi-profile, extra tabs are added after session starts via a wrapper
+        if len(profiles) > 1 and not (not reset_layout and saved.exists()):
+            _launch_with_extra_tabs(profiles[1:], fob_dir, layout_path)
+        else:
+            os.execvp(
+                "zellij",
+                ["zellij", "--session", FOB_SESSION, "--new-session-with-layout", str(layout_path)],
+            )
