@@ -28,7 +28,7 @@ def _expand_paths(profile: dict) -> None:
 
 def validate_profile(profile: dict) -> list[str]:
     errors: list[str] = []
-    for key in ("name", "session_name", "repo_root"):
+    for key in ("name", "repo_root"):
         if key not in profile:
             errors.append(f"Missing required field: {key}")
     if "repo_root" in profile:
