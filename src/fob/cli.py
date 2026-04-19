@@ -4,10 +4,10 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-UTILITY_DIR = Path(__file__).resolve().parent.parent.parent
-PROFILES_DIR = UTILITY_DIR / "config" / "profiles"
-SCRIPTS_DIR = UTILITY_DIR / "personal-utility"
-VF_DIR = UTILITY_DIR.parent / "VideoFoundry"
+FOB_DIR = Path(__file__).resolve().parent.parent.parent
+PROFILES_DIR = FOB_DIR / "config" / "profiles"
+SCRIPTS_DIR = FOB_DIR / "tools"
+VF_DIR = FOB_DIR.parent / "VideoFoundry"
 
 _C = {
     "R": "\033[0m", "B": "\033[1m", "DIM": "\033[2m",
@@ -69,7 +69,7 @@ def show_help(_: list[str]) -> None:
 
 
 def _load_default_profile() -> dict | None:
-    from cockpit.profile_loader import load_profile, validate_profile
+    from fob.profile_loader import load_profile, validate_profile
     try:
         profile = load_profile("default", PROFILES_DIR)
         errs = validate_profile(profile)
@@ -101,7 +101,7 @@ def main() -> None:
     if cmd in ("-h", "--help"):
         cmd = "help"
 
-    from cockpit import commands
+    from fob import commands
 
     match cmd:
 
@@ -112,9 +112,9 @@ def main() -> None:
             _require_zellij()
             profile_name = args[0] if args else "default"
             force_branch = "--force-branch" in args
-            from cockpit.profile_loader import load_profile, validate_profile
-            from cockpit.launcher import launch
-            from cockpit.bootstrap import ensure_claude_md
+            from fob.profile_loader import load_profile, validate_profile
+            from fob.launcher import launch
+            from fob.bootstrap import ensure_claude_md
             from pathlib import Path
             try:
                 profile = load_profile(profile_name, PROFILES_DIR)
@@ -130,20 +130,20 @@ def main() -> None:
             repo_root = Path(profile["repo_root"])
             if not (repo_root / ".fob").exists():
                 print(c("  .fob/ not found — initializing...", "YLW"))
-                commands.cmd_init([str(repo_root)], UTILITY_DIR)
+                commands.cmd_init([str(repo_root)], FOB_DIR)
             else:
-                from cockpit.bootstrap import write_bootstrap_file
+                from fob.bootstrap import write_bootstrap_file
                 write_bootstrap_file(repo_root)
-            ensure_claude_md(repo_root, UTILITY_DIR / "templates" / "claude")
+            ensure_claude_md(repo_root, FOB_DIR / "templates" / "mission")
             print(c(f"\n  Cockpit: {profile['name']}", "B", "CYN"))
-            launch(profile, UTILITY_DIR)
+            launch(profile, FOB_DIR)
 
         case "attach":
             _require_zellij()
             profile_name = args[0] if args else "default"
-            from cockpit.profile_loader import load_profile
-            from cockpit.launcher import attach
-            from cockpit.session import session_exists
+            from fob.profile_loader import load_profile
+            from fob.launcher import attach
+            from fob.session import session_exists
             try:
                 profile = load_profile(profile_name, PROFILES_DIR)
             except FileNotFoundError as e:
@@ -155,13 +155,13 @@ def main() -> None:
             attach(sn)
 
         case "init":
-            commands.cmd_init(args, UTILITY_DIR)
+            commands.cmd_init(args, FOB_DIR)
 
         case "resume":
             commands.cmd_resume(args, _load_default_profile())
 
         case "status":
-            commands.cmd_status(args, UTILITY_DIR, _load_default_profile())
+            commands.cmd_status(args, FOB_DIR, _load_default_profile())
 
         case "test":
             commands.cmd_test(args, _load_default_profile())
@@ -183,7 +183,7 @@ def main() -> None:
             commands.cmd_rice(args, SCRIPTS_DIR)
 
         case "install":
-            commands.cmd_install(args, UTILITY_DIR)
+            commands.cmd_install(args, FOB_DIR)
 
         case _:
             print(c(f"✗ Unknown command: {cmd}", "RED"))

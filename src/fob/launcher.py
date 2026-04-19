@@ -4,9 +4,9 @@ import os
 import tempfile
 from pathlib import Path
 
-from cockpit.session import session_exists
-from cockpit.guardrails import check_branch
-from cockpit.bootstrap import get_claude_command
+from fob.session import session_exists
+from fob.guardrails import check_branch
+from fob.bootstrap import get_claude_command
 
 
 def _build_pane_command(cwd: str, cmd: str) -> str:
@@ -56,10 +56,10 @@ def attach(session_name: str) -> None:
     os.execvp("zellij", ["zellij", "attach", session_name])
 
 
-def launch(profile: dict, utility_dir: Path) -> None:
+def launch(profile: dict, fob_dir: Path) -> None:
     repo_root = Path(profile["repo_root"])
     session_name = profile["session_name"]
-    template_path = utility_dir / "zellij" / "layouts" / "brief.kdl"
+    template_path = fob_dir / "zellij" / "layouts" / "brief.kdl"
 
     check_branch(repo_root)
 

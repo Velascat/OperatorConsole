@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # dev — personal workflow CLI
-# Thin shell wrapper. Logic lives in src/cockpit/cli.py
+# Thin shell wrapper. Logic lives in src/fob/cli.py
 # Bootstrap the environment first with: ./run-main.sh
 set -euo pipefail
 
-UTILITY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+FOB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILD_ENV="utility-cockpit"
 
 # Activate pyenv virtualenv when available
@@ -23,5 +23,5 @@ if ! python3 -c "import yaml" 2>/dev/null; then
   exit 1
 fi
 
-export PYTHONPATH="$UTILITY_DIR/src${PYTHONPATH:+:$PYTHONPATH}"
-exec python3 -m cockpit.cli "$@"
+export PYTHONPATH="$FOB_DIR/src${PYTHONPATH:+:$PYTHONPATH}"
+exec python3 -m fob.cli "$@"

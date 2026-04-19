@@ -5,9 +5,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-from cockpit.session import list_sessions
-from cockpit.guardrails import get_branch, PROTECTED_BRANCHES
-from cockpit.bootstrap import build_resume_prompt, write_bootstrap_file
+from fob.session import list_sessions
+from fob.guardrails import get_branch, PROTECTED_BRANCHES
+from fob.bootstrap import build_resume_prompt, write_bootstrap_file
 
 _C = {
     "R": "\033[0m", "B": "\033[1m", "DIM": "\033[2m",
@@ -27,9 +27,9 @@ def hr(width: int = 60) -> str:
 
 # ── init ──────────────────────────────────────────────────────────────────────
 
-def cmd_init(args: list[str], utility_dir: Path) -> None:
+def cmd_init(args: list[str], fob_dir: Path) -> None:
     repo_root = Path(args[0]) if args else Path.cwd()
-    templates_dir = utility_dir / "templates" / "claude"
+    templates_dir = fob_dir / "templates" / "mission"
     claude_dir = repo_root / ".fob"
     claude_dir.mkdir(exist_ok=True)
 
@@ -48,7 +48,7 @@ def cmd_init(args: list[str], utility_dir: Path) -> None:
                 dst.write_text(f"# {name.replace('.md','').replace('-',' ').title()}\n\n")
             created.append(name)
 
-    from cockpit.bootstrap import ensure_claude_md
+    from fob.bootstrap import ensure_claude_md
     ensure_claude_md(repo_root, templates_dir)
 
     print(c("Initialized .fob/ mission files", "B"))
@@ -64,7 +64,7 @@ def cmd_init(args: list[str], utility_dir: Path) -> None:
 
 # ── status ────────────────────────────────────────────────────────────────────
 
-def cmd_status(args: list[str], utility_dir: Path, default_profile: dict | None) -> None:
+def cmd_status(args: list[str], fob_dir: Path, default_profile: dict | None) -> None:
     cwd = Path.cwd()
     repo_root = Path(default_profile["repo_root"]) if default_profile else cwd
 
@@ -263,11 +263,11 @@ def cmd_rice(args: list[str], scripts_dir: Path) -> None:
 
 # ── install ───────────────────────────────────────────────────────────────────
 
-def cmd_install(args: list[str], utility_dir: Path) -> None:
+def cmd_install(args: list[str], fob_dir: Path) -> None:
     rc = Path.home() / ".bashrc"
-    line = f'export PATH="{utility_dir}:$PATH"'
+    line = f'export PATH="{fob_dir}:$PATH"'
     path_entries = os.environ.get("PATH", "").split(":")
-    if str(utility_dir) in path_entries:
+    if str(fob_dir) in path_entries:
         print(c("✓ Already in PATH", "GRN"))
         return
     with rc.open("a") as f:
