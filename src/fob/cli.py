@@ -119,7 +119,9 @@ def show_help(_: list[str]) -> None:
         ]),
         ("VISIBILITY", [
             ("status",            "Session, layout, branch, .fob/ state"),
+            ("status --all",      "Compact table of all repos"),
             ("map",               "Full state snapshot  (--json for machine output)"),
+            ("map --all",         "Snapshot of all repos  (--json supported)"),
         ]),
         ("RESET", [
             ("reset",             "Full reset — session + layout + state (confirms first)"),
@@ -358,6 +360,15 @@ def main() -> None:
                     except Exception:
                         print(c(f"  ⚠ peer '{peer_name}' not found — skipping", "YLW"))
 
+                # Multi-select: inject sibling repos as implicit peers
+                if len(profiles) > 1:
+                    configured = {r for _, r in peer_roots}
+                    for sibling in profiles:
+                        if sibling is not profile:
+                            sibling_root = Path(sibling["repo_root"])
+                            if sibling_root not in configured:
+                                peer_roots.append((sibling["name"], sibling_root))
+
                 repo_root = Path(profile["repo_root"])
                 if not (repo_root / ".fob").exists():
                     print(c(f"  .fob/ not found in {profile['name']} — initializing...", "YLW"))
@@ -420,7 +431,8 @@ def main() -> None:
             commands.cmd_reset(args, _profile_for_cwd(), FOB_DIR)
 
         case "map":
-            commands.cmd_map(args, _profile_for_cwd())
+            all_repos = _discover_repos() if "--all" in args else None
+            commands.cmd_map(args, _profile_for_cwd(), FOB_DIR, all_repos)
 
         case "clear":
             commands.cmd_clear(args, _profile_for_cwd())
@@ -441,7 +453,8 @@ def main() -> None:
             commands.cmd_resume(args, _profile_for_cwd())
 
         case "status":
-            commands.cmd_status(args, FOB_DIR, _profile_for_cwd())
+            all_repos = _discover_repos() if "--all" in args else None
+            commands.cmd_status(args, FOB_DIR, _profile_for_cwd(), all_repos)
 
         case "test":
             commands.cmd_test(args, _profile_for_cwd())

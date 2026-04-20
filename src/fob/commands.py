@@ -64,8 +64,43 @@ def cmd_init(args: list[str], fob_dir: Path) -> None:
 
 # ── status ────────────────────────────────────────────────────────────────────
 
-def cmd_status(args: list[str], fob_dir: Path, default_profile: dict | None) -> None:
+def cmd_status(
+    args: list[str],
+    fob_dir: Path,
+    default_profile: dict | None,
+    all_repos: dict | None = None,
+) -> None:
     import os
+
+    # ── all-repos mode ────────────────────────────────────────────────────────
+    if "--all" in args and all_repos is not None:
+        from fob.launcher import FOB_SESSION, _list_tabs
+        from fob.session import session_exists as _session_exists
+        running  = _session_exists(FOB_SESSION)
+        tabs     = _list_tabs(FOB_SESSION) if running else set()
+        sess_tag = c("running", "GRN") if running else c("stopped", "DIM")
+        snapshots = [
+            _repo_snapshot(p, p["name"] in tabs)
+            for p in all_repos.values()
+        ]
+        print(hr())
+        print(c("  STATUS", "B", "CYN") + f"  {c('—', 'DIM')}  "
+              f"{c('all repos', 'DIM')}  {c('·', 'DIM')}  "
+              f"{c('fob', 'DIM')} {sess_tag}")
+        print(hr())
+        col_w = max(len(s["name"]) for s in snapshots) + 2
+        for s in snapshots:
+            init_mark   = c("●", "GRN") if s["fob_initialized"] else c("⚠", "YLW")
+            branch_str  = (c(s["branch"] + " ⚠", "YLW") if s["branch_protected"]
+                           else c(s["branch"], "DIM"))
+            tab_mark    = c("tab ✓", "GRN") if s["tab_open"]    else c("tab –", "DIM")
+            layout_mark = c("layout ✓", "GRN") if s["layout_saved"] else c("layout –", "DIM")
+            name_col    = c(s["name"], "B") + " " * (col_w - len(s["name"]))
+            mission     = c(s["mission_snippet"], "DIM") if s["mission_snippet"] else c("—", "DIM")
+            print(f"  {init_mark}  {name_col}  {branch_str:<20}  {tab_mark}  {layout_mark}  {mission}")
+        print()
+        return
+
     cwd = Path.cwd()
     repo_root = Path(default_profile["repo_root"]) if default_profile else cwd
 
@@ -433,15 +468,85 @@ def cmd_reset(args: list[str], default_profile: dict | None, fob_dir: Path) -> N
 
 # ── map ───────────────────────────────────────────────────────────────────────
 
-def cmd_map(args: list[str], default_profile: dict | None) -> None:
+def _repo_snapshot(profile: dict, tab_open: bool) -> dict:
+    """Gather cross-repo state for a single profile — used by --all commands."""
+    from fob import layout as layout_mod
+    repo_root = Path(profile["repo_root"]).resolve()
+    branch = get_branch(repo_root)
+    fob_init = (repo_root / ".fob").exists()
+    layout_res = layout_mod.load_any(repo_root) if fob_init else None
+    mission = _mission_snippet(repo_root / ".fob" / "active-mission.md") if fob_init else ""
+    return {
+        "name":             profile["name"],
+        "repo_root":        str(repo_root),
+        "fob_initialized":  fob_init,
+        "tab_open":         tab_open,
+        "branch":           branch or "unknown",
+        "branch_protected": branch in PROTECTED_BRANCHES if branch else False,
+        "layout_saved":     layout_res is not None,
+        "mission_snippet":  mission,
+    }
+
+
+def cmd_map(
+    args: list[str],
+    default_profile: dict | None,
+    fob_dir: Path | None = None,
+    all_repos: dict | None = None,
+) -> None:
     """Print a structured snapshot of current FOB state."""
     import os
     import json as _json
-    from fob.launcher import FOB_SESSION
+    from fob.launcher import FOB_SESSION, _list_tabs
     from fob.session import session_exists as _session_exists
     from fob import layout as layout_mod
 
-    repo_root = Path(default_profile["repo_root"]).resolve() if default_profile else Path.cwd().resolve()
+    use_json = "--json" in args
+
+    # ── all-repos mode ────────────────────────────────────────────────────────
+    if "--all" in args and all_repos is not None:
+        running  = _session_exists(FOB_SESSION)
+        attached = os.environ.get("ZELLIJ_SESSION_NAME") == FOB_SESSION
+        tabs     = _list_tabs(FOB_SESSION) if running else set()
+        snapshots = [
+            _repo_snapshot(p, p["name"] in tabs)
+            for p in all_repos.values()
+        ]
+
+        if use_json:
+            print(_json.dumps({
+                "session": {"name": FOB_SESSION, "running": running, "attached": attached},
+                "repos":   snapshots,
+            }, indent=2))
+            return
+
+        print()
+        print(hr())
+        sess_tag = c("●", "GRN") if running else c("○", "DIM")
+        print(c("  ALL REPOS", "B", "CYN") + f"  {c('session:', 'DIM')} {FOB_SESSION} {sess_tag}")
+        print(hr())
+        for s in snapshots:
+            tab_mark    = c("tab ●", "GRN") if s["tab_open"]    else c("tab ○", "DIM")
+            layout_mark = c("layout ✓", "GRN") if s["layout_saved"] else c("layout –", "DIM")
+            branch_str  = c(s["branch"] + " ⚠", "YLW") if s["branch_protected"] else s["branch"]
+            init_mark   = c("●", "GRN") if s["fob_initialized"] else c("⚠", "YLW")
+            print(f"\n  {init_mark}  {c(s['name'], 'B'):<22} {branch_str:<18} {tab_mark}  {layout_mark}")
+            if s["mission_snippet"]:
+                print(f"     {c(s['mission_snippet'], 'DIM')}")
+            elif not s["fob_initialized"]:
+                print(f"     {c('(not initialized — run: fob init)', 'DIM')}")
+            else:
+                print(f"     {c('(no active mission)', 'DIM')}")
+        print()
+        print(hr())
+        print(f"  {c('●', 'GRN')} fob initialized  "
+              f"{c('⚠', 'YLW')} uninitialized or protected branch  "
+              f"{c('tab ●', 'GRN')} open  {c('tab ○', 'DIM')} closed")
+        print()
+        return
+
+    # ── single-repo mode ──────────────────────────────────────────────────────
+    repo_root    = Path(default_profile["repo_root"]).resolve() if default_profile else Path.cwd().resolve()
     profile_name = default_profile.get("name", repo_root.name) if default_profile else repo_root.name
 
     branch     = get_branch(repo_root)
@@ -449,30 +554,22 @@ def cmd_map(args: list[str], default_profile: dict | None) -> None:
     attached   = os.environ.get("ZELLIJ_SESSION_NAME") == FOB_SESSION
     layout_res = layout_mod.load_any(repo_root)
 
-    fob_dir = repo_root / ".fob"
+    fob_state_dir = repo_root / ".fob"
     mission_files = ["active-mission.md", "standing-orders.md", "objectives.md", "mission-log.md", ".briefing"]
-    mission_state = {n: (fob_dir / n).exists() for n in mission_files}
+    mission_state = {n: (fob_state_dir / n).exists() for n in mission_files}
 
-    if "--json" in args:
+    if use_json:
         data = {
-            "repo": {
-                "name":    profile_name,
-                "path":    str(repo_root),
-                "branch":  branch or "unknown",
-            },
-            "session": {
-                "name":     FOB_SESSION,
-                "running":  running,
-                "attached": attached,
-            },
+            "repo": {"name": profile_name, "path": str(repo_root), "branch": branch or "unknown"},
+            "session": {"name": FOB_SESSION, "running": running, "attached": attached},
             "layout": (
                 {
-                    "saved":      True,
-                    "current":    layout_res[2],
-                    "profile":    layout_res[0].get("profile_name"),
-                    "saved_at":   layout_res[0].get("saved_at"),
-                    "backend":    layout_res[0].get("backend"),
-                    "file":       str(layout_res[1]),
+                    "saved":    True,
+                    "current":  layout_res[2],
+                    "profile":  layout_res[0].get("profile_name"),
+                    "saved_at": layout_res[0].get("saved_at"),
+                    "backend":  layout_res[0].get("backend"),
+                    "file":     str(layout_res[1]),
                 }
                 if layout_res else {"saved": False}
             ),
@@ -516,10 +613,8 @@ def cmd_map(args: list[str], default_profile: dict | None) -> None:
 
     print(c("  mission (.fob/)", "B"))
     for name, exists in mission_state.items():
-        mark = c("✓", "GRN") if exists else c("✗", "DIM")
-        label = name
-        if name == ".briefing":
-            label += "  (compiled)"
+        mark  = c("✓", "GRN") if exists else c("✗", "DIM")
+        label = name + ("  (compiled)" if name == ".briefing" else "")
         print(f"    {mark}  {c(label, 'DIM') if not exists else label}")
     print()
     print(hr())

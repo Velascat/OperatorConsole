@@ -115,8 +115,10 @@ FOB state lives in three distinct layers:
 | Command | Description |
 |---------|-------------|
 | `fob status` | Session, layout, branch, `.fob/` state |
+| `fob status --all` | Compact table of all repos |
 | `fob map` | Full state snapshot |
-| `fob map --json` | Machine-readable state (pipe to tools) |
+| `fob map --all` | Snapshot of all repos |
+| `fob map --json` | Machine-readable state (single repo or `--all`) |
 
 **Reset & Recovery:**
 
@@ -180,6 +182,30 @@ $ fob
 ```
 
 If the repo tab is already open, `fob` shows the picker to open a different repo instead of duplicating the tab.
+
+## Inter-Repo Work
+
+FOB handles multiple repos in two complementary ways:
+
+**Multi-tab** — run `fob brief` from `~/Documents/GitHub/` (or anywhere outside a specific repo) to get the full multi-select picker. Tab to select multiple repos; each opens as a named tab in the same `fob` session.
+
+**Peer context** — when multiple repos are opened together in a single `fob brief`, each repo's `.fob/.briefing` automatically includes the active mission and objectives of the other selected repos. Claude in each tab sees what the others are working on without any profile config required.
+
+For persistent cross-repo awareness (across separate `fob brief` invocations), configure peers in a profile:
+
+```yaml
+claude:
+  peers:
+    - controlplane   # always pulls ControlPlane's mission + objectives into this briefing
+```
+
+**Cross-repo visibility:**
+
+```bash
+fob status --all        # one-line summary of every repo: tab, layout, branch, mission
+fob map --all           # detailed snapshot of every repo
+fob map --all --json    # machine-readable — useful for Control Plane delegation
+```
 
 ## Profiles (Optional)
 

@@ -61,7 +61,13 @@ claude:
 
 ## Claude Context: peers
 
-`peers` lists other profile names. At launch, `active-mission.md` and `objectives.md` from each peer repo are appended to the brief as `PEER: <name>` sections. Use this when repos are tightly coupled and Claude needs to reason across them:
+### Automatic (multi-select brief)
+
+When multiple repos are selected in a single `fob brief` run, each repo's `.fob/.briefing` automatically includes the active mission and objectives of the other selected repos. No profile config needed — it's implicit when repos are opened together.
+
+### Configured (persistent across sessions)
+
+`peers` lists other profile names. At launch, `active-mission.md` and `objectives.md` from each peer repo are appended to the brief as `PEER: <name>` sections. Use this when repos are tightly coupled and Claude needs cross-repo awareness on every session, not just when opened together:
 
 ```yaml
 claude:
