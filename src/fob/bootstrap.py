@@ -119,27 +119,4 @@ After meaningful progress, update `.fob/objectives.md` and `.fob/mission-log.md`
 
 
 def ensure_zellij_serialization() -> None:
-    import re
-    config_path = Path.home() / ".config" / "zellij" / "config.kdl"
-    if not config_path.exists():
-        return
-    text = config_path.read_text()
-
-    patches = [
-        (r"//\s*session_serialization\s+\w+", "session_serialization true"),
-        (r"session_serialization\s+false",     "session_serialization true"),
-        (r"//\s*serialize_pane_viewport\s+\w+", "serialize_pane_viewport true"),
-        (r"serialize_pane_viewport\s+false",    "serialize_pane_viewport true"),
-        (r"//\s*serialization_interval\s+\w+",  "serialization_interval 60"),
-        (r"serialization_interval\s+(?!60\b)\d+", "serialization_interval 60"),
-    ]
-
-    changed = False
-    for pattern, replacement in patches:
-        new_text, n = re.subn(pattern, replacement, text)
-        if n:
-            text = new_text
-            changed = True
-
-    if changed:
-        config_path.write_text(text)
+    pass  # serialization disabled — causes input freezes on VMs
