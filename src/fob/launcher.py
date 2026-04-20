@@ -34,7 +34,7 @@ def _single_pane_block(
 ) -> str:
     repo       = profile["repo_root"]
     panes_cfg  = profile.get("panes", {})
-    claude_cmd = get_claude_command(profile, Path(repo))
+    claude_cmd = get_claude_command(profile, Path(repo), fob_dir=fob_dir)
     git_cmd    = panes_cfg.get("git",  {}).get("command", "lazygit")
     logs_cmd   = panes_cfg.get("logs", {}).get(
         "command", "tail -f .fob/runtime.log 2>/dev/null || echo 'No runtime.log yet'",
@@ -87,7 +87,11 @@ def _multi_pane_block(
 ) -> str:
     cp_status  = str(_CP_STATUS).replace("'", "'\\''")
     safe_cwd   = str(_GITHUB_DIR).replace("'", "'\\''")
-    claude_cmd = get_claude_command(profiles[0], Path(profiles[0]["repo_root"]))
+    session_key = _multi_tab_name(profiles)
+    claude_cmd  = get_claude_command(
+        profiles[0], Path(profiles[0]["repo_root"]),
+        fob_dir=fob_dir, session_key=session_key, claude_cwd=_GITHUB_DIR,
+    )
     i = indent
 
     # Left column: all lazygits stacked

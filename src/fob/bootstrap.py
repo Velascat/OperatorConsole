@@ -104,10 +104,56 @@ def write_bootstrap_file(
     return out
 
 
-def get_claude_command(profile: dict, repo_root: Path) -> str:
-    cfg = profile.get("claude", {})
-    use_continue = cfg.get("continue", True)
-    return "claude --continue" if use_continue else "claude"
+def get_claude_command(
+    profile: dict,
+    repo_root: Path,
+    fob_dir: Path | None = None,
+    session_key: str | None = None,
+    claude_cwd: Path | None = None,
+) -> str:
+    """Return a shell command string that launches Claude with session resume support.
+
+    Generates a wrapper script in /tmp that:
+      1. Reads the saved session ID (config/profiles/<key>.session)
+      2. Runs `claude --resume <id>` or fresh Claude if none saved
+      3. After exit, saves the newest session ID for this project
+    """
+    import tempfile
+
+    if fob_dir is None:
+        return "claude"
+
+    key = (session_key or profile.get("name", "unknown")).lower()
+    cwd = claude_cwd or repo_root
+
+    session_file = fob_dir / "config" / "profiles" / f"{key}.session"
+
+    # Derive the Claude project dir from the cwd (mirrors Claude's own convention)
+    project_key = str(cwd.resolve()).lstrip("/").replace("/", "-")
+    project_dir = Path.home() / ".claude" / "projects" / f"-{project_key}"
+
+    sf = str(session_file).replace("'", "'\\''")
+    pd = str(project_dir).replace("'", "'\\''")
+
+    script = (
+        "#!/usr/bin/env bash\n"
+        f"SESSION_FILE='{sf}'\n"
+        f"PROJECT_DIR='{pd}'\n"
+        "if [ -f \"$SESSION_FILE\" ]; then\n"
+        "    claude --resume \"$(cat \"$SESSION_FILE\")\" || claude\n"
+        "else\n"
+        "    claude\n"
+        "fi\n"
+        "newest=$(ls -t \"$PROJECT_DIR\"/*.jsonl 2>/dev/null | head -1)\n"
+        "[ -n \"$newest\" ] && basename \"$newest\" .jsonl > \"$SESSION_FILE\" || true\n"
+    )
+
+    script_path = Path(tempfile.gettempdir()) / f"fob-claude-{key}.sh"
+    script_path.write_text(script)
+    script_path.chmod(0o755)
+
+    safe_path = str(script_path).replace("'", "'\\''")
+    return f"bash '{safe_path}'"
 
 
 def ensure_claude_md(
