@@ -112,7 +112,7 @@ def show_help(_: list[str]) -> None:
         ("WORKSPACE", [
             ("brief [profile]",   "Auto-select current repo and launch"),
             ("brief --layout",    "Launch using saved layout (explicit restore)"),
-            ("multi",             "Multi-select picker — open several repos as tabs"),
+            ("multi [--all]",     "Multi-select picker — open several repos; --all skips picker"),
             ("restore [--show]",  "Re-open last saved session group (--show to preview)"),
             ("attach",            "Re-attach to running fob session"),
             ("kill",              "Terminate fob session and all panes (with warning)"),
@@ -231,12 +231,14 @@ def _autopick() -> list[dict]:
     return _run_picker(all_profiles, multi=False)
 
 
-def _pick_multi() -> list[dict]:
+def _pick_multi(all: bool = False) -> list[dict]:
     """Explicit multi-select picker — used by `fob multi`."""
     all_profiles = _discover_repos()
     if not all_profiles:
         print(c("✗ No repos found", "RED"))
         sys.exit(1)
+    if all:
+        return list(all_profiles.values())
     return _run_picker(all_profiles, multi=True)
 
 
@@ -452,7 +454,7 @@ def main() -> None:
 
         case "multi":
             _require_zellij()
-            _run_brief(_pick_multi(), use_saved_layout=False)
+            _run_brief(_pick_multi(all="--all" in args), use_saved_layout=False)
 
         case "kill":
             commands.cmd_kill(args)
