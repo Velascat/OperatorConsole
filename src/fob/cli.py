@@ -200,12 +200,17 @@ def _pick_profiles() -> list[dict]:
 
     names = sorted(all_profiles.keys())
 
-    # Auto-select by cwd if inside a known repo
+    # Auto-select by cwd if inside a known repo — unless that tab is already open
+    from fob.launcher import FOB_SESSION
+    from fob.launcher import _list_tabs
     cwd = Path.cwd()
     for name, profile in all_profiles.items():
         repo = Path(profile["repo_root"]).resolve()
         if cwd == repo or cwd.is_relative_to(repo):
-            return [profile]
+            existing = _list_tabs(FOB_SESSION)
+            if profile["name"] not in existing:
+                return [profile]
+            break  # tab already open — fall through to picker
 
     session_running = session_exists(FOB_SESSION)
 
