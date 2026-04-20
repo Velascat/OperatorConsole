@@ -337,28 +337,6 @@ def _which_any(binaries: list[str]) -> str | None:
     return None
 
 
-# ── vf ────────────────────────────────────────────────────────────────────────
-
-def cmd_vf(args: list[str], vf_dir: Path) -> None:
-    sub = args[0] if args else "help"
-    rest = args[1:]
-
-    cmds = {
-        "codex": ("bash", str(vf_dir / "tools" / "codex-helper.sh")),
-        "run": ("bash", str(vf_dir / "run-main.sh")),
-        "work": ("bash", str(vf_dir / "tools" / "open-workbench.sh"), "--menu"),
-        "workspace": ("bash", str(vf_dir / "open-codex-workflow.sh")),
-    }
-
-    if sub not in cmds:
-        print(f"  {c('vf codex', 'CYN')}  /  {c('vf run', 'CYN')}  /  {c('vf work', 'CYN')}  /  {c('vf workspace', 'CYN')}")
-        return
-
-    cmd_parts = list(cmds[sub]) + list(rest)
-    print(c(f"▶ VideoFoundry: vf {sub}", "CYN"))
-    os.chdir(vf_dir)
-    os.execvp(cmd_parts[0], cmd_parts)
-
 
 def cmd_kill(args: list[str]) -> None:
     from fob.launcher import FOB_SESSION

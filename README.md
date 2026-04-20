@@ -18,7 +18,7 @@ FOB is not a neutral bootstrap script or a multiplexer-agnostic tool. Zellij is 
 **Single repo:**
 ```
 ┌────────────────────────────────────────────────────────┐
-│  FOB  │  VideoFoundry  │  ...                         │  ← tab bar
+│  FOB  │  YourRepo  │  ...                         │  ← tab bar
 ├──────────┬──────────────────────────────┬──────────────┤
 │          │                              │              │
 │ lazygit  │      claude --continue       │     logs     │
@@ -34,7 +34,7 @@ Left 28%: lazygit (top) + col-status script (bottom, fixed). Center 44%: Claude 
 **Multi repo (`fob multi`) — single tab:**
 ```
 ┌──────────────────────────────────────────────────────┐
-│  FOB+VideoFoundry  │  ...                           │  ← tab bar
+│  FOB+YourRepo  │  ...                           │  ← tab bar
 ├──────────┬───────────────────────��──┬───────────────┤
 │ lazygit  │                          │ lazygit       │
 │ repo-A   │    claude --continue     │ repo-B        │
@@ -178,10 +178,10 @@ Layout state lives in `.fob/layout.json` (metadata) and `.fob/layout.kdl` (Zelli
 First run (no existing session):
 
 ```
-$ cd ~/Documents/GitHub/VideoFoundry
+$ cd ~/Documents/GitHub/YourRepo
 $ fob
 
-  Brief: VideoFoundry
+  Brief: YourRepo
   session  creating   (fob)
   layout   fresh
   mission  implement multi-source audio mixing…
@@ -194,7 +194,7 @@ Returning to an existing session:
 ```
 $ fob
 
-  Brief: VideoFoundry
+  Brief: YourRepo
   session  attaching  (fob)
   mission  implement multi-source audio mixing…
 

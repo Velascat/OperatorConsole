@@ -8,7 +8,6 @@ from pathlib import Path
 FOB_DIR = Path(__file__).resolve().parent.parent.parent
 PROFILES_DIR = FOB_DIR / "config" / "profiles"
 SCRIPTS_DIR = FOB_DIR / "tools"
-VF_DIR = FOB_DIR.parent / "VideoFoundry"
 
 _C = {
     "R": "\033[0m", "B": "\033[1m", "DIM": "\033[2m",
@@ -143,13 +142,7 @@ def show_help(_: list[str]) -> None:
             ("test",              "Run project tests"),
             ("audit",             "Run project audit"),
         ]),
-        ("VIDEO FOUNDRY", [
-            ("vf codex",          "Launch Codex AI workspace"),
-            ("vf run",            "Run main pipeline"),
-            ("vf work",           "Open workbench menu"),
-            ("vf workspace",      "Spawn full gnome-terminal layout"),
-        ]),
-        ("TOOLS", [
+("TOOLS", [
             ("cheat",             "Open full cheatsheet in floating pane"),
             ("loadout",           "Install and configure dev tools"),
             ("install",           "Symlink fob to ~/.local/bin"),
@@ -589,9 +582,6 @@ def main() -> None:
 
         case "doctor":
             commands.cmd_doctor(args, SCRIPTS_DIR)
-
-        case "vf":
-            commands.cmd_vf(args, VF_DIR)
 
         case "cheat":
             commands.cmd_cheat(args, SCRIPTS_DIR)
