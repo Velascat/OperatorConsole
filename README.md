@@ -29,7 +29,7 @@ FOB is not a neutral bootstrap script or a multiplexer-agnostic tool. Zellij is 
 │  NORMAL  │  fob  │  ...                               │  ← status bar
 ```
 
-Left 28%: `lazygit`. Center 44%: Claude + shell (15% bottom). Right 28%: logs. Same column widths as multi-repo.
+Left 28%: lazygit (top) + col-status script (bottom, fixed). Center 44%: Claude + shell (15%). Right 28%: logs.
 
 **Multi repo (`fob multi`) — single tab:**
 ```
@@ -44,7 +44,7 @@ Left 28%: `lazygit`. Center 44%: Claude + shell (15% bottom). Right 28%: logs. S
 └──────────┴──────────────────────────┴───────────────┘
 ```
 
-28% left + 28% right: per-repo lazygit+logs stacked (repos split evenly left/right). Center 44%: Claude + shell. Claude starts at `~/Documents/GitHub/`.
+Each side column (28%): stacked lazygits + stacked shells (one per repo), fixed col-status pane at bottom. Center 44%: Claude + shell. Repos split evenly left/right. Claude starts at `~/Documents/GitHub/`.
 
 ## What Happens When You Run `fob`
 

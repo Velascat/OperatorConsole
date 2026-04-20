@@ -21,9 +21,9 @@ def _c(text: str, *keys: str) -> str:
 
 # ── single-repo pane block ────────────────────────────────────────────────────
 #
-#  Left  30%: lazygit
-#  Center   : claude (top) + shell (15% bottom)  — horizontal split
-#  Right 15%: logs
+#  Left  28%: lazygit (top) + col-status script (bottom, fixed)
+#  Center   : claude (top) + shell (15% bottom)
+#  Right 28%: logs
 
 def _single_pane_block(
     profile: dict,
@@ -31,23 +31,31 @@ def _single_pane_block(
     indent: str = "        ",
     claude_cwd: Path | None = None,
 ) -> str:
-    repo      = profile["repo_root"]
-    panes_cfg = profile.get("panes", {})
+    repo       = profile["repo_root"]
+    panes_cfg  = profile.get("panes", {})
     claude_cmd = get_claude_command(profile, Path(repo))
-    git_cmd   = panes_cfg.get("git",  {}).get("command", "lazygit")
-    logs_cmd  = panes_cfg.get("logs", {}).get(
+    git_cmd    = panes_cfg.get("git",  {}).get("command", "lazygit")
+    logs_cmd   = panes_cfg.get("logs", {}).get(
         "command", "tail -f .fob/runtime.log 2>/dev/null || echo 'No runtime.log yet'",
     )
-    safe_repo = repo.replace("'", "'\\''")
-    safe_cwd  = str(claude_cwd).replace("'", "'\\''") if claude_cwd else safe_repo
-    welcome   = str(fob_dir / "tools" / "welcome.sh").replace("'", "'\\''")
+    safe_repo  = repo.replace("'", "'\\''")
+    safe_cwd   = str(claude_cwd).replace("'", "'\\''") if claude_cwd else safe_repo
+    welcome    = str(fob_dir / "tools" / "welcome.sh").replace("'", "'\\''")
+    col_status = str(fob_dir / "tools" / "col-status.sh").replace("'", "'\\''")
     i = indent
 
     return (
         f'{i}pane split_direction="vertical" {{\n'
-        f'{i}    pane size="28%" name="git" command="bash" {{\n'
-        f'{i}        args "-c" "cd \'{safe_repo}\' && {git_cmd}; exec bash -l"\n'
+        # Left column: lazygit + status script
+        f'{i}    pane size="28%" split_direction="horizontal" {{\n'
+        f'{i}        pane name="git" command="bash" {{\n'
+        f'{i}            args "-c" "cd \'{safe_repo}\' && {git_cmd}; exec bash -l"\n'
+        f'{i}        }}\n'
+        f'{i}        pane size="25%" name="status" command="bash" {{\n'
+        f'{i}            args "-c" "bash \'{col_status}\' \'{safe_repo}\'"\n'
+        f'{i}        }}\n'
         f'{i}    }}\n'
+        # Center: claude + shell
         f'{i}    pane split_direction="horizontal" {{\n'
         f'{i}        pane name="claude" command="bash" {{\n'
         f'{i}            args "-c" "cd \'{safe_cwd}\' && {claude_cmd}"\n'
@@ -56,6 +64,7 @@ def _single_pane_block(
         f'{i}            args "-c" "cd \'{safe_cwd}\' && bash \'{welcome}\'"\n'
         f'{i}        }}\n'
         f'{i}    }}\n'
+        # Right column: logs
         f'{i}    pane size="28%" name="logs" command="bash" {{\n'
         f'{i}        args "-c" "cd \'{safe_repo}\' && {logs_cmd}; exec bash -l"\n'
         f'{i}    }}\n'
@@ -66,30 +75,59 @@ def _single_pane_block(
 # ── multi-repo pane block ─────────────────────────────────────────────────────
 #
 #  Repos split left/right (even indices left, odd indices right).
-#  Each side: per-repo lazygit+logs stacked.
-#  Center horizontal split:
-#    ├── claude  (~85%)  — starts at ~/Documents/GitHub/
-#    └── shell   (15%)   — starts at ~/Documents/GitHub/
+#  Each side column (28%):
+#    ├── stacked lazygits  (one per repo on that side)
+#    ├── stacked shells    (one per repo on that side)
+#    └── col-status script (fixed, always visible)
+#  Center 44%:
+#    ├── claude  — starts at ~/Documents/GitHub/
+#    └── shell (15%)
 
-def _repo_stack_panes(profiles: list[dict], indent: str) -> str:
-    """lazygit + logs panes for each profile, to be placed inside a stacked parent."""
-    out = ""
+def _side_column_block(
+    profiles: list[dict],
+    fob_dir: Path,
+    indent: str,
+    size: str = "28%",
+) -> str:
+    """Side column: stacked lazygits + stacked shells + fixed status pane."""
+    col_status = str(fob_dir / "tools" / "col-status.sh").replace("'", "'\\''")
+    repo_args  = " ".join(
+        f"'{p['repo_root'].replace(chr(39), chr(39)+chr(92)+chr(39)+chr(39))}'"
+        for p in profiles
+    )
     i = indent
+
+    lazygit_stack = f'{i}    pane stacked=true {{\n'
+    shell_stack   = f'{i}    pane stacked=true {{\n'
     for p in profiles:
-        repo     = p["repo_root"].replace("'", "'\\''")
-        git_cmd  = p.get("panes", {}).get("git",  {}).get("command", "lazygit")
-        logs_cmd = p.get("panes", {}).get("logs", {}).get(
-            "command", "tail -f .fob/runtime.log 2>/dev/null || echo 'No runtime.log yet'",
+        repo    = p["repo_root"].replace("'", "'\\''")
+        git_cmd = p.get("panes", {}).get("git", {}).get("command", "lazygit")
+        lazygit_stack += (
+            f'{i}        pane name="git-{p["name"]}" command="bash" {{\n'
+            f'{i}            args "-c" "cd \'{repo}\' && {git_cmd}; exec bash -l"\n'
+            f'{i}        }}\n'
         )
-        out += (
-            f'{i}pane name="git-{p["name"]}" command="bash" {{\n'
-            f'{i}    args "-c" "cd \'{repo}\' && {git_cmd}; exec bash -l"\n'
-            f'{i}}}\n'
-            f'{i}pane name="logs-{p["name"]}" command="bash" {{\n'
-            f'{i}    args "-c" "cd \'{repo}\' && {logs_cmd}; exec bash -l"\n'
-            f'{i}}}\n'
+        shell_stack += (
+            f'{i}        pane name="shell-{p["name"]}" command="bash" {{\n'
+            f'{i}            args "-c" "cd \'{repo}\' && exec bash -l"\n'
+            f'{i}        }}\n'
         )
-    return out
+    lazygit_stack += f'{i}    }}\n'
+    shell_stack   += f'{i}    }}\n'
+
+    status_pane = (
+        f'{i}    pane size="25%" name="status" command="bash" {{\n'
+        f'{i}        args "-c" "bash \'{col_status}\' {repo_args}"\n'
+        f'{i}    }}\n'
+    )
+
+    return (
+        f'{i}pane size="{size}" split_direction="horizontal" {{\n'
+        + lazygit_stack
+        + shell_stack
+        + status_pane
+        + f'{i}}}'
+    )
 
 
 def _multi_pane_block(
@@ -104,15 +142,7 @@ def _multi_pane_block(
     claude_cmd = get_claude_command(profiles[0], Path(profiles[0]["repo_root"]))
     i = indent
 
-    # Width: left/right each 28%, center gets the rest (~44% for 2 repos)
-    side_pct = "28%"
-
-    left_block = (
-        f'{i}    pane size="{side_pct}" stacked=true {{\n'
-        + _repo_stack_panes(left, indent=i + "        ")
-        + f'{i}    }}\n'
-    )
-
+    left_block   = _side_column_block(left,  fob_dir, i + "    ", size="28%") + "\n"
     center_block = (
         f'{i}    pane split_direction="horizontal" {{\n'
         f'{i}        pane name="claude" command="bash" {{\n'
@@ -123,11 +153,8 @@ def _multi_pane_block(
         f'{i}        }}\n'
         f'{i}    }}\n'
     )
-
     right_block = (
-        f'{i}    pane size="{side_pct}" stacked=true {{\n'
-        + _repo_stack_panes(right, indent=i + "        ")
-        + f'{i}    }}\n'
+        _side_column_block(right, fob_dir, i + "    ", size="28%") + "\n"
     ) if right else ""
 
     return (
