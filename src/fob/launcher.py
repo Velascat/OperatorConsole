@@ -89,7 +89,6 @@ def generate_session_layout(profiles: list[dict], fob_dir: Path) -> Path:
         + _chrome_template()
         + f'    tab name="{name}" {{\n'
         + f'{panes}\n'
-        + _floating_cheat_block(fob_dir, indent="        ")
         + '    }\n'
         + '}\n'
     )
@@ -112,8 +111,7 @@ def generate_tab_layout(profile: dict, fob_dir: Path) -> Path:
         '    pane size=2 borderless=true {\n'
         '        plugin location="status-bar"\n'
         '    }\n'
-        + _floating_cheat_block(fob_dir, indent="    ")
-        + '}\n'
+        '}\n'
     )
     tmp = Path(tempfile.gettempdir()) / f"fob-tab-{name}.kdl"
     tmp.write_text(layout)
@@ -209,9 +207,7 @@ def launch(profiles: list[dict], fob_dir: Path, reset_layout: bool = False) -> N
             attach(FOB_SESSION)
     else:
         saved = Path(profiles[0]["repo_root"]) / ".fob" / "layout-state.kdl"
-        if not reset_layout and saved.exists() and all(
-            kw in saved.read_text() for kw in ("tab-bar", "floating_panes")
-        ):
+        if not reset_layout and saved.exists() and "tab-bar" in saved.read_text():
             layout_path = saved
             print(f"  → Restoring saved layout")
         else:
