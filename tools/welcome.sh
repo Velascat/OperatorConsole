@@ -43,21 +43,21 @@ hr
 printf "  ${CYN}%-18s${R} ${DIM}%s${R}\n" "fob status"    "situation report"
 printf "  ${CYN}%-18s${R} ${DIM}%s${R}\n" "fob resume"    "claude mission brief"
 printf "  ${CYN}%-18s${R} ${DIM}%s${R}\n" "fob test"      "run project tests"
-printf "  ${CYN}%-18s${R} ${DIM}%s${R}\n" "fob loadout"      "install / update dev tools"
+printf "  ${CYN}%-18s${R} ${DIM}%s${R}\n" "fob loadout"   "install / update dev tools"
 printf "  ${CYN}%-18s${R} ${DIM}%s${R}\n" "fob cheat"     "open full cheatsheet"
 echo
 
 hr
-echo -e "  ${B}ZELLIJ${R}  ${DIM}(prefix: Ctrl+a)${R}"
+echo -e "  ${B}ZELLIJ${R}"
 hr
-printf "  ${YLW}%-22s${R} ${DIM}%s${R}\n" "Ctrl+a |"       "split pane vertical"
-printf "  ${YLW}%-22s${R} ${DIM}%s${R}\n" "Ctrl+a -"       "split pane horizontal"
-printf "  ${YLW}%-22s${R} ${DIM}%s${R}\n" "Ctrl+a z"       "zoom pane fullscreen"
-printf "  ${YLW}%-22s${R} ${DIM}%s${R}\n" "Ctrl+a h/j/k/l" "navigate panes"
-printf "  ${YLW}%-22s${R} ${DIM}%s${R}\n" "Ctrl+a d"       "detach session"
-printf "  ${YLW}%-22s${R} ${DIM}%s${R}\n" "Ctrl+a n"       "new window/tab"
-printf "  ${YLW}%-22s${R} ${DIM}%s${R}\n" "Ctrl+a w"       "window list"
-printf "  ${YLW}%-22s${R} ${DIM}%s${R}\n" "Ctrl+a ?"       "all keybindings"
+printf "  ${YLW}%-22s${R} ${DIM}%s${R}\n" "Ctrl+p ↑↓←→"    "navigate panes"
+printf "  ${YLW}%-22s${R} ${DIM}%s${R}\n" "Ctrl+p z"        "zoom pane fullscreen"
+printf "  ${YLW}%-22s${R} ${DIM}%s${R}\n" "Ctrl+p f"        "toggle floating panes"
+printf "  ${YLW}%-22s${R} ${DIM}%s${R}\n" "Ctrl+p x"        "close pane"
+printf "  ${YLW}%-22s${R} ${DIM}%s${R}\n" "Ctrl+t t"        "new tab"
+printf "  ${YLW}%-22s${R} ${DIM}%s${R}\n" "Ctrl+t ←→"       "switch tab"
+printf "  ${YLW}%-22s${R} ${DIM}%s${R}\n" "Ctrl+o d"        "detach session"
+printf "  ${YLW}%-22s${R} ${DIM}%s${R}\n" "Ctrl+h"          "all keybindings"
 echo
 hr
 echo -e "  ${DIM}run ${CYN}fob cheat${DIM} to open the full floating reference${R}"

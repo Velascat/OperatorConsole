@@ -192,7 +192,6 @@ def launch(profiles: list[dict], fob_dir: Path, reset_layout: bool = False) -> N
         else:
             layout_path = generate_session_layout(profiles, fob_dir)
             print(f"  → Creating session '{FOB_SESSION}'")
-        print(f"  → Layout: {layout_path}")
         os.execvp(
             "zellij",
             ["zellij", "--session", FOB_SESSION, "--new-session-with-layout", str(layout_path)],

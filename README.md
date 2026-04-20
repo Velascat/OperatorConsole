@@ -1,6 +1,6 @@
 # FOB — Forward Operating Base
 
-A local operator console for Claude-driven development. Run `fob` from any repo — it detects where you are, bootstraps itself if needed, and opens a structured Zellij workspace.
+A workspace entry tool for Claude-driven development. Run `fob` from any repo — it detects where you are, bootstraps itself if needed, and opens a structured Zellij workspace.
 
 ## What You Get
 
@@ -8,7 +8,6 @@ A local operator console for Claude-driven development. Run `fob` from any repo 
 - **Structured workspace** — lazygit, logs, and shell stacked on the left; Claude on the right
 - **`.fob/` mission files** — four local markdown files that give Claude explicit, persistent context across sessions
 - **Auto-discovery** — every git repo under `~/Documents/GitHub/` appears in the picker automatically; no YAML required
-- **Session persistence** — Zellij serialization survives terminal close and reboots
 
 ## What Happens When You Run `fob`
 
@@ -87,8 +86,7 @@ At launch, FOB regenerates `.fob/.briefing` from the source files. Claude reads 
 
 | Command | Description |
 |---------|-------------|
-| `fob` | Smart launch — detects repo from cwd, opens workspace |
-| `fob brief [repo]` | Explicit launch with picker or named repo |
+| `fob` / `fob brief [repo]` | Launch — auto-selects repo from cwd, or shows picker |
 | `fob brief --reset-layout` | Regenerate layout from defaults, discarding saved state |
 | `fob clear` | Delete saved layout for current repo |
 | `fob clear --all` | Delete all saved layouts |

@@ -312,9 +312,7 @@ def main() -> None:
             named = [a for a in args if not a.startswith("--")]
             from fob.profile_loader import load_profile, validate_profile
             from fob.launcher import launch
-            from fob.bootstrap import (
-                ensure_claude_md, write_bootstrap_file, ensure_zellij_serialization,
-            )
+            from fob.bootstrap import ensure_claude_md, write_bootstrap_file
             from pathlib import Path
 
             if named:
@@ -359,7 +357,6 @@ def main() -> None:
                 ensure_claude_md(repo_root, FOB_DIR / "templates" / "mission",
                                  extra_files=extra_files or None)
 
-            ensure_zellij_serialization()
             names = ", ".join(p["name"] for p in profiles)
             print(c(f"\n  Brief: {names}", "B", "CYN"))
             launch(profiles, FOB_DIR, reset_layout=reset_layout)
