@@ -36,7 +36,7 @@ Left 28%: lazygit (top) + ControlPlane status script (bottom 25%). Center 44%: C
 **Multi repo (`fob multi` or group profile) — single tab:**
 ```
 ┌──────────────────────────────────────────────────────┐
-│  platform  │  ...                                │  ← tab bar
+│  platform  │  ...                                │  ← tab bar (group name, not member list)
 ├──────────┬─────────────────────────┬──────────────────┤
 │ lazygit  │                         │  shell-A ▸       │
 │  repo-A  │                         │  shell-B ▸  (75%)│
@@ -47,6 +47,8 @@ Left 28%: lazygit (top) + ControlPlane status script (bottom 25%). Center 44%: C
 ```
 
 Left 28%: stacked lazygits (all repos). Center: Claude only, starts at `~/Documents/GitHub/`. Right 28%: stacked shells (75%) + ControlPlane status (25%).
+
+Tab naming: group profiles use the group name (`platform`); ad-hoc multi-select joins all repo names (`RepoA+RepoB+RepoC`).
 
 ## What Happens When You Run `fob`
 

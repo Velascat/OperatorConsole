@@ -69,10 +69,12 @@ Pane arrangement — **single repo**:
 - **Center**: Claude (`claude --resume <id>`) top + Shell (`bash`) bottom 15% — horizontal split
 - **Right 28%**: Logs (`tail -f .fob/runtime.log`)
 
-Pane arrangement — **multi repo** (single tab, tab name = joined repo names):
+Pane arrangement — **multi repo** (single tab):
 - **Left 28%**: stacked lazygits (all repos)
 - **Center**: Claude only — starts at `~/Documents/GitHub/`
 - **Right 28%**: stacked shells (auto height, 75%) + ControlPlane status (bottom 25%)
+
+Tab naming: group profiles use the group name (e.g. `platform`); ad-hoc multi-select joins all repo names (`RepoA+RepoB+RepoC`). `_multi_tab_name()` always lists all repos — no truncation.
 
 ## Profiles
 

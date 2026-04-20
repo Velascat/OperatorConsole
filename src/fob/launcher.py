@@ -84,10 +84,11 @@ def _multi_pane_block(
     profiles: list[dict],
     fob_dir: Path,
     indent: str = "        ",
+    tab_name: str | None = None,
 ) -> str:
     cp_status  = str(_CP_STATUS).replace("'", "'\\''")
     safe_cwd   = str(_GITHUB_DIR).replace("'", "'\\''")
-    session_key = _multi_tab_name(profiles)
+    session_key = tab_name or _multi_tab_name(profiles)
     claude_cmd  = get_claude_command(
         profiles[0], Path(profiles[0]["repo_root"]),
         fob_dir=fob_dir, session_key=session_key, claude_cwd=_GITHUB_DIR,
@@ -155,10 +156,7 @@ def _multi_pane_block(
 
 
 def _multi_tab_name(profiles: list[dict]) -> str:
-    names = [p["name"] for p in profiles]
-    if len(names) <= 3:
-        return "+".join(names)
-    return "+".join(names[:2]) + f"+{len(names) - 2}more"
+    return "+".join(p["name"] for p in profiles)
 
 
 # ── chrome / chrome-less wrappers ─────────────────────────────────────────────
@@ -208,40 +206,40 @@ def _saved_panes_kdl(profile: dict, fob_dir: Path) -> str | None:
     return None
 
 
-def generate_session_kdl(profiles: list[dict], fob_dir: Path) -> str:
+def generate_session_kdl(profiles: list[dict], fob_dir: Path, tab_name: str | None = None) -> str:
     """Return session layout KDL string (no side effects)."""
     if len(profiles) == 1:
-        tab_name = profiles[0]["name"]
-        panes    = _saved_panes_kdl(profiles[0], fob_dir) or _single_pane_block(profiles[0], fob_dir, indent="        ")
+        name  = tab_name or profiles[0]["name"]
+        panes = _saved_panes_kdl(profiles[0], fob_dir) or _single_pane_block(profiles[0], fob_dir, indent="        ")
     else:
-        tab_name = _multi_tab_name(profiles)
-        panes    = _multi_pane_block(profiles, fob_dir, indent="        ")
+        name  = tab_name or _multi_tab_name(profiles)
+        panes = _multi_pane_block(profiles, fob_dir, indent="        ", tab_name=name)
 
     return (
         'layout {\n'
         + _chrome_template()
-        + f'    tab name="{tab_name}" {{\n'
+        + f'    tab name="{name}" {{\n'
         + f'{panes}\n'
         + '    }\n'
         + '}\n'
     )
 
 
-def generate_session_layout(profiles: list[dict], fob_dir: Path) -> Path:
+def generate_session_layout(profiles: list[dict], fob_dir: Path, tab_name: str | None = None) -> Path:
     """Write session layout to /tmp, return path."""
     tmp = Path(tempfile.gettempdir()) / "fob-session.kdl"
-    tmp.write_text(generate_session_kdl(profiles, fob_dir))
+    tmp.write_text(generate_session_kdl(profiles, fob_dir, tab_name=tab_name))
     return tmp
 
 
-def generate_tab_layout(profiles: list[dict], fob_dir: Path) -> Path:
+def generate_tab_layout(profiles: list[dict], fob_dir: Path, tab_name: str | None = None) -> tuple[Path, str]:
     """Write a standalone tab layout (for adding to running session) to /tmp."""
     if len(profiles) == 1:
-        name  = profiles[0]["name"]
+        name  = tab_name or profiles[0]["name"]
         panes = _saved_panes_kdl(profiles[0], fob_dir) or _single_pane_block(profiles[0], fob_dir, indent="    ")
     else:
-        name  = _multi_tab_name(profiles)
-        panes = _multi_pane_block(profiles, fob_dir, indent="    ")
+        name  = tab_name or _multi_tab_name(profiles)
+        panes = _multi_pane_block(profiles, fob_dir, indent="    ", tab_name=name)
 
     tmp = Path(tempfile.gettempdir()) / f"fob-tab-{name}.kdl"
     tmp.write_text(_tab_chrome_wrap(panes))
@@ -299,6 +297,7 @@ def launch(
     fob_dir: Path,
     reset_layout: bool = False,
     saved_layout_path: Path | None = None,
+    tab_name: str | None = None,
 ) -> None:
     for profile in profiles:
         check_branch(Path(profile["repo_root"]))
@@ -308,7 +307,7 @@ def launch(
     already_in_session = os.environ.get("ZELLIJ_SESSION_NAME") == FOB_SESSION
     if already_in_session or session_exists(FOB_SESSION):
         existing_tabs = _list_tabs(FOB_SESSION)
-        layout_path, tab_name = generate_tab_layout(profiles, fob_dir)
+        layout_path, tab_name = generate_tab_layout(profiles, fob_dir, tab_name=tab_name)
         if tab_name in existing_tabs:
             print(f"  {_c('tab', 'DIM')}  {_c(tab_name, 'DIM')}  {_c('already open', 'DIM')}")
         else:
@@ -326,7 +325,7 @@ def launch(
         if saved_layout_path is not None:
             layout_path = saved_layout_path
         else:
-            layout_path = generate_session_layout(profiles, fob_dir)
+            layout_path = generate_session_layout(profiles, fob_dir, tab_name=tab_name)
         os.execvp(
             "zellij",
             ["zellij", "--session", FOB_SESSION, "--new-session-with-layout", str(layout_path)],

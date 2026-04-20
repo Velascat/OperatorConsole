@@ -207,7 +207,7 @@ def _discover_repos() -> dict[str, dict]:
     return found
 
 
-def _autopick() -> list[dict]:
+def _autopick() -> tuple[list[dict], str | None]:
     """Auto-select current repo, or show single-select picker if not in any repo."""
     import subprocess
     from fob.session import session_exists
@@ -226,28 +226,37 @@ def _autopick() -> list[dict]:
             continue
         repo = Path(profile["repo_root"]).resolve()
         if cwd == repo or cwd.is_relative_to(repo):
-            return [profile]
+            return [profile], None
 
     # cwd is outside all repos (e.g. ~/Documents/GitHub/ itself) → single-select picker
     return _run_picker(all_profiles, multi=False)
 
 
-def _pick_multi(all: bool = False) -> list[dict]:
+def _pick_multi(all: bool = False) -> tuple[list[dict], str | None]:
     """Explicit multi-select picker — used by `fob multi`."""
     all_profiles = _discover_repos()
     if not all_profiles:
         print(c("✗ No repos found", "RED"))
         sys.exit(1)
     if all:
-        return list(all_profiles.values())
+        return list(all_profiles.values()), None
     return _run_picker(all_profiles, multi=True)
 
 
-def _expand_selection(selected_raw: list[dict]) -> list[dict]:
-    """Expand any group profiles in a selection into their constituent profiles."""
+def _expand_selection(selected_raw: list[dict]) -> tuple[list[dict], str | None]:
+    """Expand any group profiles in a selection into their constituent profiles.
+
+    Returns (expanded_profiles, tab_name_override).
+    tab_name_override is set when a single group profile was selected — the tab
+    is named after the group rather than the joined member names.
+    """
     from fob.profile_loader import load_profile
     result = []
     seen = set()
+    # Single group selected → use group name as tab label
+    tab_name: str | None = None
+    if len(selected_raw) == 1 and "group" in selected_raw[0] and "repo_root" not in selected_raw[0]:
+        tab_name = selected_raw[0]["name"]
     for p in selected_raw:
         if "group" in p:
             for sub_name in p["group"]:
@@ -262,10 +271,10 @@ def _expand_selection(selected_raw: list[dict]) -> list[dict]:
             if p["name"] not in seen:
                 result.append(p)
                 seen.add(p["name"])
-    return result
+    return result, tab_name
 
 
-def _run_picker(all_profiles: dict, multi: bool) -> list[dict]:
+def _run_picker(all_profiles: dict, multi: bool) -> tuple[list[dict], str | None]:
     """Show fzf or numbered picker. multi=True enables Tab multi-select.
 
     Repos and groups are shown together; groups are prefixed with ▸ and
@@ -332,7 +341,7 @@ def _run_picker(all_profiles: dict, multi: bool) -> list[dict]:
             k = display_to_key.get(name)
             if k:
                 selected_raw.append(all_profiles[k])
-        return _expand_selection(selected_raw)
+        return _expand_selection(selected_raw)  # returns (profiles, tab_name)
 
     # Numbered fallback
     print()
@@ -367,7 +376,7 @@ def _run_picker(all_profiles: dict, multi: bool) -> list[dict]:
     if not selected_raw:
         print(c("✗ No valid selection", "RED"))
         sys.exit(1)
-    return _expand_selection(selected_raw)
+    return _expand_selection(selected_raw)  # returns (profiles, tab_name)
 
 
 def _require_zellij() -> None:
@@ -381,7 +390,7 @@ def _require_zellij() -> None:
         sys.exit(1)
 
 
-def _run_brief(profiles: list[dict], use_saved_layout: bool = False) -> None:
+def _run_brief(profiles: list[dict], use_saved_layout: bool = False, tab_name: str | None = None) -> None:
     """Core brief flow shared by `fob brief`, `fob multi`, and `fob restore`."""
     from fob.profile_loader import load_profile
     from fob.launcher import launch, FOB_SESSION
@@ -457,7 +466,7 @@ def _run_brief(profiles: list[dict], use_saved_layout: bool = False) -> None:
             if snip:
                 print(f"  {c('mission  ', 'DIM')}{c(snip, 'DIM')}")
     print()
-    launch(profiles, FOB_DIR, saved_layout_path=saved_layout_path)
+    launch(profiles, FOB_DIR, saved_layout_path=saved_layout_path, tab_name=tab_name)
 
 
 # ── dispatch ──────────────────────────────────────────────────────────────────
@@ -496,7 +505,7 @@ def main() -> None:
                         raw.append(load_profile(pname, PROFILES_DIR))
                     except FileNotFoundError as e:
                         print(c(f"✗ {e}", "RED")); sys.exit(1)
-                profiles = _expand_selection(raw)
+                profiles, tab_name = _expand_selection(raw)
                 for p in profiles:
                     errs = validate_profile(p)
                     if errs:
@@ -505,12 +514,13 @@ def main() -> None:
                             print(c(f"  · {e}", "DIM"))
                         sys.exit(1)
             else:
-                profiles = _autopick()
-            _run_brief(profiles, use_saved_layout=use_saved_layout)
+                profiles, tab_name = _autopick()
+            _run_brief(profiles, use_saved_layout=use_saved_layout, tab_name=tab_name)
 
         case "multi":
             _require_zellij()
-            _run_brief(_pick_multi(all="--all" in args), use_saved_layout=False)
+            profiles, tab_name = _pick_multi(all="--all" in args)
+            _run_brief(profiles, use_saved_layout=False, tab_name=tab_name)
 
         case "kill":
             commands.cmd_kill(args)
