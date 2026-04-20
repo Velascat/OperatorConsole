@@ -65,6 +65,7 @@ def cmd_init(args: list[str], fob_dir: Path) -> None:
 # ── status ────────────────────────────────────────────────────────────────────
 
 def cmd_status(args: list[str], fob_dir: Path, default_profile: dict | None) -> None:
+    import os
     cwd = Path.cwd()
     repo_root = Path(default_profile["repo_root"]) if default_profile else cwd
 
@@ -74,10 +75,13 @@ def cmd_status(args: list[str], fob_dir: Path, default_profile: dict | None) -> 
         branch_disp = c(f"{branch}  ⚠ protected", "YLW", "B")
 
     from fob.launcher import FOB_SESSION
+    from fob import layout as layout_mod
     sessions = list_sessions()
     fob_running = FOB_SESSION in sessions
     session_disp = (c(f"{FOB_SESSION}  (running)", "GRN") if fob_running
                     else c(f"{FOB_SESSION}  (stopped)", "DIM"))
+    attached = os.environ.get("ZELLIJ_SESSION_NAME") == FOB_SESSION
+    attached_disp = c("yes", "GRN") if attached else c("no", "DIM")
 
     profile_name = default_profile.get("name", "—") if default_profile else c("none loaded", "DIM")
 
@@ -89,30 +93,50 @@ def cmd_status(args: list[str], fob_dir: Path, default_profile: dict | None) -> 
     print(f"  {c('branch      ', 'DIM')} {branch_disp}")
     print(f"  {c('profile     ', 'DIM')} {profile_name}")
     print(f"  {c('session     ', 'DIM')} {session_disp}")
+    print(f"  {c('attached    ', 'DIM')} {attached_disp}")
     print()
 
+    # Layout status
+    layout_result = layout_mod.load_any(repo_root)
+    if layout_result:
+        meta, kdl_path, is_current = layout_result
+        tag = "" if is_current else c("  ⚠ stale repo path", "YLW")
+        saved_at = meta.get("saved_at", "?")
+        pname = meta.get("profile_name", "?")
+        print(f"  {c('layout      ', 'DIM')} {c('saved', 'GRN')}  ·  {pname}  ·  {saved_at}{tag}")
+        print(f"  {c('            ', 'DIM')} {c(str(kdl_path), 'DIM')}")
+    else:
+        print(f"  {c('layout      ', 'DIM')} {c('none saved', 'DIM')}  {c('(run: fob layout save)', 'DIM')}")
+    print()
+
+    # Mission files + active mission snippet
     claude_dir = repo_root / ".fob"
     if claude_dir.exists():
-        print(f"  {c('.fob/    ', 'DIM')}")
-        for name in ["standing-orders.md", "active-mission.md", "objectives.md", "mission-log.md"]:
+        print(f"  {c('.fob/', 'DIM')}")
+        for name in ["active-mission.md", "standing-orders.md", "objectives.md", "mission-log.md"]:
             p = claude_dir / name
-            status = c("✓", "GRN") if p.exists() else c("✗", "DIM")
-            print(f"    {status}  {name}")
+            mark = c("✓", "GRN") if p.exists() else c("✗", "DIM")
+            print(f"    {mark}  {name}")
+        mission_path = claude_dir / "active-mission.md"
+        if mission_path.exists():
+            snippet = _mission_snippet(mission_path)
+            if snippet:
+                print(f"\n  {c('mission     ', 'DIM')} {c(snippet, 'DIM')}")
     else:
         print(c("  ✗  .fob/ not initialized — run: fob init", "YLW"))
     print()
-    print(f"  {c('HELPERS', 'B')}")
-    helpers = [
-        ("fob brief", "launch Zellij workspace"),
-        ("fob resume", "print Claude resume context"),
-        ("fob status", "this view"),
-        ("fob test", "run project tests"),
-        ("fob audit", "run project audit"),
-        ("fob doctor", "check dependencies"),
-    ]
-    for cmd, desc in helpers:
-        print(f"    {c(cmd, 'CYN')}  {c(desc, 'DIM')}")
-    print()
+
+
+def _mission_snippet(path: Path, max_len: int = 60) -> str:
+    """Return first non-empty, non-heading line from a mission file."""
+    try:
+        for line in path.read_text().splitlines():
+            stripped = line.strip()
+            if stripped and not stripped.startswith("#"):
+                return stripped[:max_len] + ("…" if len(stripped) > max_len else "")
+    except Exception:
+        pass
+    return ""
 
 
 # ── resume ────────────────────────────────────────────────────────────────────
@@ -325,6 +349,181 @@ def cmd_cheat(args: list[str], scripts_dir: Path) -> None:
 def cmd_loadout(args: list[str], scripts_dir: Path) -> None:
     script = scripts_dir / "loadout.sh"
     os.execvp("bash", ["bash", str(script)] + args)
+
+
+# ── reset ────────────────────────────────────────────────────────────────────
+
+def cmd_reset(args: list[str], default_profile: dict | None, fob_dir: Path) -> None:
+    """Reset FOB state — session, layout, and/or mission files."""
+    import os
+    from fob.launcher import FOB_SESSION
+    from fob.session import session_exists as _session_exists
+    from fob import layout as layout_mod
+
+    repo_root = Path(default_profile["repo_root"]) if default_profile else Path.cwd()
+
+    # If no scope flags given, reset everything
+    no_flags = not any(f in args for f in ("--session", "--layout", "--state"))
+    do_session = "--session" in args or no_flags
+    do_layout  = "--layout"  in args or no_flags
+    do_state   = "--state"   in args or no_flags
+
+    # Build description of what will happen
+    actions: list[tuple[str, str]] = []
+    if do_session and _session_exists(FOB_SESSION):
+        actions.append(("session", f"kill '{FOB_SESSION}' session"))
+    if do_layout and layout_mod.load_any(repo_root):
+        actions.append(("layout", f"delete .fob/layout.json + .fob/layout.kdl"))
+    if do_state:
+        present = [
+            n for n in ("active-mission.md", "standing-orders.md", "objectives.md", "mission-log.md")
+            if (repo_root / ".fob" / n).exists()
+        ]
+        if present:
+            actions.append(("state", f"delete .fob/ mission files ({len(present)} files)"))
+
+    if not actions:
+        print(c("  Nothing to reset.", "DIM"))
+        return
+
+    print()
+    print(c("  About to reset:", "B"))
+    for scope, desc in actions:
+        print(f"    {c('✗', 'RED')} {c(scope, 'B'):<12}  {c(desc, 'DIM')}")
+    print()
+    print(c("  This cannot be undone.", "YLW"))
+    try:
+        answer = input(c("  Continue? [y/N] ", "B"))
+    except (EOFError, KeyboardInterrupt):
+        print()
+        print(c("  Aborted.", "DIM"))
+        sys.exit(0)
+
+    if answer.strip().lower() != "y":
+        print(c("  Aborted.", "DIM"))
+        sys.exit(0)
+
+    print()
+    if do_session and _session_exists(FOB_SESSION):
+        subprocess.run(["zellij", "kill-session", FOB_SESSION], capture_output=True)
+        print(c(f"  ✓ session  killed '{FOB_SESSION}'", "GRN"))
+        if os.environ.get("ZELLIJ_SESSION_NAME") != FOB_SESSION:
+            subprocess.run(["tput", "reset"])
+
+    if do_layout:
+        deleted = layout_mod.reset(repo_root)
+        if deleted:
+            print(c(f"  ✓ layout   cleared ({len(deleted)} file(s))", "GRN"))
+
+    if do_state:
+        mission_files = [
+            "active-mission.md", "standing-orders.md", "objectives.md", "mission-log.md"
+        ]
+        removed = 0
+        for name in mission_files:
+            p = repo_root / ".fob" / name
+            if p.exists():
+                p.unlink()
+                removed += 1
+        if removed:
+            print(c(f"  ✓ state    deleted {removed} mission file(s)", "GRN"))
+            print(c(f"    Run `fob init` or `fob brief` to reinitialize.", "DIM"))
+    print()
+
+
+# ── map ───────────────────────────────────────────────────────────────────────
+
+def cmd_map(args: list[str], default_profile: dict | None) -> None:
+    """Print a structured snapshot of current FOB state."""
+    import os
+    import json as _json
+    from fob.launcher import FOB_SESSION
+    from fob.session import session_exists as _session_exists
+    from fob import layout as layout_mod
+
+    repo_root = Path(default_profile["repo_root"]).resolve() if default_profile else Path.cwd().resolve()
+    profile_name = default_profile.get("name", repo_root.name) if default_profile else repo_root.name
+
+    branch     = get_branch(repo_root)
+    running    = _session_exists(FOB_SESSION)
+    attached   = os.environ.get("ZELLIJ_SESSION_NAME") == FOB_SESSION
+    layout_res = layout_mod.load_any(repo_root)
+
+    fob_dir = repo_root / ".fob"
+    mission_files = ["active-mission.md", "standing-orders.md", "objectives.md", "mission-log.md", ".briefing"]
+    mission_state = {n: (fob_dir / n).exists() for n in mission_files}
+
+    if "--json" in args:
+        data = {
+            "repo": {
+                "name":    profile_name,
+                "path":    str(repo_root),
+                "branch":  branch or "unknown",
+            },
+            "session": {
+                "name":     FOB_SESSION,
+                "running":  running,
+                "attached": attached,
+            },
+            "layout": (
+                {
+                    "saved":      True,
+                    "current":    layout_res[2],
+                    "profile":    layout_res[0].get("profile_name"),
+                    "saved_at":   layout_res[0].get("saved_at"),
+                    "backend":    layout_res[0].get("backend"),
+                    "file":       str(layout_res[1]),
+                }
+                if layout_res else {"saved": False}
+            ),
+            "mission_files": mission_state,
+        }
+        print(_json.dumps(data, indent=2))
+        return
+
+    print()
+    print(hr())
+    print(c("  FOB STATE MAP", "B", "CYN"))
+    print(hr())
+
+    def row(label: str, value: str) -> None:
+        print(f"    {c(f'{label:<12}', 'DIM')} {value}")
+
+    print(c("  repo", "B"))
+    row("name",   profile_name)
+    row("path",   str(repo_root))
+    row("branch", branch or c("unknown", "DIM"))
+    print()
+
+    print(c("  session", "B"))
+    row("name",     FOB_SESSION)
+    row("status",   c("running", "GRN") if running else c("stopped", "DIM"))
+    row("attached", c("yes", "GRN") if attached else c("no", "DIM"))
+    print()
+
+    print(c("  layout", "B"))
+    if layout_res:
+        meta, kdl_path, is_current = layout_res
+        stale_tag = "" if is_current else f"  {c('⚠ stale', 'YLW')}"
+        row("saved",    c("yes", "GRN") + stale_tag)
+        row("profile",  meta.get("profile_name", "?"))
+        row("saved at", meta.get("saved_at", "?"))
+        row("backend",  meta.get("backend", "?"))
+        row("file",     c(str(kdl_path), "DIM"))
+    else:
+        row("saved", c("none", "DIM") + f"  {c('(run: fob layout save)', 'DIM')}")
+    print()
+
+    print(c("  mission (.fob/)", "B"))
+    for name, exists in mission_state.items():
+        mark = c("✓", "GRN") if exists else c("✗", "DIM")
+        label = name
+        if name == ".briefing":
+            label += "  (compiled)"
+        print(f"    {mark}  {c(label, 'DIM') if not exists else label}")
+    print()
+    print(hr())
+    print()
 
 
 # ── layout ───────────────────────────────────────────────────────────────────

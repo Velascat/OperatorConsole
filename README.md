@@ -1,23 +1,19 @@
 # FOB — Forward Operating Base
 
-A workspace entry tool for Claude-driven development. Run `fob` from any repo — it detects where you are, bootstraps itself if needed, and opens a structured Zellij workspace.
+A persistent, repo-scoped operator workspace for Claude-driven development. Run `fob` from any repo — it attaches to your existing session or creates a new one, and Claude picks up exactly where you left off.
 
-## What You Get
+## What FOB Is
 
-- **`fob`** — smart entrypoint: detects your repo, auto-launches the right workspace
-- **Structured workspace** — lazygit, logs, and shell stacked on the left; Claude on the right
-- **`.fob/` mission files** — four local markdown files that give Claude explicit, persistent context across sessions
+FOB maintains a persistent workspace that you can leave and return to without losing context.
+
+- **Session persistence** — a single named Zellij session (`fob`) stays alive across terminal closes and reconnects; `fob brief` attaches to it or creates it
+- **Context persistence** — `.fob/` mission files give Claude structured, explicit context that survives across sessions
+- **Layout persistence** — save and restore workspace layouts on demand via `fob layout save/load`
 - **Auto-discovery** — every git repo under `~/Documents/GitHub/` appears in the picker automatically; no YAML required
 
-## What Happens When You Run `fob`
+FOB is not a neutral bootstrap script or a multiplexer-agnostic tool. Zellij is a core dependency, and persistence is the point.
 
-1. If your Python environment isn't ready, it bootstraps itself first (first run only)
-2. If you're inside a git repo and that tab isn't already open → auto-selects, no picker
-3. If that repo's tab is already open → shows picker so you can open a different repo
-4. If you're not in a known repo → picker shows all repos under `~/Documents/GitHub/`
-5. A named Zellij session opens with a tab per selected repo
-6. In each tab: Claude starts with `claude --continue` and reads `.fob/.briefing` for context
-7. lazygit, logs, and shell are stacked on the left — focused pane expands, others collapse to a title strip
+## Workspace Layout
 
 ```
 ┌──────────────────────────────────────────────────┐
@@ -33,9 +29,21 @@ A workspace entry tool for Claude-driven development. Run `fob` from any repo �
 │  NORMAL  │  fob  │  ...                          │  ← status bar
 ```
 
+Left 35% stacked: `lazygit`, logs, shell — focused pane expands, others collapse to a title strip. Right 65%: Claude (`claude --continue`).
+
+## What Happens When You Run `fob`
+
+1. Python environment bootstraps itself if needed (first run only)
+2. If inside a known repo and that tab isn't open → auto-selects, no picker
+3. If that repo's tab is already open → shows picker to open a different one
+4. If outside all known repos → picker shows all repos under `~/Documents/GitHub/`
+5. Session `fob` exists → adds repo as a new named tab
+6. Session `fob` doesn't exist → generates layout, launches Zellij session
+7. Claude starts with `claude --continue`; reads `.fob/.briefing` for structured context
+
 ## Why It Exists
 
-`--continue` in Claude Code resumes the last conversation, but gives Claude no structured context about what was being worked on. `.fob/` provides that — a standing orders doc, an active mission, an objectives list, and a mission log. Claude reads these at startup and picks up exactly where things left off.
+`claude --continue` resumes the last conversation but gives Claude no structured context. `.fob/` provides that — standing orders, active mission, objectives, and a mission log. Claude reads these at startup and picks up exactly where things left off.
 
 ## Installation
 
@@ -55,11 +63,19 @@ cd ~/Documents/GitHub/YourRepo
 fob
 ```
 
-That's it. The Python environment bootstraps itself on the first invocation. `.fob/` is auto-initialized in the repo if missing.
+`.fob/` is auto-initialized in the repo on first launch.
+
+## State Boundaries
+
+FOB state lives in three distinct layers:
+
+| Layer | What persists | Location |
+|-------|--------------|----------|
+| Zellij | Session, tabs, pane arrangement | Zellij session manager |
+| `.fob/` | Mission files, layout, compiled briefing | `<repo>/.fob/` |
+| CLI | Orchestration, repo discovery, profile config | `config/profiles/*.yaml` |
 
 ## `.fob/` Continuity Model
-
-FOB uses a two-layer model to give Claude structured, intentional startup context.
 
 **Source files** — edit these directly:
 
@@ -74,32 +90,49 @@ FOB uses a two-layer model to give Claude structured, intentional startup contex
 
 | File | Role |
 |------|------|
-| `.briefing` | All four files + runtime context (branch, timestamp, repo) compiled into one startup document |
-
-At launch, FOB regenerates `.fob/.briefing` from the source files. Claude reads the briefing as its primary startup context — one structured entrypoint instead of raw multi-file discovery.
+| `.briefing` | All four files + runtime context compiled into one startup document |
 
 `fob resume` prints the current briefing so you can inspect exactly what Claude will see.
 
 ## Commands
 
-**Primary:**
+**Workspace:**
 
 | Command | Description |
 |---------|-------------|
-| `fob` / `fob brief [repo]` | Launch — auto-selects repo from cwd, or shows picker |
+| `fob` / `fob brief [repo]` | Attach to running session, or create one |
 | `fob brief --layout` | Launch using saved layout (explicit restore) |
-| `fob attach` | Re-attach to the running `fob` session |
+| `fob attach` | Re-attach to running `fob` session |
 | `fob exit` | Kill the `fob` session and all panes |
 | `fob init [repo]` | Initialize `.fob/` mission files in a repo |
 | `fob resume` | Print current mission brief from `.fob/` |
-| `fob status` | Show repo, branch, session, and `.fob/` state |
 | `fob test` | Run project tests |
 | `fob audit` | Run project audit |
 | `fob doctor` | Check and install dependencies |
 
+**Visibility:**
+
+| Command | Description |
+|---------|-------------|
+| `fob status` | Session, layout, branch, `.fob/` state |
+| `fob map` | Full state snapshot |
+| `fob map --json` | Machine-readable state (pipe to tools) |
+
+**Reset & Recovery:**
+
+FOB is a persistent system. Every persistent system needs a clear escape hatch.
+
+| Command | Description |
+|---------|-------------|
+| `fob reset` | Full reset — kills session, clears layout, deletes mission files (confirms first) |
+| `fob reset --session` | Kill session only |
+| `fob reset --layout` | Clear saved layout only |
+| `fob reset --state` | Delete `.fob/` mission files only |
+| `fob clear [--all]` | Delete saved layout (current repo or all) |
+
 **Layout:**
 
-FOB can optionally save and restore repo-specific terminal layouts through explicit layout commands. Normal `fob` usage generates a fresh layout each time — saved layouts are only applied when you ask.
+Layout persistence is explicit and opt-in. Normal `fob brief` always generates a fresh layout.
 
 | Command | Description |
 |---------|-------------|
@@ -107,23 +140,16 @@ FOB can optionally save and restore repo-specific terminal layouts through expli
 | `fob layout load` | Restore saved layout (starts Zellij session) |
 | `fob layout show` | Show saved layout metadata and path |
 | `fob layout reset` | Delete saved layout for current repo |
-| `fob clear [--all]` | Delete saved layout (current repo or all) |
 
-Layout state lives in `.fob/layout.json` (metadata) and `.fob/layout.kdl` (Zellij layout). Both are human-readable and easy to inspect or delete.
+Layout state lives in `.fob/layout.json` (metadata) and `.fob/layout.kdl` (Zellij KDL). Both are human-readable.
 
 **Utility:**
 
 | Command | Description |
 |---------|-------------|
 | `fob loadout` | Install and configure dev tools |
-| `fob cheat` | Open keybinding reference (floating pane inside Zellij) |
+| `fob cheat` | Open keybinding reference |
 | `fob install` | Symlink `fob` to `~/.local/bin` |
-
-## Profiles (Optional)
-
-Repos are auto-discovered — no YAML needed for basic use. Create `config/profiles/<name>.yaml` to configure custom Claude context files, peer repo awareness, or non-default helper commands.
-
-See [docs/profiles.md](docs/profiles.md).
 
 ## Typical Session
 
@@ -136,8 +162,23 @@ $ fob
 [Zellij opens — Claude pane starts, reads .fob/, continues from last session]
 ```
 
+Subsequent runs from the same repo:
+
+```
+$ fob
+  Brief: VideoFoundry
+  → Tab already open — skipping
+  → Attaching to session: fob
+```
+
+## Profiles (Optional)
+
+Repos are auto-discovered — no YAML needed for basic use. Create `config/profiles/<name>.yaml` to configure custom Claude context files, peer repo awareness, or non-default helper commands.
+
+See [docs/profiles.md](docs/profiles.md).
+
 ## Further Reading
 
-- [docs/architecture.md](docs/architecture.md) — how the launcher, discovery, and layout generation work
+- [docs/architecture.md](docs/architecture.md) — launcher flow, session model, layout persistence internals
 - [docs/profiles.md](docs/profiles.md) — profile format and optional configuration
 - [docs/guardrails.md](docs/guardrails.md) — safe branch practices and Claude operating model

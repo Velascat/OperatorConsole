@@ -36,8 +36,10 @@ Prefer wrapper commands over raw shell sequences:
 |---------|---------|
 | `fob test` | `pytest -x -v` / `npm test` / etc. |
 | `fob audit` | `ruff check` / `tsc --noEmit` / custom lint |
-| `fob status` | `git status` + session/branch info |
+| `fob status` | `git status` + session / layout / branch info |
+| `fob map` | full structured state snapshot |
 | `fob resume` | reading `.fob/` files manually |
+| `fob reset` | manually killing sessions and deleting state files |
 | `fob clear` | deleting `.fob/layout.json` + `.fob/layout.kdl` manually |
 | `fob cheat` | looking up keybindings |
 

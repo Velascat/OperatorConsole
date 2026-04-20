@@ -26,11 +26,12 @@ echo -e "${R}"
 
 # ── FOB Commands ──────────────────────────────────────────────────────────────
 sec "FOB COMMANDS"
-CMD "fob [brief] [repo]"    "auto-select repo or show picker; add tab if session running"
+CMD "fob [brief] [repo]"    "attach or create persistent workspace"
 CMD "fob brief --layout"    "launch using saved layout"
 CMD "fob attach"            "re-attach to running fob session"
 CMD "fob exit"              "kill fob session and all panes"
-CMD "fob status"            "repo, branch, session, .fob/ state"
+CMD "fob status"            "session, layout, branch, .fob/ state"
+CMD "fob map [--json]"      "full state snapshot"
 CMD "fob resume"            "print Claude mission brief"
 CMD "fob init [repo]"       "initialize .fob/ mission files"
 CMD "fob test"              "run project tests"
@@ -40,12 +41,19 @@ CMD "fob loadout"           "install and configure dev tools"
 CMD "fob cheat"             "this screen"
 echo
 
+sec "RESET & RECOVERY"
+CMD "fob reset"             "full reset — session + layout + state (confirms)"
+CMD "fob reset --session"   "kill session only"
+CMD "fob reset --layout"    "clear saved layout only"
+CMD "fob reset --state"     "delete .fob/ mission files only"
+CMD "fob clear [--all]"     "delete saved layout (this repo or all)"
+echo
+
 sec "LAYOUT"
 CMD "fob layout save"       "save repo layout to .fob/layout.json"
 CMD "fob layout load"       "restore saved layout (starts new session)"
 CMD "fob layout show"       "show saved layout metadata and path"
 CMD "fob layout reset"      "delete saved layout for current repo"
-CMD "fob clear [--all]"     "delete saved layout (this repo or all)"
 echo
 
 # ── Zellij ────────────────────────────────────────────────────────────────────

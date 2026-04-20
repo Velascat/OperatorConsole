@@ -108,24 +108,33 @@ def show_help(_: list[str]) -> None:
     print(c("    forward operating base\n", "DIM"))
 
     sections = [
-        ("BRIEF", [
-            ("brief [profile]",   "Pick or launch a workspace profile"),
+        ("WORKSPACE", [
+            ("brief [profile]",   "Attach or create persistent workspace"),
             ("brief --layout",    "Launch using saved layout (explicit restore)"),
-            ("attach",            "Re-attach to the fob Zellij session"),
+            ("attach",            "Re-attach to running fob session"),
             ("exit",              "Kill the fob session and all panes"),
-            ("init    [repo]",    "Initialize .fob/ state files in repo"),
             ("resume",            "Print Claude resume context from .fob/"),
+            ("init    [repo]",    "Initialize .fob/ state files in repo"),
             ("doctor",            "Check dependencies (Zellij, Claude, lazygit…)"),
+        ]),
+        ("VISIBILITY", [
+            ("status",            "Session, layout, branch, .fob/ state"),
+            ("map",               "Full state snapshot  (--json for machine output)"),
+        ]),
+        ("RESET", [
+            ("reset",             "Full reset — session + layout + state (confirms first)"),
+            ("reset --session",   "Kill session only"),
+            ("reset --layout",    "Clear saved layout only"),
+            ("reset --state",     "Delete .fob/ mission files only"),
+            ("clear [--all]",     "Delete saved layout (current repo or all)"),
         ]),
         ("LAYOUT", [
             ("layout save",       "Save current repo layout to .fob/layout.json"),
             ("layout load",       "Restore saved layout (starts Zellij session)"),
             ("layout show",       "Show saved layout metadata and path"),
             ("layout reset",      "Delete saved layout state for current repo"),
-            ("clear [--all]",     "Delete saved layout (current repo or all)"),
         ]),
         ("OPS", [
-            ("status",            "Show repo, branch, session, .fob/ state"),
             ("test",              "Run project tests"),
             ("audit",             "Run project audit"),
         ]),
@@ -383,6 +392,12 @@ def main() -> None:
         case "layout":
             _require_zellij()
             commands.cmd_layout(args, _profile_for_cwd(), FOB_DIR)
+
+        case "reset":
+            commands.cmd_reset(args, _profile_for_cwd(), FOB_DIR)
+
+        case "map":
+            commands.cmd_map(args, _profile_for_cwd())
 
         case "clear":
             commands.cmd_clear(args, _profile_for_cwd())

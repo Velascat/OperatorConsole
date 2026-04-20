@@ -127,6 +127,28 @@ The briefing is regenerated fresh on every `fob brief` run — it is always curr
 
 `fob resume` prints the compiled briefing to stdout so the operator can inspect what Claude will see.
 
+## State Boundaries
+
+FOB state is distributed across three distinct layers:
+
+| Layer | What persists | Location |
+|-------|--------------|----------|
+| Zellij | Session name, tabs, live pane processes | Zellij session manager |
+| `.fob/` | Mission files, layout files, compiled briefing | `<repo>/.fob/` |
+| CLI config | Profile YAML, repo discovery overrides | `config/profiles/*.yaml` |
+
+These layers are independent. Resetting one does not affect the others. `fob reset` scopes resets explicitly:
+- `--session` → kills Zellij session only
+- `--layout` → deletes `.fob/layout.json` + `.fob/layout.kdl` only
+- `--state` → deletes the four mission source files only
+- bare `fob reset` → all three (with confirmation)
+
+## Visibility Commands
+
+`fob status` — shows session (running/stopped, attached/detached), layout (saved/none, metadata), branch, profile, and `.fob/` file presence. Active mission snippet is shown if the file exists.
+
+`fob map` — structured full-state snapshot. Includes repo info, session state, layout metadata, and mission file presence. `--json` flag emits machine-readable JSON for tooling/piping.
+
 ## Dev Toolchain
 
 `fob loadout` runs `tools/loadout.sh` — an interactive installer for the recommended dev toolchain (fzf, bat, eza, ripgrep, fd, zoxide, delta, lazygit, starship, fastfetch). Tools not available in Ubuntu's standard apt repos (eza, git-delta, fastfetch) use custom GitHub release installers.
