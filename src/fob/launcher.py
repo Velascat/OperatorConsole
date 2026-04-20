@@ -186,15 +186,12 @@ def launch(
         if os.environ.get("ZELLIJ"):
             print(f"  → Tab added")
         else:
-            print(f"  → Attaching to session: {FOB_SESSION}")
             attach(FOB_SESSION)
     else:
         if saved_layout_path is not None:
             layout_path = saved_layout_path
-            print(f"  → Loading saved layout")
         else:
             layout_path = generate_session_layout(profiles, fob_dir)
-            print(f"  → Creating session '{FOB_SESSION}'")
         os.execvp(
             "zellij",
             ["zellij", "--session", FOB_SESSION, "--new-session-with-layout", str(layout_path)],

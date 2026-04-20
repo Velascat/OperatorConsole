@@ -378,12 +378,35 @@ def main() -> None:
                 result = layout_mod.load(Path(profiles[0]["repo_root"]))
                 if result:
                     saved_layout_path = result[1]
-                    print(c(f"  Using saved layout for {profiles[0]['name']}", "DIM"))
-                else:
-                    print(c(f"  No saved layout found — generating fresh layout", "DIM"))
+
+            # ── pre-launch status block ───────────────────────────────────────
+            import os as _os
+            from fob.session import session_exists as _sess_exists
+            from fob.launcher import FOB_SESSION as _FOB
+            already_in = _os.environ.get("ZELLIJ_SESSION_NAME") == _FOB
+            session_running = already_in or _sess_exists(_FOB)
 
             names = ", ".join(p["name"] for p in profiles)
             print(c(f"\n  Brief: {names}", "B", "CYN"))
+            if session_running:
+                print(f"  {c('session  ', 'DIM')}attaching  {c(f'({_FOB})', 'DIM')}")
+            else:
+                print(f"  {c('session  ', 'DIM')}creating   {c(f'({_FOB})', 'DIM')}")
+                if saved_layout_path:
+                    layout_desc = c("saved", "GRN")
+                elif use_saved_layout:
+                    layout_desc = c("fresh", "DIM") + "  " + c("(no saved layout)", "YLW")
+                else:
+                    layout_desc = c("fresh", "DIM")
+                print(f"  {c('layout   ', 'DIM')}{layout_desc}")
+            if profiles:
+                _ap = Path(profiles[0]["repo_root"]) / ".fob" / "active-mission.md"
+                if _ap.exists():
+                    from fob.commands import _mission_snippet
+                    _snip = _mission_snippet(_ap)
+                    if _snip:
+                        print(f"  {c('mission  ', 'DIM')}{c(_snip, 'DIM')}")
+            print()
             launch(profiles, FOB_DIR, saved_layout_path=saved_layout_path)
 
         case "exit":
