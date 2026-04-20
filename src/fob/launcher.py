@@ -45,7 +45,7 @@ def _single_pane_block(
 
     return (
         f'{i}pane split_direction="vertical" {{\n'
-        f'{i}    pane size="30%" name="git" command="bash" {{\n'
+        f'{i}    pane size="28%" name="git" command="bash" {{\n'
         f'{i}        args "-c" "cd \'{safe_repo}\' && {git_cmd}; exec bash -l"\n'
         f'{i}    }}\n'
         f'{i}    pane split_direction="horizontal" {{\n'
@@ -56,7 +56,7 @@ def _single_pane_block(
         f'{i}            args "-c" "cd \'{safe_cwd}\' && bash \'{welcome}\'"\n'
         f'{i}        }}\n'
         f'{i}    }}\n'
-        f'{i}    pane size="15%" name="logs" command="bash" {{\n'
+        f'{i}    pane size="28%" name="logs" command="bash" {{\n'
         f'{i}        args "-c" "cd \'{safe_repo}\' && {logs_cmd}; exec bash -l"\n'
         f'{i}    }}\n'
         f'{i}}}'
