@@ -42,7 +42,8 @@ def _single_pane_block(
     safe_repo  = repo.replace("'", "'\\''")
     safe_cwd   = str(claude_cwd).replace("'", "'\\''") if claude_cwd else safe_repo
     cp_status  = str(_CP_STATUS).replace("'", "'\\''")
-    repo_slug  = Path(repo).name
+    status_repos = profile.get("status_repos", Path(repo).name)
+    status_arg   = f" --repo '{status_repos}'" if status_repos else ""
     i = indent
 
     return (
@@ -53,7 +54,7 @@ def _single_pane_block(
         f'{i}            args "-c" "cd \'{safe_repo}\' && {git_cmd}; exec bash -l"\n'
         f'{i}        }}\n'
         f'{i}        pane size="25%" name="status" command="bash" {{\n'
-        f'{i}            args "-c" "bash \'{cp_status}\' status --repo \'{repo_slug}\'"\n'
+        f'{i}            args "-c" "bash \'{cp_status}\' status{status_arg}"\n'
         f'{i}        }}\n'
         f'{i}    }}\n'
         # Center: claude + shell
@@ -91,7 +92,14 @@ def _side_column_block(
 ) -> str:
     """Side column: stacked lazygits + fixed control-plane status pane."""
     cp_status = str(_CP_STATUS).replace("'", "'\\''")
-    repo_slugs = ",".join(Path(p["repo_root"]).name for p in profiles)
+    # Use explicit status_repos if set on any profile in this column; fall back
+    # to the repo directory names (which match ControlPlane board keys).
+    _slug_list  = ",".join(Path(p["repo_root"]).name for p in profiles)
+    _repo_filter = next(
+        (p["status_repos"] for p in profiles if "status_repos" in p),
+        _slug_list,
+    )
+    status_arg = f" --repo '{_repo_filter}'" if _repo_filter else ""
     i = indent
 
     lazygit_stack = f'{i}    pane stacked=true {{\n'
@@ -107,7 +115,7 @@ def _side_column_block(
 
     status_pane = (
         f'{i}    pane size="25%" name="status" command="bash" {{\n'
-        f'{i}        args "-c" "bash \'{cp_status}\' status --repo \'{repo_slugs}\'"\n'
+        f'{i}        args "-c" "bash \'{cp_status}\' status{status_arg}"\n'
         f'{i}    }}\n'
     )
 

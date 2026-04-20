@@ -1,5 +1,6 @@
 name: FOB
 repo_root: /home/dev/Documents/GitHub/FOB
+status_repos: ""  # show all ControlPlane-tracked repos
 
 claude:
   continue: true
