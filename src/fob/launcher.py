@@ -10,19 +10,38 @@ from fob.guardrails import check_branch
 from fob.bootstrap import get_claude_command
 
 FOB_SESSION = "fob"
+_GITHUB_DIR = Path.home() / "Documents" / "GitHub"
+
+_C = {"R": "\033[0m", "DIM": "\033[2m", "GRN": "\033[32m", "YLW": "\033[33m"}
 
 
-def _pane_block(profile: dict, fob_dir: Path, indent: str = "        ") -> str:
-    repo = profile["repo_root"]
-    panes = profile.get("panes", {})
+def _c(text: str, *keys: str) -> str:
+    return "".join(_C[k] for k in keys) + text + _C["R"]
+
+
+# ── single-repo pane block ────────────────────────────────────────────────────
+#
+#  Left 35% stacked: lazygit, logs
+#  Right 65% horizontal split:
+#    ├── claude  (~85%)
+#    └── shell   (15%)
+
+def _single_pane_block(
+    profile: dict,
+    fob_dir: Path,
+    indent: str = "        ",
+    claude_cwd: Path | None = None,
+) -> str:
+    repo      = profile["repo_root"]
+    panes_cfg = profile.get("panes", {})
     claude_cmd = get_claude_command(profile, Path(repo))
-    git_cmd = panes.get("git", {}).get("command", "lazygit")
-    logs_cmd = panes.get("logs", {}).get(
-        "command",
-        "tail -f .fob/runtime.log 2>/dev/null || echo 'No runtime.log yet'",
+    git_cmd   = panes_cfg.get("git",  {}).get("command", "lazygit")
+    logs_cmd  = panes_cfg.get("logs", {}).get(
+        "command", "tail -f .fob/runtime.log 2>/dev/null || echo 'No runtime.log yet'",
     )
     safe_repo = repo.replace("'", "'\\''")
-    welcome = str(fob_dir / "tools" / "welcome.sh").replace("'", "'\\''")
+    safe_cwd  = str(claude_cwd).replace("'", "'\\''") if claude_cwd else safe_repo
+    welcome   = str(fob_dir / "tools" / "welcome.sh").replace("'", "'\\''")
     i = indent
 
     return (
@@ -34,20 +53,105 @@ def _pane_block(profile: dict, fob_dir: Path, indent: str = "        ") -> str:
         f'{i}        pane name="logs" command="bash" {{\n'
         f'{i}            args "-c" "cd \'{safe_repo}\' && {logs_cmd}; exec bash -l"\n'
         f'{i}        }}\n'
-        f'{i}        pane name="shell" command="bash" {{\n'
-        f'{i}            args "-c" "cd \'{safe_repo}\' && bash \'{welcome}\'"\n'
-        f'{i}        }}\n'
         f'{i}    }}\n'
-        f'{i}    pane name="claude" command="bash" {{\n'
-        f'{i}        args "-c" "cd \'{safe_repo}\' && {claude_cmd}"\n'
+        f'{i}    pane split_direction="horizontal" {{\n'
+        f'{i}        pane name="claude" command="bash" {{\n'
+        f'{i}            args "-c" "cd \'{safe_cwd}\' && {claude_cmd}"\n'
+        f'{i}        }}\n'
+        f'{i}        pane size="15%" name="shell" command="bash" {{\n'
+        f'{i}            args "-c" "cd \'{safe_cwd}\' && bash \'{welcome}\'"\n'
+        f'{i}        }}\n'
         f'{i}    }}\n'
         f'{i}}}'
     )
 
 
+# ── multi-repo pane block ─────────────────────────────────────────────────────
+#
+#  Repos split left/right (even indices left, odd indices right).
+#  Each side: per-repo lazygit+logs stacked.
+#  Center horizontal split:
+#    ├── claude  (~85%)  — starts at ~/Documents/GitHub/
+#    └── shell   (15%)   — starts at ~/Documents/GitHub/
+
+def _repo_stack_panes(profiles: list[dict], indent: str) -> str:
+    """lazygit + logs panes for each profile, to be placed inside a stacked parent."""
+    out = ""
+    i = indent
+    for p in profiles:
+        repo     = p["repo_root"].replace("'", "'\\''")
+        git_cmd  = p.get("panes", {}).get("git",  {}).get("command", "lazygit")
+        logs_cmd = p.get("panes", {}).get("logs", {}).get(
+            "command", "tail -f .fob/runtime.log 2>/dev/null || echo 'No runtime.log yet'",
+        )
+        out += (
+            f'{i}pane name="git-{p["name"]}" command="bash" {{\n'
+            f'{i}    args "-c" "cd \'{repo}\' && {git_cmd}; exec bash -l"\n'
+            f'{i}}}\n'
+            f'{i}pane name="logs-{p["name"]}" command="bash" {{\n'
+            f'{i}    args "-c" "cd \'{repo}\' && {logs_cmd}; exec bash -l"\n'
+            f'{i}}}\n'
+        )
+    return out
+
+
+def _multi_pane_block(
+    profiles: list[dict],
+    fob_dir: Path,
+    indent: str = "        ",
+) -> str:
+    left  = profiles[::2]
+    right = profiles[1::2]
+    safe_cwd   = str(_GITHUB_DIR).replace("'", "'\\''")
+    welcome    = str(fob_dir / "tools" / "welcome.sh").replace("'", "'\\''")
+    claude_cmd = get_claude_command(profiles[0], Path(profiles[0]["repo_root"]))
+    i = indent
+
+    # Width: left/right each 28%, center gets the rest (~44% for 2 repos)
+    side_pct = "28%"
+
+    left_block = (
+        f'{i}    pane size="{side_pct}" stacked=true {{\n'
+        + _repo_stack_panes(left, indent=i + "        ")
+        + f'{i}    }}\n'
+    )
+
+    center_block = (
+        f'{i}    pane split_direction="horizontal" {{\n'
+        f'{i}        pane name="claude" command="bash" {{\n'
+        f'{i}            args "-c" "cd \'{safe_cwd}\' && {claude_cmd}"\n'
+        f'{i}        }}\n'
+        f'{i}        pane size="15%" name="shell" command="bash" {{\n'
+        f'{i}            args "-c" "cd \'{safe_cwd}\' && bash \'{welcome}\'"\n'
+        f'{i}        }}\n'
+        f'{i}    }}\n'
+    )
+
+    right_block = (
+        f'{i}    pane size="{side_pct}" stacked=true {{\n'
+        + _repo_stack_panes(right, indent=i + "        ")
+        + f'{i}    }}\n'
+    ) if right else ""
+
+    return (
+        f'{i}pane split_direction="vertical" {{\n'
+        + left_block
+        + center_block
+        + right_block
+        + f'{i}}}'
+    )
+
+
+def _multi_tab_name(profiles: list[dict]) -> str:
+    names = [p["name"] for p in profiles]
+    if len(names) <= 3:
+        return "+".join(names)
+    return "+".join(names[:2]) + f"+{len(names) - 2}more"
+
+
+# ── chrome / chrome-less wrappers ─────────────────────────────────────────────
 
 def _chrome_template() -> str:
-    """default_tab_template block — injects chrome into every tab including new ones."""
     return (
         '    default_tab_template {\n'
         '        pane size=1 borderless=true {\n'
@@ -61,28 +165,36 @@ def _chrome_template() -> str:
     )
 
 
-def _floating_cheat_block(fob_dir: Path, indent: str = "    ") -> str:
-    """Floating cheat pane block for inclusion in any layout."""
-    cheat = str(fob_dir / "tools" / "cheat.sh").replace("'", "'\\''")
-    i = indent
+def _tab_chrome_wrap(panes_kdl: str) -> str:
+    """Wrap pane KDL in a standalone tab layout with explicit chrome."""
     return (
-        f'{i}floating_panes {{\n'
-        f'{i}    pane name="cheat" command="bash" {{\n'
-        f'{i}        args "-c" "bash \'{cheat}\'"\n'
-        f'{i}    }}\n'
-        f'{i}}}\n'
+        'layout {\n'
+        '    pane size=1 borderless=true {\n'
+        '        plugin location="tab-bar"\n'
+        '    }\n'
+        f'{panes_kdl}\n'
+        '    pane size=2 borderless=true {\n'
+        '        plugin location="status-bar"\n'
+        '    }\n'
+        '}\n'
     )
 
 
+# ── public generators ─────────────────────────────────────────────────────────
+
 def generate_session_kdl(profiles: list[dict], fob_dir: Path) -> str:
     """Return session layout KDL string (no side effects)."""
-    profile = profiles[0]
-    name = profile["name"]
-    panes = _pane_block(profile, fob_dir, indent="        ")
+    if len(profiles) == 1:
+        tab_name = profiles[0]["name"]
+        panes    = _single_pane_block(profiles[0], fob_dir, indent="        ")
+    else:
+        tab_name = _multi_tab_name(profiles)
+        panes    = _multi_pane_block(profiles, fob_dir, indent="        ")
+
     return (
         'layout {\n'
         + _chrome_template()
-        + f'    tab name="{name}" {{\n'
+        + f'    tab name="{tab_name}" {{\n'
         + f'{panes}\n'
         + '    }\n'
         + '}\n'
@@ -90,50 +202,38 @@ def generate_session_kdl(profiles: list[dict], fob_dir: Path) -> str:
 
 
 def generate_session_layout(profiles: list[dict], fob_dir: Path) -> Path:
-    """Generate session layout, write to /tmp, return path."""
-    kdl = generate_session_kdl(profiles, fob_dir)
+    """Write session layout to /tmp, return path."""
     tmp = Path(tempfile.gettempdir()) / "fob-session.kdl"
-    tmp.write_text(kdl)
+    tmp.write_text(generate_session_kdl(profiles, fob_dir))
     return tmp
 
 
-def generate_tab_layout(profile: dict, fob_dir: Path) -> Path:
-    """Tab layout with explicit chrome (default_tab_template doesn't apply to new-tab action)."""
-    name = profile["name"]
-    panes = _pane_block(profile, fob_dir, indent="    ")
-    layout = (
-        'layout {\n'
-        '    pane size=1 borderless=true {\n'
-        '        plugin location="tab-bar"\n'
-        '    }\n'
-        f'{panes}\n'
-        '    pane size=2 borderless=true {\n'
-        '        plugin location="status-bar"\n'
-        '    }\n'
-        '}\n'
-    )
+def generate_tab_layout(profiles: list[dict], fob_dir: Path) -> Path:
+    """Write a standalone tab layout (for adding to running session) to /tmp."""
+    if len(profiles) == 1:
+        name  = profiles[0]["name"]
+        panes = _single_pane_block(profiles[0], fob_dir, indent="    ")
+    else:
+        name  = _multi_tab_name(profiles)
+        panes = _multi_pane_block(profiles, fob_dir, indent="    ")
+
     tmp = Path(tempfile.gettempdir()) / f"fob-tab-{name}.kdl"
-    tmp.write_text(layout)
-    return tmp
+    tmp.write_text(_tab_chrome_wrap(panes))
+    return tmp, name
 
 
+# ── session helpers ───────────────────────────────────────────────────────────
 
 def _delete_dead_session(session_name: str) -> None:
     try:
-        r = subprocess.run(
-            ["zellij", "list-sessions"],
-            capture_output=True, text=True,
-        )
+        r = subprocess.run(["zellij", "list-sessions"], capture_output=True, text=True)
         import re
         ansi = re.compile(r"\033\[[0-9;]*m")
         for line in r.stdout.splitlines():
             clean = ansi.sub("", line).strip()
             parts = clean.split()
             if parts and parts[0] == session_name and "EXITED" in clean:
-                subprocess.run(
-                    ["zellij", "delete-session", session_name],
-                    capture_output=True,
-                )
+                subprocess.run(["zellij", "delete-session", session_name], capture_output=True)
                 break
     except Exception:
         pass
@@ -156,6 +256,8 @@ def attach(session_name: str = FOB_SESSION) -> None:
     os.execvp("zellij", ["zellij", "attach", session_name])
 
 
+# ── launch ────────────────────────────────────────────────────────────────────
+
 def launch(
     profiles: list[dict],
     fob_dir: Path,
@@ -167,25 +269,21 @@ def launch(
 
     _delete_dead_session(FOB_SESSION)
 
-    # ZELLIJ_SESSION_NAME is authoritative — if we're inside the target session,
-    # skip the subprocess query which can fail or return stale state.
     already_in_session = os.environ.get("ZELLIJ_SESSION_NAME") == FOB_SESSION
     if already_in_session or session_exists(FOB_SESSION):
         existing_tabs = _list_tabs(FOB_SESSION)
-        for profile in profiles:
-            if profile["name"] in existing_tabs:
-                print(f"  → Tab '{profile['name']}' already open — skipping")
-                continue
-            layout_path = generate_tab_layout(profile, fob_dir)
+        layout_path, tab_name = generate_tab_layout(profiles, fob_dir)
+        if tab_name in existing_tabs:
+            print(f"  {_c('tab', 'DIM')}  {_c(tab_name, 'DIM')}  {_c('already open', 'DIM')}")
+        else:
             subprocess.run([
                 "zellij", "--session", FOB_SESSION,
                 "action", "new-tab",
-                "--name", profile["name"],
+                "--name", tab_name,
                 "--layout", str(layout_path),
             ])
-        if os.environ.get("ZELLIJ"):
-            print(f"  → Tab added")
-        else:
+            print(f"  {_c('tab', 'DIM')}  {_c(tab_name, 'GRN')}  {_c('added', 'GRN')}")
+        if not os.environ.get("ZELLIJ"):
             attach(FOB_SESSION)
     else:
         if saved_layout_path is not None:

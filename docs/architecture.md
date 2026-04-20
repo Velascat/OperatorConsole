@@ -8,6 +8,7 @@ fob (shell wrapper)
     ├── profile_loader.py       ← YAML profile loading + validation
     ├── launcher.py             ← Zellij session creation / tab management
     ├── layout.py               ← layout persistence (save/load/show/reset)
+    ├── session_group.py        ← session group persistence (save/load last group for fob restore)
     ├── session.py              ← Zellij session state queries
     ├── guardrails.py           ← branch detection + warnings
     ├── bootstrap.py            ← Claude mission brief generation
@@ -29,14 +30,19 @@ Running `fob` (no subcommand) is equivalent to `fob brief`. The shell wrapper (`
 `fob` / `fob brief`:
 
 1. Scan `~/Documents/GitHub/` for git repos; overlay any YAML profiles from `config/profiles/`
-2. If cwd is inside a known repo and that tab is not already open → auto-select, skip picker
-3. If cwd repo tab is already open → show picker (so you can open a different repo)
-4. If cwd is outside all known repos → show picker (fzf or numbered fallback); Tab to multi-select
-5. For each selected repo: initialize `.fob/` if missing; if multiple repos selected, inject siblings as implicit peers in each briefing; write `.fob/.briefing`, ensure `CLAUDE.md`
-6. Print structured brief block: `session attaching/creating (fob)`, `layout fresh/saved` (new sessions only), active mission snippet
-7. Check branch via `guardrails.py` — warn if on main/master
-8. If session `fob` exists → add each repo as a new named tab (skip if tab already open)
-9. Otherwise → generate fresh KDL layout (or use saved layout if `--layout` flag passed), launch `zellij --session fob --new-session-with-layout <kdl>`
+2. If cwd is inside a known repo → always auto-select that repo, skip picker entirely
+3. If that repo's tab is already open → `launch()` attaches without adding a duplicate tab
+4. If cwd is outside all known repos (e.g. `~/Documents/GitHub/`) → single-select picker (fzf or numbered fallback)
+5. `fob multi` → explicit multi-select picker (Tab to toggle); each selected repo opens as a named tab
+6. For each selected repo: initialize `.fob/` if missing; if multiple repos selected, inject siblings as implicit peers in each briefing; write `.fob/.briefing`, ensure `CLAUDE.md`
+7. Multi-repo layout: Claude pane starts at `~/Documents/GitHub/` instead of the individual repo root
+8. Auto-save group to `~/.local/share/fob/last-session.json` (for `fob restore`)
+9. Print structured brief block: `session attaching/creating (fob)`, `layout fresh/saved` (new sessions only), active mission snippet
+10. Check branch via `guardrails.py` — warn if on main/master
+11. If session `fob` exists → add each repo as a new named tab (skip if tab already open)
+12. Otherwise → generate fresh KDL layout (or use saved layout if `--layout` flag passed), launch `zellij --session fob --new-session-with-layout <kdl>`
+
+`fob restore`: loads `last-session.json`, resolves repo names against `_discover_repos()`, injects siblings as implicit peers (same logic as multi-select brief), regenerates briefings, then calls `launch()`. The saved timestamp is the original group creation time — `restore` does not overwrite it.
 
 ## Python Environment
 
@@ -49,15 +55,20 @@ FOB uses a **single named session**: `fob`. Each project opens as a **named tab*
 - Tab bar and status bar are present in every tab via explicit chrome panes in each layout
 - Running `fob` from inside the session adds tabs without re-attaching
 - Dead (EXITED) sessions are auto-deleted before creating a new one
-- `fob exit` kills the session and all panes; `tput reset` is run afterwards to clear any stale terminal state
+- `fob kill` terminates the session and all panes (with confirmation prompt); `tput reset` is run afterwards to clear any stale terminal state
 
 Layout files:
 - Session start: `/tmp/fob-session.kdl` — includes `default_tab_template` + named first tab
 - New tabs: `/tmp/fob-tab-<name>.kdl` — panes + explicit chrome
 
-Pane arrangement per tab:
-- **Left 35% stacked**: Git (`lazygit`), Logs (`tail -f .fob/runtime.log`), Shell (`bash`) — focused pane expands, others collapse to title strip
-- **Right 65%**: Claude pane (`claude --continue`)
+Pane arrangement — **single repo**:
+- **Left 35% stacked**: Git (`lazygit`), Logs (`tail -f .fob/runtime.log`) — focused pane expands, others collapse to title strip
+- **Right 65% horizontal split**: Claude (`claude --continue`) top ~85%, Shell (`bash`) bottom 15%
+
+Pane arrangement — **multi repo** (single tab, tab name = joined repo names):
+- **Left 28% stacked**: lazygit + logs for repos 0, 2, 4…
+- **Center 44% horizontal split**: Claude (top ~85%) + Shell (bottom 15%) — both start at `~/Documents/GitHub/`
+- **Right 28% stacked**: lazygit + logs for repos 1, 3, 5…
 
 ## Profiles
 
@@ -130,13 +141,14 @@ The briefing is regenerated fresh on every `fob brief` run — it is always curr
 
 ## State Boundaries
 
-FOB state is distributed across three distinct layers:
+FOB state is distributed across four distinct layers:
 
 | Layer | What persists | Location |
 |-------|--------------|----------|
 | Zellij | Session name, tabs, live pane processes | Zellij session manager |
 | `.fob/` | Mission files, layout files, compiled briefing | `<repo>/.fob/` |
 | CLI config | Profile YAML, repo discovery overrides | `config/profiles/*.yaml` |
+| Global state | Last session group (for `fob restore`) | `~/.local/share/fob/last-session.json` |
 
 These layers are independent. Resetting one does not affect the others. `fob reset` scopes resets explicitly:
 - `--session` → kills Zellij session only

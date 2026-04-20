@@ -15,31 +15,49 @@ FOB is not a neutral bootstrap script or a multiplexer-agnostic tool. Zellij is 
 
 ## Workspace Layout
 
+**Single repo:**
 ```
 ┌──────────────────────────────────────────────────┐
-│  FOB  │  VideoFoundry  │  ControlPlane  │  ...   │  ← tab bar
+│  FOB  │  VideoFoundry  │  ...                   │  ← tab bar
 ├─────────────┬────────────────────────────────────┤
 │  lazygit    │                                    │
-│  (expanded) │                                    │
-├─────────────┤      claude --continue             │
-│  logs    ▸  │           (65%)                    │
-├─────────────┤                                    │
-│  shell   ▸  │                                    │
+│  (expanded) │      claude --continue             │
+├─────────────┤           (~85%)                   │
+│  logs    ▸  │                                    │
+│             ├────────────────────────────────────┤
+│             │  shell  (15%)                      │
 └─────────────┴────────────────────────────────────┘
 │  NORMAL  │  fob  │  ...                          │  ← status bar
 ```
 
-Left 35% stacked: `lazygit`, logs, shell — focused pane expands, others collapse to a title strip. Right 65%: Claude (`claude --continue`).
+Left 35% stacked: `lazygit`, logs. Right 65% split: Claude top (~85%), shell bottom (15%).
+
+**Multi repo (`fob multi`) — single tab:**
+```
+┌──────────────────────────────────────────────────────┐
+│  FOB+VideoFoundry  │  ...                           │  ← tab bar
+├──────────┬───────────────────────��──┬───────────────┤
+│ lazygit  │                          │ lazygit       │
+│ repo-A   │    claude --continue     │ repo-B        │
+│ logs-A ▸ │       (GitHub/)          │ logs-B ▸      │
+│          ├──────────────────────────┤               │
+│          │  shell  (15%)            │               │
+└──────────┴──────────────────────────┴───────────────┘
+```
+
+28% left + 28% right: per-repo lazygit+logs stacked (repos split evenly left/right). Center 44%: Claude + shell. Claude starts at `~/Documents/GitHub/`.
 
 ## What Happens When You Run `fob`
 
 1. Python environment bootstraps itself if needed (first run only)
-2. If inside a known repo and that tab isn't open → auto-selects, no picker
-3. If that repo's tab is already open → shows picker to open a different one
-4. If outside all known repos → picker shows all repos under `~/Documents/GitHub/`
+2. If inside a known repo → always auto-selects that repo, no picker
+3. If that repo's tab is already open → attaches to the running session (no duplicate tab)
+4. If outside all known repos (e.g. at `~/Documents/GitHub/`) → single-select picker
 5. Session `fob` exists → adds repo as a new named tab
 6. Session `fob` doesn't exist → generates layout, launches Zellij session
 7. Claude starts with `claude --continue`; reads `.fob/.briefing` for structured context
+
+Use `fob multi` to explicitly open multiple repos at once.
 
 ## Why It Exists
 
@@ -74,6 +92,7 @@ FOB state lives in three distinct layers:
 | Zellij | Session, tabs, pane arrangement | Zellij session manager |
 | `.fob/` | Mission files, layout, compiled briefing | `<repo>/.fob/` |
 | CLI | Orchestration, repo discovery, profile config | `config/profiles/*.yaml` |
+| Global | Last session group (for `fob restore`) | `~/.local/share/fob/last-session.json` |
 
 ## `.fob/` Continuity Model
 
@@ -100,10 +119,12 @@ FOB state lives in three distinct layers:
 
 | Command | Description |
 |---------|-------------|
-| `fob` / `fob brief [repo]` | Attach to running session, or create one |
+| `fob` / `fob brief [repo]` | Auto-select current repo and launch |
 | `fob brief --layout` | Launch using saved layout (explicit restore) |
+| `fob multi` | Multi-select picker — open several repos as tabs |
+| `fob restore` | Re-open last saved session group (`--show` to preview without launching) |
 | `fob attach` | Re-attach to running `fob` session |
-| `fob exit` | Kill the `fob` session and all panes |
+| `fob kill` | Terminate the `fob` session and all panes (warns first) |
 | `fob init [repo]` | Initialize `.fob/` mission files in a repo |
 | `fob resume` | Print current mission brief from `.fob/` |
 | `fob test` | Run project tests |
@@ -187,7 +208,7 @@ If the repo tab is already open, `fob` shows the picker to open a different repo
 
 FOB handles multiple repos in two complementary ways:
 
-**Multi-tab** — run `fob brief` from `~/Documents/GitHub/` (or anywhere outside a specific repo) to get the full multi-select picker. Tab to select multiple repos; each opens as a named tab in the same `fob` session.
+**Multi-tab** — run `fob multi` from anywhere to get the multi-select picker. Tab to select multiple repos; each opens as a named tab in the same `fob` session. In multi-repo mode, Claude's working directory starts at `~/Documents/GitHub/` so it can navigate across repos freely.
 
 **Peer context** — when multiple repos are opened together in a single `fob brief`, each repo's `.fob/.briefing` automatically includes the active mission and objectives of the other selected repos. Claude in each tab sees what the others are working on without any profile config required.
 
@@ -197,6 +218,13 @@ For persistent cross-repo awareness (across separate `fob brief` invocations), c
 claude:
   peers:
     - controlplane   # always pulls ControlPlane's mission + objectives into this briefing
+```
+
+**Session groups** — every `fob brief` auto-saves the selected repos as the "last group". Re-open the exact same set with:
+
+```bash
+fob restore             # re-open last saved group (briefings regenerated fresh)
+fob restore --show      # preview what would be restored without launching
 ```
 
 **Cross-repo visibility:**

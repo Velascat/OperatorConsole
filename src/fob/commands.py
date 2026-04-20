@@ -360,16 +360,31 @@ def cmd_vf(args: list[str], vf_dir: Path) -> None:
     os.execvp(cmd_parts[0], cmd_parts)
 
 
-def cmd_exit(args: list[str]) -> None:
+def cmd_kill(args: list[str]) -> None:
     from fob.launcher import FOB_SESSION
     from fob.session import session_exists
     if not session_exists(FOB_SESSION):
         print(c(f"  No active session '{FOB_SESSION}'", "DIM"))
         return
-    print(c(f"  Killing session '{FOB_SESSION}' and all panes...", "YLW"))
+    print()
+    print(c("  ⚠  This terminates the session and ALL panes.", "YLW", "B"))
+    print(c("     Claude, shell, lazygit — everything stops immediately.", "YLW"))
+    print(c("     To keep Claude running: detach with Ctrl+o d instead.", "DIM"))
+    print()
+    try:
+        answer = input(c("  Kill session? [y/N] ", "B"))
+    except (EOFError, KeyboardInterrupt):
+        print()
+        print(c("  Aborted.", "DIM"))
+        sys.exit(0)
+    if answer.strip().lower() != "y":
+        print(c("  Aborted.", "DIM"))
+        sys.exit(0)
+    print(c(f"  Killing session '{FOB_SESSION}'...", "YLW"))
     subprocess.run(["zellij", "kill-session", FOB_SESSION])
     # Reset terminal — Zellij leaves mouse tracking enabled when killed externally
     subprocess.run(["tput", "reset"])
+
 
 
 def cmd_cheat(args: list[str], scripts_dir: Path) -> None:
@@ -672,7 +687,7 @@ def cmd_layout(args: list[str], default_profile: dict | None, fob_dir: Path) -> 
         already_in = os.environ.get("ZELLIJ_SESSION_NAME") == FOB_SESSION
         if already_in or _session_exists(FOB_SESSION):
             print(c(f"  Session '{FOB_SESSION}' is already running.", "YLW"))
-            print(c(f"  Run `fob exit` first, then `fob layout load`.", "DIM"))
+            print(c(f"  Run `fob kill` first, then `fob layout load`.", "DIM"))
             sys.exit(1)
 
         check_branch(repo_root)

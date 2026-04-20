@@ -164,6 +164,3 @@ Do not edit `.fob/.briefing` directly — it is overwritten at each launch.
     else:
         claude_md.write_text(block + "\n")
 
-
-def ensure_zellij_serialization() -> None:
-    pass  # serialization disabled — causes input freezes on VMs

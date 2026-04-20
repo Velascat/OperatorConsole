@@ -63,11 +63,32 @@ Understanding what happens to Claude when Zellij state changes:
 | Close terminal window | Keeps running — Zellij session stays alive in background |
 | Detach (Ctrl+o d) | Keeps running — session persists, re-attach with `fob attach` |
 | Kill Claude pane (Ctrl+p x) | Process dies — that tab's Claude is gone |
-| `fob exit` | Everything dies — session and all panes killed |
+| `fob kill` | Everything dies — session and all panes killed (confirms first) |
+
+**Closing the terminal does not kill Claude.** Zellij sessions persist as background processes. The panes — Claude, shell, lazygit — keep running. Re-attach at any time with:
+```bash
+fob attach        # re-attach to the running fob session
+fob               # from inside a known repo: adds/re-opens that repo's tab
+```
 
 **Key point:** Even if Claude is killed, `claude --continue` on the next `fob brief` resumes the conversation from where it left off. Conversation history is preserved by Claude Code; only work that was mid-execution is lost.
 
-So the recovery path after an accidental kill is simply: run `fob brief` again.
+Recovery path after an accidental kill: `fob brief` restores everything.
+
+### Letting Claude Work Autonomously
+
+To kick off a task and walk away:
+
+1. Give Claude instructions in the pane
+2. Detach: `Ctrl+o d` (or just close the terminal — same result)
+3. Come back later: `fob attach` or `fob` from the repo
+
+Claude continues working. When you re-attach, the pane shows exactly what happened.
+
+For cross-repo autonomous work (e.g. Claude on ControlPlane monitoring FOB state), the pattern is:
+- Run `fob brief controlplane fob` to open both repos in tabs
+- Give Claude in the ControlPlane tab explicit instructions and a clear stopping condition
+- Detach — both Claude instances keep running independently
 
 ## What Is Not Automated
 

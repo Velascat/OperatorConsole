@@ -54,6 +54,7 @@ def show_menu(_: list[str]) -> None:
 
     options = [
         ("brief",   "pick and launch a workspace"),
+        ("restore", "re-open last session group"),
         ("status",  "repo, branch, session state"),
         ("resume",  "print mission brief"),
         ("doctor",  "full dependency check + install"),
@@ -109,10 +110,12 @@ def show_help(_: list[str]) -> None:
 
     sections = [
         ("WORKSPACE", [
-            ("brief [profile]",   "Attach or create persistent workspace"),
+            ("brief [profile]",   "Auto-select current repo and launch"),
             ("brief --layout",    "Launch using saved layout (explicit restore)"),
+            ("multi",             "Multi-select picker — open several repos as tabs"),
+            ("restore [--show]",  "Re-open last saved session group (--show to preview)"),
             ("attach",            "Re-attach to running fob session"),
-            ("exit",              "Kill the fob session and all panes"),
+            ("kill",              "Terminate fob session and all panes (with warning)"),
             ("resume",            "Print Claude resume context from .fob/"),
             ("init    [repo]",    "Initialize .fob/ state files in repo"),
             ("doctor",            "Check dependencies (Zellij, Claude, lazygit…)"),
@@ -205,7 +208,8 @@ def _discover_repos() -> dict[str, dict]:
     return found
 
 
-def _pick_profiles() -> list[dict]:
+def _autopick() -> list[dict]:
+    """Auto-select current repo, or show single-select picker if not in any repo."""
     import subprocess
     from fob.session import session_exists
     from fob.launcher import FOB_SESSION
@@ -215,20 +219,34 @@ def _pick_profiles() -> list[dict]:
         print(c("✗ No repos found", "RED"))
         sys.exit(1)
 
-    names = sorted(all_profiles.keys())
-
-    # Auto-select by cwd if inside a known repo — unless that tab is already open
-    from fob.launcher import FOB_SESSION
-    from fob.launcher import _list_tabs
+    # Always auto-select if cwd is inside a known repo — tab-open state doesn't matter,
+    # launch() will attach without duplicating if the tab is already there.
     cwd = Path.cwd()
-    for name, profile in all_profiles.items():
+    for profile in all_profiles.values():
         repo = Path(profile["repo_root"]).resolve()
         if cwd == repo or cwd.is_relative_to(repo):
-            existing = _list_tabs(FOB_SESSION)
-            if profile["name"] not in existing:
-                return [profile]
-            break  # tab already open — fall through to picker
+            return [profile]
 
+    # cwd is outside all repos (e.g. ~/Documents/GitHub/ itself) → single-select picker
+    return _run_picker(all_profiles, multi=False)
+
+
+def _pick_multi() -> list[dict]:
+    """Explicit multi-select picker — used by `fob multi`."""
+    all_profiles = _discover_repos()
+    if not all_profiles:
+        print(c("✗ No repos found", "RED"))
+        sys.exit(1)
+    return _run_picker(all_profiles, multi=True)
+
+
+def _run_picker(all_profiles: dict, multi: bool) -> list[dict]:
+    """Show fzf or numbered picker. multi=True enables Tab multi-select."""
+    import subprocess
+    from fob.session import session_exists
+    from fob.launcher import FOB_SESSION
+
+    names = sorted(all_profiles.keys())
     session_running = session_exists(FOB_SESSION)
 
     try:
@@ -239,39 +257,46 @@ def _pick_profiles() -> list[dict]:
 
     dot = "●" if session_running else "○"
     session_label = "  (session running)" if session_running else ""
-
-    # display_name → key reverse lookup for fzf parsing
     display_to_key = {all_profiles[n]["name"]: n for n in names}
 
     if has_fzf:
         fzf_lines = "\n".join(f"{dot} {all_profiles[n]['name']}" for n in names)
-        result = subprocess.run(
-            ["fzf", "--prompt", "  brief > ", "--height", "12",
-             "--border", "--no-sort",
-             "--multi", "--bind", "tab:toggle+down",
-             "--header", f"Tab to select multiple · Enter to open{session_label}"],
-            input=fzf_lines, text=True, stdout=subprocess.PIPE,
-        )
+        prompt = "  multi > " if multi else "  brief > "
+        if multi:
+            header = (
+                "\033[93mTab\033[0m mark/unmark  ·  "
+                "\033[93mEnter\033[0m open selected"
+                + ("  ·  \033[32msession running\033[0m" if session_running else "")
+            )
+        else:
+            header = (
+                "\033[93mEnter\033[0m open"
+                + ("  ·  \033[32msession running\033[0m" if session_running else "")
+            )
+        fzf_args = ["fzf", "--prompt", prompt, "--height", "12",
+                    "--border", "--no-sort", "--ansi", "--header-first", "--header", header]
+        if multi:
+            fzf_args += ["--multi", "--bind", "tab:toggle+down"]
+        result = subprocess.run(fzf_args, input=fzf_lines, text=True, stdout=subprocess.PIPE)
         if result.returncode != 0 or not result.stdout.strip():
             sys.exit(0)
         selected_display = [line.lstrip("●○ ").strip() for line in result.stdout.strip().splitlines()]
         return [all_profiles[display_to_key[d]] for d in selected_display if d in display_to_key]
 
-    # Numbered menu fallback
+    # Numbered fallback
     print()
-    print(c("  SELECT REPOS", "B", "CYN"))
+    print(c("  SELECT REPO" + ("S" if multi else ""), "B", "CYN"))
     if session_running:
-        print(c(f"  session running — selected repos open as new tabs", "GRN"))
+        print(c("  session running — selected repos open as new tabs", "GRN"))
     print(c("─" * 44, "DIM"))
     sym = c("●", "GRN") if session_running else c("○", "DIM")
     for i, name in enumerate(names, 1):
-        configured = "claude_cfg" in all_profiles[name] or "panes" in all_profiles[name]
-        tag = c("  configured", "DIM") if configured else ""
-        print(f"  {c(str(i), 'CYN')}  {sym}  {all_profiles[name]['name']}{tag}")
+        print(f"  {c(str(i), 'CYN')}  {sym}  {all_profiles[name]['name']}")
     print()
-    print(c("  Enter numbers separated by spaces (e.g. 1 2)", "DIM"))
+    prompt_text = "  repos (space-separated): " if multi else "  repo: "
+    print(c("  Enter numbers separated by spaces (e.g. 1 2)", "DIM") if multi else "")
     try:
-        choice = input(c("  repos: ", "B")).strip()
+        choice = input(c(prompt_text, "B")).strip()
     except (EOFError, KeyboardInterrupt):
         print()
         sys.exit(0)
@@ -297,6 +322,85 @@ def _require_zellij() -> None:
         print(c("  Install: https://zellij.dev/documentation/installation", "DIM"))
         print(c("  Or check with: fob doctor", "DIM"))
         sys.exit(1)
+
+
+def _run_brief(profiles: list[dict], use_saved_layout: bool = False) -> None:
+    """Core brief flow shared by `fob brief`, `fob multi`, and `fob restore`."""
+    from fob.profile_loader import load_profile
+    from fob.launcher import launch, FOB_SESSION
+    from fob.bootstrap import ensure_claude_md, write_bootstrap_file
+    from fob.session import session_exists as _sess_exists
+    from fob.session_group import save as _sg_save
+    import os as _os
+
+    for profile in profiles:
+        claude_cfg = profile.get("claude", {})
+        bootstrap_files = claude_cfg.get("bootstrap_files") or None
+        peer_roots: list[tuple[str, Path]] = []
+        for peer_name in claude_cfg.get("peers", []):
+            try:
+                peer = load_profile(peer_name, PROFILES_DIR)
+                peer_roots.append((peer["name"], Path(peer["repo_root"])))
+            except Exception:
+                print(c(f"  ⚠ peer '{peer_name}' not found — skipping", "YLW"))
+
+        if len(profiles) > 1:
+            configured = {r for _, r in peer_roots}
+            for sibling in profiles:
+                if sibling is not profile:
+                    sibling_root = Path(sibling["repo_root"])
+                    if sibling_root not in configured:
+                        peer_roots.append((sibling["name"], sibling_root))
+
+        repo_root = Path(profile["repo_root"])
+        if not (repo_root / ".fob").exists():
+            from fob import commands as _cmds
+            print(c(f"  .fob/ not found in {profile['name']} — initializing...", "YLW"))
+            _cmds.cmd_init([str(repo_root)], FOB_DIR)
+        write_bootstrap_file(repo_root, files=bootstrap_files,
+                             peer_roots=peer_roots or None, profile_name=profile["name"])
+        extra_files = [f for f in (bootstrap_files or [])
+                       if Path(f).name not in {
+                           "standing-orders.md", "active-mission.md",
+                           "objectives.md", "mission-log.md",
+                       }]
+        ensure_claude_md(repo_root, FOB_DIR / "templates" / "mission",
+                         extra_files=extra_files or None)
+
+    _sg_save([p["name"] for p in profiles], FOB_SESSION)
+
+    saved_layout_path = None
+    if use_saved_layout and profiles:
+        from fob import layout as layout_mod
+        result = layout_mod.load(Path(profiles[0]["repo_root"]))
+        if result:
+            saved_layout_path = result[1]
+
+    already_in = _os.environ.get("ZELLIJ_SESSION_NAME") == FOB_SESSION
+    session_running = already_in or _sess_exists(FOB_SESSION)
+
+    label = ", ".join(p["name"] for p in profiles)
+    print(c(f"\n  Brief: {label}", "B", "CYN"))
+    if session_running:
+        print(f"  {c('session  ', 'DIM')}attaching  {c(f'({FOB_SESSION})', 'DIM')}")
+    else:
+        print(f"  {c('session  ', 'DIM')}creating   {c(f'({FOB_SESSION})', 'DIM')}")
+        if saved_layout_path:
+            layout_desc = c("saved", "GRN")
+        elif use_saved_layout:
+            layout_desc = c("fresh", "DIM") + "  " + c("(no saved layout)", "YLW")
+        else:
+            layout_desc = c("fresh", "DIM")
+        print(f"  {c('layout   ', 'DIM')}{layout_desc}")
+    if profiles:
+        _ap = Path(profiles[0]["repo_root"]) / ".fob" / "active-mission.md"
+        if _ap.exists():
+            from fob.commands import _mission_snippet
+            snip = _mission_snippet(_ap)
+            if snip:
+                print(f"  {c('mission  ', 'DIM')}{c(snip, 'DIM')}")
+    print()
+    launch(profiles, FOB_DIR, saved_layout_path=saved_layout_path)
 
 
 # ── dispatch ──────────────────────────────────────────────────────────────────
@@ -327,12 +431,8 @@ def main() -> None:
             _require_zellij()
             use_saved_layout = "--layout" in args
             named = [a for a in args if not a.startswith("--")]
-            from fob.profile_loader import load_profile, validate_profile
-            from fob.launcher import launch
-            from fob.bootstrap import ensure_claude_md, write_bootstrap_file
-            from pathlib import Path
-
             if named:
+                from fob.profile_loader import load_profile, validate_profile
                 profiles = []
                 for pname in named:
                     try:
@@ -347,81 +447,43 @@ def main() -> None:
                         sys.exit(1)
                     profiles.append(p)
             else:
-                profiles = _pick_profiles()
+                profiles = _autopick()
+            _run_brief(profiles, use_saved_layout=use_saved_layout)
 
-            for profile in profiles:
-                claude_cfg = profile.get("claude", {})
-                bootstrap_files = claude_cfg.get("bootstrap_files") or None
-                peer_roots: list[tuple[str, Path]] = []
-                for peer_name in claude_cfg.get("peers", []):
-                    try:
-                        peer = load_profile(peer_name, PROFILES_DIR)
-                        peer_roots.append((peer["name"], Path(peer["repo_root"])))
-                    except Exception:
-                        print(c(f"  ⚠ peer '{peer_name}' not found — skipping", "YLW"))
+        case "multi":
+            _require_zellij()
+            _run_brief(_pick_multi(), use_saved_layout=False)
 
-                # Multi-select: inject sibling repos as implicit peers
-                if len(profiles) > 1:
-                    configured = {r for _, r in peer_roots}
-                    for sibling in profiles:
-                        if sibling is not profile:
-                            sibling_root = Path(sibling["repo_root"])
-                            if sibling_root not in configured:
-                                peer_roots.append((sibling["name"], sibling_root))
+        case "kill":
+            commands.cmd_kill(args)
 
-                repo_root = Path(profile["repo_root"])
-                if not (repo_root / ".fob").exists():
-                    print(c(f"  .fob/ not found in {profile['name']} — initializing...", "YLW"))
-                    commands.cmd_init([str(repo_root)], FOB_DIR)
-                write_bootstrap_file(repo_root, files=bootstrap_files, peer_roots=peer_roots or None, profile_name=profile["name"])
-
-                extra_files = [f for f in (bootstrap_files or [])
-                               if Path(f).name not in {
-                                   "standing-orders.md", "active-mission.md",
-                                   "objectives.md", "mission-log.md",
-                               }]
-                ensure_claude_md(repo_root, FOB_DIR / "templates" / "mission",
-                                 extra_files=extra_files or None)
-
-            saved_layout_path = None
-            if use_saved_layout and profiles:
-                from fob import layout as layout_mod
-                result = layout_mod.load(Path(profiles[0]["repo_root"]))
-                if result:
-                    saved_layout_path = result[1]
-
-            # ── pre-launch status block ───────────────────────────────────────
-            import os as _os
-            from fob.session import session_exists as _sess_exists
-            from fob.launcher import FOB_SESSION as _FOB
-            already_in = _os.environ.get("ZELLIJ_SESSION_NAME") == _FOB
-            session_running = already_in or _sess_exists(_FOB)
-
-            names = ", ".join(p["name"] for p in profiles)
-            print(c(f"\n  Brief: {names}", "B", "CYN"))
-            if session_running:
-                print(f"  {c('session  ', 'DIM')}attaching  {c(f'({_FOB})', 'DIM')}")
-            else:
-                print(f"  {c('session  ', 'DIM')}creating   {c(f'({_FOB})', 'DIM')}")
-                if saved_layout_path:
-                    layout_desc = c("saved", "GRN")
-                elif use_saved_layout:
-                    layout_desc = c("fresh", "DIM") + "  " + c("(no saved layout)", "YLW")
+        case "restore":
+            from fob.session_group import load as _sg_load
+            data = _sg_load()
+            if not data:
+                print(c("  No saved session group found.", "DIM"))
+                print(c("  Run `fob brief` to create a restorable group.", "DIM"))
+                sys.exit(1)
+            repo_names = data.get("repos", [])
+            saved_at   = data.get("saved_at", "?")
+            print(c(f"\n  Restore: {', '.join(repo_names)}", "B", "CYN"))
+            print(f"  {c('saved    ', 'DIM')}{saved_at}")
+            if "--show" in args:
+                print()
+                sys.exit(0)
+            _require_zellij()
+            all_repos = _discover_repos()
+            profiles = []
+            for name in repo_names:
+                entry = all_repos.get(name.lower()) or all_repos.get(name)
+                if entry:
+                    profiles.append(entry)
                 else:
-                    layout_desc = c("fresh", "DIM")
-                print(f"  {c('layout   ', 'DIM')}{layout_desc}")
-            if profiles:
-                _ap = Path(profiles[0]["repo_root"]) / ".fob" / "active-mission.md"
-                if _ap.exists():
-                    from fob.commands import _mission_snippet
-                    _snip = _mission_snippet(_ap)
-                    if _snip:
-                        print(f"  {c('mission  ', 'DIM')}{c(_snip, 'DIM')}")
-            print()
-            launch(profiles, FOB_DIR, saved_layout_path=saved_layout_path)
-
-        case "exit":
-            commands.cmd_exit(args)
+                    print(c(f"  ⚠ '{name}' not found in repo discovery — skipping", "YLW"))
+            if not profiles:
+                print(c("  No restorable repos found.", "RED"))
+                sys.exit(1)
+            _run_brief(profiles)
 
         case "layout":
             _require_zellij()
