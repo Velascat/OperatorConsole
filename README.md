@@ -153,23 +153,33 @@ Layout state lives in `.fob/layout.json` (metadata) and `.fob/layout.kdl` (Zelli
 
 ## Typical Session
 
+First run (no existing session):
+
 ```
 $ cd ~/Documents/GitHub/VideoFoundry
 $ fob
-  Brief: VideoFoundry
-  → Creating session 'fob'
 
-[Zellij opens — Claude pane starts, reads .fob/, continues from last session]
+  Brief: VideoFoundry
+  session  creating   (fob)
+  layout   fresh
+  mission  implement multi-source audio mixing…
+
+[Zellij opens — Claude pane starts, reads .fob/.briefing, continues]
 ```
 
-Subsequent runs from the same repo:
+Returning to an existing session:
 
 ```
 $ fob
+
   Brief: VideoFoundry
-  → Tab already open — skipping
-  → Attaching to session: fob
+  session  attaching  (fob)
+  mission  implement multi-source audio mixing…
+
+[Zellij attaches — workspace resumes exactly as left]
 ```
+
+If the repo tab is already open, `fob` shows the picker to open a different repo instead of duplicating the tab.
 
 ## Profiles (Optional)
 

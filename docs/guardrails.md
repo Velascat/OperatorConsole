@@ -54,6 +54,21 @@ Intended writable scope for Claude:
 
 Claude should not write outside `repo_root` without explicit operator confirmation.
 
+## Claude Process Lifecycle
+
+Understanding what happens to Claude when Zellij state changes:
+
+| Action | Claude process |
+|--------|---------------|
+| Close terminal window | Keeps running — Zellij session stays alive in background |
+| Detach (Ctrl+o d) | Keeps running — session persists, re-attach with `fob attach` |
+| Kill Claude pane (Ctrl+p x) | Process dies — that tab's Claude is gone |
+| `fob exit` | Everything dies — session and all panes killed |
+
+**Key point:** Even if Claude is killed, `claude --continue` on the next `fob brief` resumes the conversation from where it left off. Conversation history is preserved by Claude Code; only work that was mid-execution is lost.
+
+So the recovery path after an accidental kill is simply: run `fob brief` again.
+
 ## What Is Not Automated
 
 By design, the following require explicit operator action:

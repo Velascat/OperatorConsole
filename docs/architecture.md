@@ -33,9 +33,10 @@ Running `fob` (no subcommand) is equivalent to `fob brief`. The shell wrapper (`
 3. If cwd repo tab is already open → show picker (so you can open a different repo)
 4. If cwd is outside all known repos → show picker (fzf or numbered fallback); Tab to multi-select
 5. For each selected repo: initialize `.fob/` if missing, write `.fob/.briefing`, ensure `CLAUDE.md`
-6. Check branch via `guardrails.py` — warn if on main/master
-7. If session `fob` exists → add each repo as a new named tab (skip if tab already open)
-8. Otherwise → generate fresh KDL layout (or use saved layout if `--layout` flag passed), launch `zellij --session fob --new-session-with-layout <kdl>`
+6. Print structured brief block: `session attaching/creating (fob)`, `layout fresh/saved` (new sessions only), active mission snippet
+7. Check branch via `guardrails.py` — warn if on main/master
+8. If session `fob` exists → add each repo as a new named tab (skip if tab already open)
+9. Otherwise → generate fresh KDL layout (or use saved layout if `--layout` flag passed), launch `zellij --session fob --new-session-with-layout <kdl>`
 
 ## Python Environment
 
