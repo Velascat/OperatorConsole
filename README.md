@@ -17,20 +17,19 @@ FOB is not a neutral bootstrap script or a multiplexer-agnostic tool. Zellij is 
 
 **Single repo:**
 ```
-┌──────────────────────────────────────────────────┐
-│  FOB  │  VideoFoundry  │  ...                   │  ← tab bar
-├─────────────┬────────────────────────────────────┤
-│  lazygit    │                                    │
-│  (expanded) │      claude --continue             │
-├─────────────┤           (~85%)                   │
-│  logs    ▸  │                                    │
-│             ├────────────────────────────────────┤
-│             │  shell  (15%)                      │
-└─────────────┴────────────────────────────────────┘
-│  NORMAL  │  fob  │  ...                          │  ← status bar
+┌────────────────────────────────────────────────────────┐
+│  FOB  │  VideoFoundry  │  ...                         │  ← tab bar
+├──────────┬──────────────────────────────┬─────────────┤
+│          │                              │             │
+│ lazygit  │      claude --continue       │    logs     │
+│  (30%)   │                              │    (15%)    │
+│          ├──────────────────────────────┤             │
+│          │  shell  (15%)                │             │
+└──────────┴──────────────────────────────┴─────────────┘
+│  NORMAL  │  fob  │  ...                               │  ← status bar
 ```
 
-Left 35% stacked: `lazygit`, logs. Right 65% split: Claude top (~85%), shell bottom (15%).
+Left 30%: `lazygit`. Center: Claude + shell (15% bottom). Right 15%: logs.
 
 **Multi repo (`fob multi`) — single tab:**
 ```

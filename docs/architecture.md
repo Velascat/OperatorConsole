@@ -62,8 +62,9 @@ Layout files:
 - New tabs: `/tmp/fob-tab-<name>.kdl` — panes + explicit chrome
 
 Pane arrangement — **single repo**:
-- **Left 35% stacked**: Git (`lazygit`), Logs (`tail -f .fob/runtime.log`) — focused pane expands, others collapse to title strip
-- **Right 65% horizontal split**: Claude (`claude --continue`) top ~85%, Shell (`bash`) bottom 15%
+- **Left 30%**: Git (`lazygit`)
+- **Center**: Claude (`claude --continue`) top + Shell (`bash`) bottom 15% — horizontal split
+- **Right 15%**: Logs (`tail -f .fob/runtime.log`)
 
 Pane arrangement — **multi repo** (single tab, tab name = joined repo names):
 - **Left 28% stacked**: lazygit + logs for repos 0, 2, 4…

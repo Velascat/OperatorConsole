@@ -21,10 +21,9 @@ def _c(text: str, *keys: str) -> str:
 
 # ── single-repo pane block ────────────────────────────────────────────────────
 #
-#  Left 35% stacked: lazygit, logs
-#  Right 65% horizontal split:
-#    ├── claude  (~85%)
-#    └── shell   (15%)
+#  Left  30%: lazygit
+#  Center   : claude (top) + shell (15% bottom)  — horizontal split
+#  Right 15%: logs
 
 def _single_pane_block(
     profile: dict,
@@ -46,13 +45,8 @@ def _single_pane_block(
 
     return (
         f'{i}pane split_direction="vertical" {{\n'
-        f'{i}    pane size="35%" stacked=true {{\n'
-        f'{i}        pane name="git" command="bash" {{\n'
-        f'{i}            args "-c" "cd \'{safe_repo}\' && {git_cmd}; exec bash -l"\n'
-        f'{i}        }}\n'
-        f'{i}        pane name="logs" command="bash" {{\n'
-        f'{i}            args "-c" "cd \'{safe_repo}\' && {logs_cmd}; exec bash -l"\n'
-        f'{i}        }}\n'
+        f'{i}    pane size="30%" name="git" command="bash" {{\n'
+        f'{i}        args "-c" "cd \'{safe_repo}\' && {git_cmd}; exec bash -l"\n'
         f'{i}    }}\n'
         f'{i}    pane split_direction="horizontal" {{\n'
         f'{i}        pane name="claude" command="bash" {{\n'
@@ -61,6 +55,9 @@ def _single_pane_block(
         f'{i}        pane size="15%" name="shell" command="bash" {{\n'
         f'{i}            args "-c" "cd \'{safe_cwd}\' && bash \'{welcome}\'"\n'
         f'{i}        }}\n'
+        f'{i}    }}\n'
+        f'{i}    pane size="15%" name="logs" command="bash" {{\n'
+        f'{i}        args "-c" "cd \'{safe_repo}\' && {logs_cmd}; exec bash -l"\n'
         f'{i}    }}\n'
         f'{i}}}'
     )
