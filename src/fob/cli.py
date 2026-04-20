@@ -109,14 +109,20 @@ def show_help(_: list[str]) -> None:
 
     sections = [
         ("BRIEF", [
-            ("brief [profile]", "Pick or launch a workspace profile"),
-            ("brief --reset-layout", "Regenerate layout from profile, discarding saved state"),
+            ("brief [profile]",   "Pick or launch a workspace profile"),
+            ("brief --layout",    "Launch using saved layout (explicit restore)"),
             ("attach",            "Re-attach to the fob Zellij session"),
             ("exit",              "Kill the fob session and all panes"),
-            ("clear [--all]",    "Delete saved layout state (current repo or all)"),
             ("init    [repo]",    "Initialize .fob/ state files in repo"),
             ("resume",            "Print Claude resume context from .fob/"),
             ("doctor",            "Check dependencies (Zellij, Claude, lazygit…)"),
+        ]),
+        ("LAYOUT", [
+            ("layout save",       "Save current repo layout to .fob/layout.json"),
+            ("layout load",       "Restore saved layout (starts Zellij session)"),
+            ("layout show",       "Show saved layout metadata and path"),
+            ("layout reset",      "Delete saved layout state for current repo"),
+            ("clear [--all]",     "Delete saved layout (current repo or all)"),
         ]),
         ("OPS", [
             ("status",            "Show repo, branch, session, .fob/ state"),
@@ -308,7 +314,7 @@ def main() -> None:
 
         case "brief":
             _require_zellij()
-            reset_layout = "--reset-layout" in args
+            use_saved_layout = "--layout" in args
             named = [a for a in args if not a.startswith("--")]
             from fob.profile_loader import load_profile, validate_profile
             from fob.launcher import launch
@@ -357,12 +363,26 @@ def main() -> None:
                 ensure_claude_md(repo_root, FOB_DIR / "templates" / "mission",
                                  extra_files=extra_files or None)
 
+            saved_layout_path = None
+            if use_saved_layout and profiles:
+                from fob import layout as layout_mod
+                result = layout_mod.load(Path(profiles[0]["repo_root"]))
+                if result:
+                    saved_layout_path = result[1]
+                    print(c(f"  Using saved layout for {profiles[0]['name']}", "DIM"))
+                else:
+                    print(c(f"  No saved layout found — generating fresh layout", "DIM"))
+
             names = ", ".join(p["name"] for p in profiles)
             print(c(f"\n  Brief: {names}", "B", "CYN"))
-            launch(profiles, FOB_DIR, reset_layout=reset_layout)
+            launch(profiles, FOB_DIR, saved_layout_path=saved_layout_path)
 
         case "exit":
             commands.cmd_exit(args)
+
+        case "layout":
+            _require_zellij()
+            commands.cmd_layout(args, _profile_for_cwd(), FOB_DIR)
 
         case "clear":
             commands.cmd_clear(args, _profile_for_cwd())

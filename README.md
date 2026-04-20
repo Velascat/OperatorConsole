@@ -87,9 +87,7 @@ At launch, FOB regenerates `.fob/.briefing` from the source files. Claude reads 
 | Command | Description |
 |---------|-------------|
 | `fob` / `fob brief [repo]` | Launch — auto-selects repo from cwd, or shows picker |
-| `fob brief --reset-layout` | Regenerate layout from defaults, discarding saved state |
-| `fob clear` | Delete saved layout for current repo |
-| `fob clear --all` | Delete all saved layouts |
+| `fob brief --layout` | Launch using saved layout (explicit restore) |
 | `fob attach` | Re-attach to the running `fob` session |
 | `fob exit` | Kill the `fob` session and all panes |
 | `fob init [repo]` | Initialize `.fob/` mission files in a repo |
@@ -98,6 +96,20 @@ At launch, FOB regenerates `.fob/.briefing` from the source files. Claude reads 
 | `fob test` | Run project tests |
 | `fob audit` | Run project audit |
 | `fob doctor` | Check and install dependencies |
+
+**Layout:**
+
+FOB can optionally save and restore repo-specific terminal layouts through explicit layout commands. Normal `fob` usage generates a fresh layout each time — saved layouts are only applied when you ask.
+
+| Command | Description |
+|---------|-------------|
+| `fob layout save` | Save current repo layout to `.fob/layout.json` |
+| `fob layout load` | Restore saved layout (starts Zellij session) |
+| `fob layout show` | Show saved layout metadata and path |
+| `fob layout reset` | Delete saved layout for current repo |
+| `fob clear [--all]` | Delete saved layout (current repo or all) |
+
+Layout state lives in `.fob/layout.json` (metadata) and `.fob/layout.kdl` (Zellij layout). Both are human-readable and easy to inspect or delete.
 
 **Utility:**
 

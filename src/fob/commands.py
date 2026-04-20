@@ -327,27 +327,133 @@ def cmd_loadout(args: list[str], scripts_dir: Path) -> None:
     os.execvp("bash", ["bash", str(script)] + args)
 
 
+# ── layout ───────────────────────────────────────────────────────────────────
+
+def cmd_layout(args: list[str], default_profile: dict | None, fob_dir: Path) -> None:
+    sub = args[0] if args else "show"
+    from fob import layout as layout_mod
+    from fob.launcher import FOB_SESSION, generate_session_kdl
+
+    repo_root = Path(default_profile["repo_root"]) if default_profile else Path.cwd()
+    profile_name = default_profile.get("name", repo_root.name) if default_profile else repo_root.name
+
+    if sub == "save":
+        if not (repo_root / ".fob").exists():
+            print(c(f"  ✗ .fob/ not found in {repo_root.name} — run: fob init", "RED"))
+            sys.exit(1)
+        profile = default_profile or {"name": profile_name, "repo_root": str(repo_root)}
+        kdl = generate_session_kdl([profile], fob_dir)
+        meta = layout_mod.save(repo_root, profile_name, kdl)
+        print(c("  Layout saved", "GRN", "B"))
+        print(f"  {c('backend ', 'DIM')}  {meta['backend']}")
+        print(f"  {c('profile ', 'DIM')}  {meta['profile_name']}")
+        print(f"  {c('saved at', 'DIM')}  {meta['saved_at']}")
+        print(f"  {c('path    ', 'DIM')}  {repo_root / '.fob' / layout_mod.LAYOUT_KDL}")
+        print()
+        print(c("  Run `fob layout load` to restore this layout later.", "DIM"))
+
+    elif sub == "load":
+        import os
+        from fob.launcher import _delete_dead_session, attach
+        from fob.session import session_exists as _session_exists
+        from fob.guardrails import check_branch
+
+        result = layout_mod.load(repo_root)
+        if not result:
+            stale = layout_mod.load_any(repo_root)
+            if stale:
+                meta, _, _ = stale
+                saved_root = meta.get("repo_root", "?")
+                print(c(f"  ✗ Saved layout references a different repo root:", "YLW"))
+                print(c(f"    saved:   {saved_root}", "DIM"))
+                print(c(f"    current: {repo_root.resolve()}", "DIM"))
+                print(c(f"  Run `fob layout reset` then `fob layout save` to update it.", "DIM"))
+            else:
+                print(c(f"  No saved layout for {repo_root.name}.", "YLW"))
+                print(c(f"  Run `fob layout save` to create one.", "DIM"))
+            sys.exit(1)
+
+        meta, kdl_path = result
+        _delete_dead_session(FOB_SESSION)
+        already_in = os.environ.get("ZELLIJ_SESSION_NAME") == FOB_SESSION
+        if already_in or _session_exists(FOB_SESSION):
+            print(c(f"  Session '{FOB_SESSION}' is already running.", "YLW"))
+            print(c(f"  Run `fob exit` first, then `fob layout load`.", "DIM"))
+            sys.exit(1)
+
+        check_branch(repo_root)
+        print(c("  Loading saved layout", "CYN", "B"))
+        print(f"  {c('backend ', 'DIM')}  {meta['backend']}")
+        print(f"  {c('profile ', 'DIM')}  {meta.get('profile_name', '—')}")
+        print(f"  {c('saved at', 'DIM')}  {meta.get('saved_at', '—')}")
+        os.execvp(
+            "zellij",
+            ["zellij", "--session", FOB_SESSION, "--new-session-with-layout", str(kdl_path)],
+        )
+
+    elif sub == "show":
+        result = layout_mod.load_any(repo_root)
+        if not result:
+            print(c(f"  No saved layout for {repo_root.name}.", "DIM"))
+            print(c(f"  Run `fob layout save` to create one.", "DIM"))
+        else:
+            meta, kdl_path, is_current = result
+            print(hr())
+            print(c("  SAVED LAYOUT", "B", "CYN"))
+            print(hr())
+            print(f"  {c('repo    ', 'DIM')}  {meta.get('repo_root', '—')}")
+            print(f"  {c('profile ', 'DIM')}  {meta.get('profile_name', '—')}")
+            print(f"  {c('backend ', 'DIM')}  {meta.get('backend', '—')}")
+            print(f"  {c('saved at', 'DIM')}  {meta.get('saved_at', '—')}")
+            print(f"  {c('file    ', 'DIM')}  {kdl_path}")
+            if not is_current:
+                print()
+                print(c("  ⚠ Repo root mismatch — layout may be stale.", "YLW"))
+                print(c("    Run `fob layout reset` then `fob layout save` to refresh.", "DIM"))
+            print()
+
+    elif sub == "reset":
+        deleted = layout_mod.reset(repo_root)
+        if not deleted:
+            print(c(f"  No saved layout for {repo_root.name}.", "DIM"))
+        else:
+            for p in deleted:
+                print(c(f"  ✓ removed  {p}", "GRN"))
+            print()
+            print(c(f"  Layout state cleared for {repo_root.name}.", "B"))
+
+    else:
+        print(c(f"  ✗ Unknown subcommand: layout {sub}", "RED"))
+        print(c("  Usage: fob layout save | load | show | reset", "DIM"))
+        sys.exit(1)
+
+
 # ── clear ────────────────────────────────────────────────────────────────────
 
 def cmd_clear(args: list[str], default_profile: dict | None) -> None:
+    from fob import layout as layout_mod
     clear_all = "--all" in args
     if clear_all:
         github_dir = Path.home() / "Documents" / "GitHub"
-        targets = list(github_dir.glob("*/.fob/layout-state.kdl")) if github_dir.exists() else []
-        if not targets:
+        cleared = 0
+        if github_dir.exists():
+            for fob_dir in github_dir.glob("*/.fob"):
+                repo_root = fob_dir.parent
+                deleted = layout_mod.reset(repo_root)
+                for f in deleted:
+                    print(c(f"  ✓ cleared  {f}", "GRN"))
+                    cleared += 1
+        if cleared == 0:
             print(c("  No saved layouts found.", "DIM"))
-            return
-        for f in targets:
-            f.unlink()
-            print(c(f"  ✓ cleared  {f}", "GRN"))
-        print()
-        print(c(f"  {len(targets)} layout(s) cleared.", "B"))
+        else:
+            print()
+            print(c(f"  {cleared} file(s) cleared.", "B"))
     else:
         repo_root = Path(default_profile["repo_root"]) if default_profile else Path.cwd()
-        saved = repo_root / ".fob" / "layout-state.kdl"
-        if saved.exists():
-            saved.unlink()
-            print(c(f"  ✓ cleared  {saved}", "GRN"))
+        deleted = layout_mod.reset(repo_root)
+        if deleted:
+            for f in deleted:
+                print(c(f"  ✓ cleared  {f}", "GRN"))
         else:
             print(c(f"  No saved layout for {repo_root.name}", "DIM"))
 

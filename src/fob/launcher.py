@@ -45,11 +45,6 @@ def _pane_block(profile: dict, fob_dir: Path, indent: str = "        ") -> str:
     )
 
 
-def _save_layout(profile: dict, layout: str) -> None:
-    fob_state = Path(profile["repo_root"]) / ".fob"
-    if fob_state.exists():
-        (fob_state / "layout-state.kdl").write_text(layout)
-
 
 def _chrome_template() -> str:
     """default_tab_template block — injects chrome into every tab including new ones."""
@@ -79,12 +74,12 @@ def _floating_cheat_block(fob_dir: Path, indent: str = "    ") -> str:
     )
 
 
-def generate_session_layout(profiles: list[dict], fob_dir: Path) -> Path:
-    """Session layout with default_tab_template so all tabs inherit chrome."""
+def generate_session_kdl(profiles: list[dict], fob_dir: Path) -> str:
+    """Return session layout KDL string (no side effects)."""
     profile = profiles[0]
     name = profile["name"]
     panes = _pane_block(profile, fob_dir, indent="        ")
-    layout = (
+    return (
         'layout {\n'
         + _chrome_template()
         + f'    tab name="{name}" {{\n'
@@ -92,9 +87,13 @@ def generate_session_layout(profiles: list[dict], fob_dir: Path) -> Path:
         + '    }\n'
         + '}\n'
     )
-    _save_layout(profile, layout)
+
+
+def generate_session_layout(profiles: list[dict], fob_dir: Path) -> Path:
+    """Generate session layout, write to /tmp, return path."""
+    kdl = generate_session_kdl(profiles, fob_dir)
     tmp = Path(tempfile.gettempdir()) / "fob-session.kdl"
-    tmp.write_text(layout)
+    tmp.write_text(kdl)
     return tmp
 
 
@@ -157,7 +156,12 @@ def attach(session_name: str = FOB_SESSION) -> None:
     os.execvp("zellij", ["zellij", "attach", session_name])
 
 
-def launch(profiles: list[dict], fob_dir: Path, reset_layout: bool = False) -> None:
+def launch(
+    profiles: list[dict],
+    fob_dir: Path,
+    reset_layout: bool = False,
+    saved_layout_path: Path | None = None,
+) -> None:
     for profile in profiles:
         check_branch(Path(profile["repo_root"]))
 
@@ -185,10 +189,9 @@ def launch(profiles: list[dict], fob_dir: Path, reset_layout: bool = False) -> N
             print(f"  → Attaching to session: {FOB_SESSION}")
             attach(FOB_SESSION)
     else:
-        saved = Path(profiles[0]["repo_root"]) / ".fob" / "layout-state.kdl"
-        if not reset_layout and saved.exists() and "tab-bar" in saved.read_text():
-            layout_path = saved
-            print(f"  → Restoring saved layout")
+        if saved_layout_path is not None:
+            layout_path = saved_layout_path
+            print(f"  → Loading saved layout")
         else:
             layout_path = generate_session_layout(profiles, fob_dir)
             print(f"  → Creating session '{FOB_SESSION}'")

@@ -26,7 +26,8 @@ echo -e "${R}"
 
 # ── FOB Commands ──────────────────────────────────────────────────────────────
 sec "FOB COMMANDS"
-CMD "fob brief [repo]"      "auto-select repo or show picker; add tab if session running"
+CMD "fob [brief] [repo]"    "auto-select repo or show picker; add tab if session running"
+CMD "fob brief --layout"    "launch using saved layout"
 CMD "fob attach"            "re-attach to running fob session"
 CMD "fob exit"              "kill fob session and all panes"
 CMD "fob status"            "repo, branch, session, .fob/ state"
@@ -36,8 +37,15 @@ CMD "fob test"              "run project tests"
 CMD "fob audit"             "run project audit"
 CMD "fob doctor"            "check all dependencies"
 CMD "fob loadout"           "install and configure dev tools"
-CMD "fob clear [--all]"    "delete saved layout (this repo or all)"
 CMD "fob cheat"             "this screen"
+echo
+
+sec "LAYOUT"
+CMD "fob layout save"       "save repo layout to .fob/layout.json"
+CMD "fob layout load"       "restore saved layout (starts new session)"
+CMD "fob layout show"       "show saved layout metadata and path"
+CMD "fob layout reset"      "delete saved layout for current repo"
+CMD "fob clear [--all]"     "delete saved layout (this repo or all)"
 echo
 
 # ── Zellij ────────────────────────────────────────────────────────────────────
