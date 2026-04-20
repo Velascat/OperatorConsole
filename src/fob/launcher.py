@@ -118,27 +118,6 @@ def generate_tab_layout(profile: dict, fob_dir: Path) -> Path:
     return tmp
 
 
-def _launch_with_extra_tabs(extra_profiles: list[dict], fob_dir: Path, layout_path: Path) -> None:
-    """Start session then add extra tabs via a background wrapper script."""
-    import shlex
-    adds = []
-    for profile in extra_profiles:
-        tab_layout = generate_tab_layout(profile, fob_dir)
-        adds.append(
-            f"zellij --session {FOB_SESSION} action new-tab --name {shlex.quote(profile['name'])} --layout {shlex.quote(str(tab_layout))}"
-        )
-    script = f"""#!/usr/bin/env bash
-zellij --session {FOB_SESSION} --new-session-with-layout {shlex.quote(str(layout_path))} &
-ZPID=$!
-sleep 2
-{"".join(f'{cmd}\n' for cmd in adds)}
-wait $ZPID
-"""
-    tmp = Path(tempfile.gettempdir()) / "fob-launch.sh"
-    tmp.write_text(script)
-    tmp.chmod(0o755)
-    os.execvp("bash", ["bash", str(tmp)])
-
 
 def _delete_dead_session(session_name: str) -> None:
     try:
@@ -214,4 +193,7 @@ def launch(profiles: list[dict], fob_dir: Path, reset_layout: bool = False) -> N
             layout_path = generate_session_layout(profiles, fob_dir)
             print(f"  → Creating session '{FOB_SESSION}'")
         print(f"  → Layout: {layout_path}")
-        _launch_with_extra_tabs(profiles[1:], fob_dir, layout_path)
+        os.execvp(
+            "zellij",
+            ["zellij", "--session", FOB_SESSION, "--new-session-with-layout", str(layout_path)],
+        )
