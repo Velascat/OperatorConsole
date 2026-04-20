@@ -13,11 +13,12 @@ A local operator console for Claude-driven development. Run `fob` from any repo 
 ## What Happens When You Run `fob`
 
 1. If your Python environment isn't ready, it bootstraps itself first (first run only)
-2. If you're inside a git repo, that repo is selected automatically — no picker needed
-3. If you're not in a repo, an interactive picker shows all repos under `~/Documents/GitHub/`
-4. A named Zellij session opens with a tab per selected repo
-5. In each tab: Claude starts with `claude --continue` and reads `.fob/` mission files for context
-6. lazygit, logs, and shell are stacked on the left — focused pane expands, others collapse to a title strip
+2. If you're inside a git repo and that tab isn't already open → auto-selects, no picker
+3. If that repo's tab is already open → shows picker so you can open a different repo
+4. If you're not in a known repo → picker shows all repos under `~/Documents/GitHub/`
+5. A named Zellij session opens with a tab per selected repo
+6. In each tab: Claude starts with `claude --continue` and reads `.fob/.briefing` for context
+7. lazygit, logs, and shell are stacked on the left — focused pane expands, others collapse to a title strip
 
 ```
 ┌──────────────────────────────────────────────────┐

@@ -28,10 +28,10 @@ Running `fob` (no subcommand) is equivalent to `fob brief`. The shell wrapper (`
 `fob` / `fob brief`:
 
 1. Scan `~/Documents/GitHub/` for git repos; overlay any YAML profiles from `config/profiles/`
-2. If outside Zellij and cwd is inside a known repo → auto-select that repo, skip picker
-3. Otherwise show interactive picker (fzf or numbered fallback menu); Tab to multi-select
-4. For each selected repo: initialize `.fob/` if missing, write `.fob/.briefing`, ensure `CLAUDE.md`
-5. Ensure Zellij serialization is enabled in `~/.config/zellij/config.kdl`
+2. If cwd is inside a known repo and that tab is not already open → auto-select, skip picker
+3. If cwd repo tab is already open → show picker (so you can open a different repo)
+4. If cwd is outside all known repos → show picker (fzf or numbered fallback); Tab to multi-select
+5. For each selected repo: initialize `.fob/` if missing, write `.fob/.briefing`, ensure `CLAUDE.md`
 6. Check branch via `guardrails.py` — warn if on main/master
 7. If session `fob` exists → add each repo as a new named tab (skip if tab already open)
 8. Otherwise → generate KDL layout, launch `zellij --session fob --new-session-with-layout <kdl>`

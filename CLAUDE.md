@@ -18,4 +18,3 @@ The briefing contains your mission, standing orders, objectives, recent log, and
 
 After meaningful progress, update `.fob/objectives.md` and `.fob/mission-log.md`.
 Do not edit `.fob/.briefing` directly — it is overwritten at each launch.
-

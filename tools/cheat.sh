@@ -26,7 +26,7 @@ echo -e "${R}"
 
 # ── FOB Commands ──────────────────────────────────────────────────────────────
 sec "FOB COMMANDS"
-CMD "fob brief [repo]"      "pick repos and launch workspace (or add tabs)"
+CMD "fob brief [repo]"      "auto-select repo or show picker; add tab if session running"
 CMD "fob attach"            "re-attach to running fob session"
 CMD "fob exit"              "kill fob session and all panes"
 CMD "fob status"            "repo, branch, session, .fob/ state"
