@@ -141,10 +141,9 @@ def generate_tool_tab_layout(name: str, command: str) -> Path:
 
 
 def _add_tool_tabs(existing_tabs: set[str]) -> None:
-    """Add btop and gitcomet as session-level tabs if not already open."""
+    """Add btop as a session-level tab if not already open."""
     tool_tabs = [
-        ("btop",      "command -v btop &>/dev/null && btop"),
-        ("gitcomet",  "command -v gitcomet &>/dev/null && gitcomet"),
+        ("btop", "command -v btop &>/dev/null && btop"),
     ]
     for name, cmd in tool_tabs:
         if name in existing_tabs:
@@ -168,8 +167,7 @@ def _launch_with_extra_tabs(extra_profiles: list[dict], fob_dir: Path, layout_pa
             f"zellij --session {FOB_SESSION} action new-tab --name {shlex.quote(profile['name'])} --layout {shlex.quote(str(tab_layout))}"
         )
     tool_tabs = [
-        ("btop",     "command -v btop &>/dev/null && btop"),
-        ("gitcomet", "command -v gitcomet &>/dev/null && gitcomet"),
+        ("btop", "command -v btop &>/dev/null && btop"),
     ]
     for name, cmd in tool_tabs:
         tl = generate_tool_tab_layout(name, cmd)

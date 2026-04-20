@@ -34,7 +34,7 @@ TOOLS=(
   "fd|fd-find|fd fdfind|Smarter find — simpler syntax, respects .gitignore"
   "zoxide|zoxide|zoxide|Smart cd — learns your dirs, jump with z"
   "delta|git-delta|delta|Beautiful git diffs with syntax highlighting"
-  "gitcomet|gitcomet|gitcomet|Fast git UI — stage, commit, diff, log visually"
+  "lazygit|lazygit|lazygit|Full git TUI — stage, commit, diff, log visually"
   "btop|btop|btop|Beautiful system monitor — CPU/RAM/network/processes"
   "starship|starship|starship|Cross-shell prompt — fast, informative, customizable"
   "fastfetch|fastfetch|fastfetch|System info display — the classic flex"
@@ -76,24 +76,16 @@ install_starship() {
   curl -sS https://starship.rs/install.sh | sh -s -- --yes
 }
 
-install_gitcomet() {
-  echo -e "${CYN}▶ Installing gitcomet from GitHub releases...${R}"
+install_lazygit() {
+  echo -e "${CYN}▶ Installing lazygit from GitHub releases...${R}"
   local ver
-  ver=$(curl -s "https://api.github.com/repos/Auto-Explore/GitComet/releases/latest" \
-    | grep '"tag_name"' | cut -d'"' -f4)
-  mkdir -p /tmp/gitcomet-extract
-  curl -Lo /tmp/gitcomet.tar.gz \
-    "https://github.com/Auto-Explore/GitComet/releases/latest/download/gitcomet-${ver}-linux-x86_64.tar.gz"
-  tar xf /tmp/gitcomet.tar.gz -C /tmp/gitcomet-extract/
-  local bin
-  bin=$(find /tmp/gitcomet-extract -name 'gitcomet' -type f | head -1)
-  if [[ -z "$bin" ]]; then
-    echo -e "${RED}✗ gitcomet binary not found in archive${R}"
-    rm -rf /tmp/gitcomet.tar.gz /tmp/gitcomet-extract
-    return 1
-  fi
-  sudo install "$bin" /usr/local/bin/gitcomet
-  rm -rf /tmp/gitcomet.tar.gz /tmp/gitcomet-extract
+  ver=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" \
+    | grep '"tag_name"' | cut -d'"' -f4 | sed 's/v//')
+  curl -Lo /tmp/lazygit.tar.gz \
+    "https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${ver}_Linux_x86_64.tar.gz"
+  tar xf /tmp/lazygit.tar.gz -C /tmp lazygit
+  sudo install /tmp/lazygit /usr/local/bin
+  rm -f /tmp/lazygit.tar.gz /tmp/lazygit
 }
 
 install_eza() {
@@ -139,7 +131,7 @@ install_all_missing() {
     tool_installed "$check_alts" && continue
     case "$name" in
       starship)  install_starship ;;
-      gitcomet)  install_gitcomet ;;
+      lazygit)   install_lazygit ;;
       eza)       install_eza ;;
       delta)     install_delta ;;
       fastfetch) install_fastfetch ;;
@@ -190,8 +182,8 @@ command -v rg &>/dev/null && alias grep="rg"
 # fd / fdfind
 command -v fdfind &>/dev/null && alias fd="fdfind"
 
-# gitcomet
-command -v gitcomet &>/dev/null && alias gc="gitcomet"
+# lazygit
+command -v lazygit &>/dev/null && alias lg="lazygit"
 '
 
 show_shell_config() {
