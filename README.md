@@ -269,6 +269,16 @@ Profile visibility:
 
 See [docs/profiles.md](docs/profiles.md).
 
+## Ownership boundary
+
+FOB owns the operator experience: session management, workspace layout, mission files, and operator-facing command entrypoints like `fob demo` and `fob brief`. FOB delegates platform lifecycle actions (stack up/down/health) to WorkStation and does not own infrastructure internals.
+
+FOB does **not** own service Dockerfiles, compose manifests, routing policy, or autonomy logic. Those belong to WorkStation, SwitchBoard, and ControlPlane respectively.
+
+For the full platform ownership model see `WorkStation/docs/architecture/ownership.md`.
+
+---
+
 ## Further Reading
 
 - [docs/architecture.md](docs/architecture.md) — launcher flow, session model, layout persistence internals

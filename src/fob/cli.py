@@ -56,6 +56,7 @@ def show_menu(_: list[str]) -> None:
         ("restore", "re-open last session group"),
         ("status",  "repo, branch, session state"),
         ("resume",  "print mission brief"),
+        ("demo",    "end-to-end platform demo — proves the stack works"),
         ("doctor",  "full dependency check + install"),
         ("loadout", "install and configure dev tools"),
         ("cheat",   "keybinding reference"),
@@ -141,6 +142,9 @@ def show_help(_: list[str]) -> None:
             ("layout reset",      "Delete saved layout state for current repo"),
         ]),
         ("OPS", [
+            ("demo",              "End-to-end platform demo: stack → SwitchBoard → ControlPlane"),
+            ("demo --no-start",   "Demo assuming stack already running"),
+            ("demo --json",       "Machine-readable summary"),
             ("test",              "Run project tests"),
             ("audit",             "Run project audit"),
         ]),
@@ -588,6 +592,10 @@ def main() -> None:
         case "status":
             all_repos = _discover_repos() if "--all" in args else None
             commands.cmd_status(args, FOB_DIR, _profile_for_cwd(), all_repos)
+
+        case "demo":
+            from fob.demo import run_demo
+            sys.exit(run_demo(args))
 
         case "test":
             commands.cmd_test(args, _profile_for_cwd())
