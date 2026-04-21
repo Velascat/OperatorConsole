@@ -7,19 +7,8 @@ from pathlib import Path
 
 from fob.session import session_exists
 from fob.guardrails import check_branch
-from fob.bootstrap import get_claude_command, get_aider_command
+from fob.bootstrap import get_claude_command, get_codex_command, get_aider_command
 
-
-def _get_tool_command(
-    profile: dict,
-    repo_root: Path,
-    fob_dir: Path,
-    session_key: str | None = None,
-    claude_cwd: Path | None = None,
-) -> str:
-    if profile.get("tool") == "aider":
-        return get_aider_command(profile, repo_root, fob_dir, session_key)
-    return get_claude_command(profile, repo_root, fob_dir=fob_dir, session_key=session_key, claude_cwd=claude_cwd)
 
 FOB_SESSION = "fob"
 _GITHUB_DIR = Path.home() / "Documents" / "GitHub"
@@ -35,7 +24,7 @@ def _c(text: str, *keys: str) -> str:
 # ── single-repo pane block ────────────────────────────────────────────────────
 #
 #  Left  28%: lazygit (top) + control-plane status (bottom, fixed)
-#  Center   : claude (top) + shell (15% bottom)
+#  Center   : stacked chats — claude / codex / aider — + shell (15% bottom)
 #  Right 28%: logs
 
 def _single_pane_block(
@@ -46,7 +35,6 @@ def _single_pane_block(
 ) -> str:
     repo       = profile["repo_root"]
     panes_cfg  = profile.get("panes", {})
-    claude_cmd = _get_tool_command(profile, Path(repo), fob_dir)
     git_cmd    = panes_cfg.get("git",  {}).get("command", "lazygit")
     logs_cmd   = panes_cfg.get("logs", {}).get(
         "command", "tail -f .fob/runtime.log 2>/dev/null || echo 'No runtime.log yet'",
@@ -57,6 +45,10 @@ def _single_pane_block(
     status_repos = profile.get("status_repos", Path(repo).name)
     status_arg   = f" --repo '{status_repos}'" if status_repos else ""
     i = indent
+
+    claude_cmd = get_claude_command(profile, Path(repo), fob_dir=fob_dir, claude_cwd=claude_cwd)
+    codex_cmd  = get_codex_command(profile, Path(repo), fob_dir=fob_dir)
+    aider_cmd  = get_aider_command(profile, Path(repo), fob_dir=fob_dir)
 
     return (
         f'{i}pane split_direction="vertical" {{\n'
@@ -69,10 +61,18 @@ def _single_pane_block(
         f'{i}            args "-c" "bash \'{cp_status}\' status{status_arg}"\n'
         f'{i}        }}\n'
         f'{i}    }}\n'
-        # Center: claude + shell
+        # Center: stacked chats + shell
         f'{i}    pane split_direction="horizontal" {{\n'
-        f'{i}        pane name="claude" command="bash" {{\n'
-        f'{i}            args "-c" "cd \'{safe_cwd}\' && {claude_cmd}"\n'
+        f'{i}        pane stacked=true {{\n'
+        f'{i}            pane name="claude" command="bash" {{\n'
+        f'{i}                args "-c" "cd \'{safe_cwd}\' && {claude_cmd}"\n'
+        f'{i}            }}\n'
+        f'{i}            pane name="codex" command="bash" {{\n'
+        f'{i}                args "-c" "cd \'{safe_cwd}\' && {codex_cmd}"\n'
+        f'{i}            }}\n'
+        f'{i}            pane name="aider" command="bash" {{\n'
+        f'{i}                args "-c" "cd \'{safe_cwd}\' && {aider_cmd}"\n'
+        f'{i}            }}\n'
         f'{i}        }}\n'
         f'{i}        pane size="15%" name="shell" command="bash" {{\n'
         f'{i}            args "-c" "cd \'{safe_cwd}\' && exec bash -l"\n'
@@ -89,8 +89,8 @@ def _single_pane_block(
 # ── multi-repo pane block ─────────────────────────────────────────────────────
 #
 #  Left  28%: stacked lazygits (all repos)
-#  Center   : claude (full height)
-#  Right 28%: stacked shells (top) + status 25% (bottom) — mirrors single-repo left column
+#  Center   : stacked chats — claude / codex / aider
+#  Right 28%: stacked shells (top) + status 25% (bottom)
 
 def _multi_pane_block(
     profiles: list[dict],
@@ -98,14 +98,23 @@ def _multi_pane_block(
     indent: str = "        ",
     tab_name: str | None = None,
 ) -> str:
-    cp_status  = str(_CP_STATUS).replace("'", "'\\''")
-    safe_cwd   = str(_GITHUB_DIR).replace("'", "'\\''")
+    cp_status   = str(_CP_STATUS).replace("'", "'\\''")
+    safe_cwd    = str(_GITHUB_DIR).replace("'", "'\\''")
     session_key = tab_name or _multi_tab_name(profiles)
-    claude_cmd  = _get_tool_command(
-        profiles[0], Path(profiles[0]["repo_root"]),
-        fob_dir, session_key=session_key, claude_cwd=_GITHUB_DIR,
-    )
     i = indent
+
+    claude_cmd = get_claude_command(
+        profiles[0], Path(profiles[0]["repo_root"]),
+        fob_dir=fob_dir, session_key=session_key, claude_cwd=_GITHUB_DIR,
+    )
+    codex_cmd = get_codex_command(
+        profiles[0], _GITHUB_DIR,
+        fob_dir=fob_dir, session_key=session_key,
+    )
+    aider_cmd = get_aider_command(
+        profiles[0], Path(profiles[0]["repo_root"]),
+        fob_dir=fob_dir, session_key=session_key,
+    )
 
     # Left column: all lazygits stacked
     lazygit_stack = f'{i}        pane stacked=true {{\n'
@@ -125,19 +134,29 @@ def _multi_pane_block(
         + f'{i}    }}\n'
     )
 
-    # Center: claude only
+    # Center: stacked chats — claude / codex / aider
     center_block = (
-        f'{i}    pane name="claude" command="bash" {{\n'
-        f'{i}        args "-c" "cd \'{safe_cwd}\' && {claude_cmd}"\n'
+        f'{i}    pane {{\n'
+        f'{i}        pane stacked=true {{\n'
+        f'{i}            pane name="claude" command="bash" {{\n'
+        f'{i}                args "-c" "cd \'{safe_cwd}\' && {claude_cmd}"\n'
+        f'{i}            }}\n'
+        f'{i}            pane name="codex" command="bash" {{\n'
+        f'{i}                args "-c" "cd \'{safe_cwd}\' && {codex_cmd}"\n'
+        f'{i}            }}\n'
+        f'{i}            pane name="aider" command="bash" {{\n'
+        f'{i}                args "-c" "cd \'{safe_cwd}\' && {aider_cmd}"\n'
+        f'{i}            }}\n'
+        f'{i}        }}\n'
         f'{i}    }}\n'
     )
 
-    # Right column: status (top) + stacked shells (bottom)
+    # Right column: stacked shells (top) + status (bottom)
     _repo_filter = next(
         (p["status_repos"] for p in profiles if "status_repos" in p),
         "",
     )
-    status_arg   = f" --repo '{_repo_filter}'" if _repo_filter else ""
+    status_arg = f" --repo '{_repo_filter}'" if _repo_filter else ""
 
     shell_stack = f'{i}        pane stacked=true {{\n'
     for p in profiles:

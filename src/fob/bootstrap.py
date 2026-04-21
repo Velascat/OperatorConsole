@@ -156,6 +156,38 @@ def get_claude_command(
     return f"bash '{safe_path}'"
 
 
+def get_codex_command(
+    profile: dict,
+    repo_root: Path,
+    fob_dir: Path | None = None,
+    session_key: str | None = None,
+) -> str:
+    """Return a shell command string that launches Codex CLI, or a usable shell if not installed."""
+    import tempfile
+
+    key = (session_key or profile.get("name", "unknown")).lower()
+    codex_cfg = profile.get("codex", {})
+    codex_bin = codex_cfg.get("bin", "codex")
+
+    safe_bin = codex_bin.replace("'", "'\\''")
+    script = (
+        "#!/usr/bin/env bash\n"
+        f"if ! command -v '{safe_bin}' &>/dev/null; then\n"
+        "  echo 'codex CLI not found.'\n"
+        "  echo 'Install: npm install -g @openai/codex'\n"
+        "  exec bash -l\n"
+        "fi\n"
+        f"exec '{safe_bin}'\n"
+    )
+
+    script_path = Path(tempfile.gettempdir()) / f"fob-codex-{key}.sh"
+    script_path.write_text(script)
+    script_path.chmod(0o755)
+
+    safe_path = str(script_path).replace("'", "'\\''")
+    return f"bash '{safe_path}'"
+
+
 # TODO: FOB's own profile (config/profiles/fob.yaml) still uses Claude.
 # Switch it to `tool: aider` once SwitchBoard integration is validated end-to-end.
 def get_aider_command(
