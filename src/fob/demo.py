@@ -138,34 +138,94 @@ def _find_switchboard_url() -> str:
 
 # ── demo steps ────────────────────────────────────────────────────────────────
 
+def _load_env_file(path: Path) -> dict[str, str]:
+    """Parse a simple KEY=value .env file, ignoring comments and blanks."""
+    result: dict[str, str] = {}
+    if not path.exists():
+        return result
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" in line:
+            k, _, v = line.partition("=")
+            result[k.strip()] = v.strip().strip('"').strip("'")
+    return result
+
+
 def step_preflight(workstation_root: Path | None) -> StepResult:
     _section("1 · Preflight")
 
     issues: list[str] = []
 
     if workstation_root is None:
-        issues.append("WorkStation repo not found (expected at ~/Documents/GitHub/WorkStation)")
-    else:
-        _ok(f"WorkStation : {workstation_root}")
-        env_file = workstation_root / ".env"
-        if not env_file.exists():
-            issues.append(
-                f".env missing in WorkStation — copy: cp .env.example .env"
-            )
-        else:
-            _ok(".env present")
+        _fail("WorkStation repo not found")
+        _info("expected at ~/Documents/GitHub/WorkStation")
+        return StepResult("preflight", False, "WorkStation not found")
 
-    for binary in ("docker",):
-        result = subprocess.run(["which", binary], capture_output=True)
-        if result.returncode == 0:
-            _ok(f"{binary} available")
+    _ok(f"WorkStation : {workstation_root}")
+
+    # .env
+    env_file = workstation_root / ".env"
+    if not env_file.exists():
+        issues.append(".env")
+        _fail(".env missing")
+        _info(f"  fix: cp {workstation_root}/.env.example {workstation_root}/.env")
+    else:
+        _ok(".env present")
+
+    # 9router source repo (needed as Docker build context)
+    nine_router_repo = workstation_root.parent / "9router"
+    if not (nine_router_repo / "package.json").exists():
+        issues.append("9router repo")
+        _fail(f"9router source not found at {nine_router_repo}")
+        _info("  fix: git clone https://github.com/decolua/9router " + str(nine_router_repo))
+    else:
+        _ok(f"9router repo : {nine_router_repo}")
+
+    # SwitchBoard source repo (needed as Docker build context)
+    switchboard_repo = workstation_root.parent / "SwitchBoard"
+    if not (switchboard_repo / "pyproject.toml").exists():
+        issues.append("SwitchBoard repo")
+        _fail(f"SwitchBoard source not found at {switchboard_repo}")
+        _info("  fix: git clone https://github.com/Velascat/SwitchBoard " + str(switchboard_repo))
+    else:
+        _ok(f"SwitchBoard  : {switchboard_repo}")
+
+    # API keys in config/9router/.env
+    nr_env_path = workstation_root / "config" / "9router" / ".env"
+    if not nr_env_path.exists():
+        issues.append("9router .env")
+        _fail(f"config/9router/.env missing")
+        _info(f"  fix: cp {workstation_root}/config/9router/.env.example {nr_env_path}")
+    else:
+        nr_env = _load_env_file(nr_env_path)
+        provider_keys = [k for k in nr_env if k.endswith("_API_KEY") and nr_env[k]]
+        if not provider_keys:
+            issues.append("API keys")
+            _fail("No provider API keys set in config/9router/.env")
+            _info("  fix: add at least one of OPENAI_API_KEY or ANTHROPIC_API_KEY")
         else:
-            issues.append(f"'{binary}' not found — install Docker")
+            _ok(f"API keys     : {', '.join(provider_keys)}")
+
+    # Docker
+    result = subprocess.run(["which", "docker"], capture_output=True)
+    if result.returncode != 0:
+        issues.append("docker")
+        _fail("docker not found — install Docker")
+    else:
+        # Check daemon is running
+        ping = subprocess.run(["docker", "info"], capture_output=True)
+        if ping.returncode != 0:
+            issues.append("docker daemon")
+            _fail("Docker daemon not running — start Docker Desktop or dockerd")
+        else:
+            _ok("Docker daemon running")
 
     if issues:
-        for issue in issues:
-            _fail(issue)
-        return StepResult("preflight", False, "; ".join(issues))
+        print()
+        _fail(f"Preflight failed: {', '.join(issues)}")
+        return StepResult("preflight", False, f"missing: {', '.join(issues)}")
     return StepResult("preflight", True, "all checks passed")
 
 
