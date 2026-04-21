@@ -7,7 +7,19 @@ from pathlib import Path
 
 from fob.session import session_exists
 from fob.guardrails import check_branch
-from fob.bootstrap import get_claude_command
+from fob.bootstrap import get_claude_command, get_aider_command
+
+
+def _get_tool_command(
+    profile: dict,
+    repo_root: Path,
+    fob_dir: Path,
+    session_key: str | None = None,
+    claude_cwd: Path | None = None,
+) -> str:
+    if profile.get("tool") == "aider":
+        return get_aider_command(profile, repo_root, fob_dir, session_key)
+    return get_claude_command(profile, repo_root, fob_dir=fob_dir, session_key=session_key, claude_cwd=claude_cwd)
 
 FOB_SESSION = "fob"
 _GITHUB_DIR = Path.home() / "Documents" / "GitHub"
@@ -34,7 +46,7 @@ def _single_pane_block(
 ) -> str:
     repo       = profile["repo_root"]
     panes_cfg  = profile.get("panes", {})
-    claude_cmd = get_claude_command(profile, Path(repo), fob_dir=fob_dir)
+    claude_cmd = _get_tool_command(profile, Path(repo), fob_dir)
     git_cmd    = panes_cfg.get("git",  {}).get("command", "lazygit")
     logs_cmd   = panes_cfg.get("logs", {}).get(
         "command", "tail -f .fob/runtime.log 2>/dev/null || echo 'No runtime.log yet'",
@@ -89,9 +101,9 @@ def _multi_pane_block(
     cp_status  = str(_CP_STATUS).replace("'", "'\\''")
     safe_cwd   = str(_GITHUB_DIR).replace("'", "'\\''")
     session_key = tab_name or _multi_tab_name(profiles)
-    claude_cmd  = get_claude_command(
+    claude_cmd  = _get_tool_command(
         profiles[0], Path(profiles[0]["repo_root"]),
-        fob_dir=fob_dir, session_key=session_key, claude_cwd=_GITHUB_DIR,
+        fob_dir, session_key=session_key, claude_cwd=_GITHUB_DIR,
     )
     i = indent
 

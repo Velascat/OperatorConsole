@@ -1,6 +1,10 @@
 name: SwitchBoard
 repo_root: /home/dev/Documents/GitHub/SwitchBoard
 
+tool: aider
+aider:
+  profile: capable
+
 claude:
   continue: true
   bootstrap_files:

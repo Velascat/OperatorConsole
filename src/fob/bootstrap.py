@@ -156,6 +156,61 @@ def get_claude_command(
     return f"bash '{safe_path}'"
 
 
+# TODO: FOB's own profile (config/profiles/fob.yaml) still uses Claude.
+# Switch it to `tool: aider` once SwitchBoard integration is validated end-to-end.
+def get_aider_command(
+    profile: dict,
+    repo_root: Path,
+    fob_dir: Path | None = None,
+    session_key: str | None = None,
+) -> str:
+    """Return a shell command string that launches Aider via SwitchBoard.
+
+    Generates a wrapper script in /tmp that sets the SwitchBoard endpoint env
+    vars and execs aider from SwitchBoard's .venv-aider.  Falls back to a
+    plain shell if the venv is not bootstrapped so the pane stays usable.
+    """
+    import tempfile
+
+    aider_cfg = profile.get("aider", {})
+    sb_profile = aider_cfg.get("profile", "fast")
+    github_dir = Path.home() / "Documents" / "GitHub"
+    sb_root = Path(aider_cfg.get("switchboard_root", str(github_dir / "SwitchBoard")))
+    switchboard_port = aider_cfg.get("switchboard_port", 20401)
+
+    aider_bin = sb_root / ".venv-aider" / "bin" / "aider"
+    model_settings = sb_root / "config" / "aider" / "model-settings.yml"
+    sb_env = sb_root / ".env"
+
+    safe_aider = str(aider_bin).replace("'", "'\\''")
+    safe_settings = str(model_settings).replace("'", "'\\''")
+    safe_env = str(sb_env).replace("'", "'\\''")
+    safe_sb_root = str(sb_root).replace("'", "'\\''")
+
+    script = (
+        "#!/usr/bin/env bash\n"
+        f"if [[ ! -x '{safe_aider}' ]]; then\n"
+        f"  echo 'ERROR: SwitchBoard aider venv not bootstrapped.'\n"
+        f"  echo 'Run: bash {safe_sb_root}/scripts/bootstrap_aider.sh'\n"
+        "  exec bash -l\n"
+        "fi\n"
+        f"if [[ -f '{safe_env}' ]]; then set -a; source '{safe_env}'; set +a; fi\n"
+        f"export OPENAI_API_BASE='http://localhost:{switchboard_port}/v1'\n"
+        'export OPENAI_API_KEY="${OPENAI_API_KEY:-sk-switchboard}"\n'
+        f"exec '{safe_aider}' \\\n"
+        f"  --model 'openai/{sb_profile}' \\\n"
+        f"  --model-settings-file '{safe_settings}'\n"
+    )
+
+    key = (session_key or profile.get("name", "unknown")).lower()
+    script_path = Path(tempfile.gettempdir()) / f"fob-aider-{key}.sh"
+    script_path.write_text(script)
+    script_path.chmod(0o755)
+
+    safe_path = str(script_path).replace("'", "'\\''")
+    return f"bash '{safe_path}'"
+
+
 def ensure_claude_md(
     repo_root: Path,
     templates_dir: Path,
