@@ -56,8 +56,9 @@ def show_menu(_: list[str]) -> None:
         ("restore", "re-open last session group"),
         ("status",  "repo, branch, session state"),
         ("resume",  "print mission brief"),
-        ("demo",    "end-to-end platform demo — proves the stack works"),
-        ("doctor",  "full dependency check + install"),
+        ("demo",      "end-to-end platform demo — proves the stack works"),
+        ("providers", "connect a free LLM provider to 9router"),
+        ("doctor",    "full dependency check + install"),
         ("loadout", "install and configure dev tools"),
         ("cheat",   "keybinding reference"),
         ("help",    "full command reference"),
@@ -142,9 +143,11 @@ def show_help(_: list[str]) -> None:
             ("layout reset",      "Delete saved layout state for current repo"),
         ]),
         ("OPS", [
-            ("demo",              "End-to-end platform demo: stack → SwitchBoard → ControlPlane"),
+            ("demo",              "End-to-end platform demo: stack → providers → SwitchBoard → ControlPlane"),
             ("demo --no-start",   "Demo assuming stack already running"),
             ("demo --json",       "Machine-readable summary"),
+            ("providers",         "Open 9router dashboard; show free provider options"),
+            ("providers --wait",  "Same, but poll until a provider is connected"),
             ("test",              "Run project tests"),
             ("audit",             "Run project audit"),
         ]),
@@ -596,6 +599,10 @@ def main() -> None:
         case "demo":
             from fob.demo import run_demo
             sys.exit(run_demo(args))
+
+        case "providers":
+            from fob.providers import run_providers
+            sys.exit(run_providers(args))
 
         case "test":
             commands.cmd_test(args, _profile_for_cwd())

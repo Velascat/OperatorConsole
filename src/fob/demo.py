@@ -3,10 +3,12 @@
 Proves the full platform is operational:
   1. Preflight    — repos and config exist, required binaries available
   2. Stack        — WorkStation stack is healthy or started
-  3. SwitchBoard  — sends a deterministic request, shows routing decision
-  4. ControlPlane — sends a request as ControlPlane would (tenant headers),
+  3. Health       — SwitchBoard and 9router respond on /health
+  4. Providers    — at least one provider connected in 9router
+  5. SwitchBoard  — sends a deterministic request, shows routing decision
+  6. ControlPlane — sends a request as ControlPlane would (tenant headers),
                     proves the shared routing path works for autonomous traffic
-  5. Summary      — per-step status, artifact locations, exit code
+  7. Summary      — per-step status, artifact locations, exit code
 """
 from __future__ import annotations
 
@@ -272,9 +274,8 @@ def step_health(switchboard_url: str) -> StepResult:
 
 
 def step_providers(nr_port: str = "20128") -> StepResult:
-    _section("3b · 9router providers")
+    _section("4 · Providers")
 
-    # Try to list configured providers via 9router's API
     code, body = _http_get(f"http://localhost:{nr_port}/api/providers", timeout=5)
 
     if code == 200:
@@ -285,22 +286,28 @@ def step_providers(nr_port: str = "20128") -> StepResult:
             _ok(f"providers : {', '.join(names)}")
             return StepResult("providers", True, f"{len(active)} active")
 
-    # No providers configured — guide the user
-    _fail("No providers configured in 9router")
+    # No providers — show options and tell user how to fix
+    _fail("No providers connected to 9router")
     print()
-    _info("Connect a free provider at http://localhost:20128 (no API keys needed):")
+    _info("Connect a free provider (no API key required):")
     print()
-    print(f"    {_c('Kiro', 'B')}    {_c('→  free Claude Sonnet 4.5  (AWS Builder ID / GitHub OAuth)', 'DIM')}")
-    print(f"    {_c('iFlow', 'B')}   {_c('→  free Deepseek R1, Qwen3  (OAuth)', 'DIM')}")
-    print(f"    {_c('Gemini', 'B')}  {_c('→  free Gemini 2.5 Pro  (Google OAuth, quota-limited)', 'DIM')}")
-    print(f"    {_c('Ollama', 'B')}  {_c('→  free local models  (install: https://ollama.com)', 'DIM')}")
+    rows = [
+        ("Kiro",   "Claude Sonnet 4.5",       "GitHub OAuth",  "recommended"),
+        ("iFlow",  "Deepseek R1, Qwen3",      "OAuth",         ""),
+        ("Gemini", "Gemini 2.5 Pro",          "Google OAuth",  "quota-limited"),
+        ("Ollama", "local models",            "no account",    "CPU-only is slow"),
+    ]
+    for name, models, auth, note in rows:
+        note_str = f"  {_c(note, 'DIM')}" if note else ""
+        print(f"    {_c(name, 'B'):<12}  {_c(models, 'DIM'):<28}  {auth}{note_str}")
     print()
-    _info("After connecting a provider, re-run: fob demo --no-start")
-    return StepResult("providers", False, "no providers configured")
+    _info("Run:  fob providers  to open the dashboard and connect a provider")
+    _info("Then: fob demo --no-start  to continue validation")
+    return StepResult("providers", False, "run: fob providers")
 
 
 def step_switchboard_smoke(switchboard_url: str) -> StepResult:
-    _section("4 · SwitchBoard routing proof")
+    _section("5 · SwitchBoard routing proof")
 
     import uuid
     rid = uuid.uuid4().hex[:12]
@@ -357,7 +364,7 @@ def step_switchboard_smoke(switchboard_url: str) -> StepResult:
 
 
 def step_controlplane_proof(switchboard_url: str) -> StepResult:
-    _section("5 · ControlPlane routing proof")
+    _section("6 · ControlPlane routing proof")
     _info("Sending a request as ControlPlane would (X-SwitchBoard-Tenant-ID: control-plane)")
 
     import uuid
@@ -433,12 +440,19 @@ def print_summary(result: DemoResult) -> None:
         failed = result.failed_step
         if failed:
             print(_c(f"  DEMO FAILED at step: {failed.name}", "RED", "B"))
-            if failed.detail:
+            if failed.name == "providers":
+                print()
+                print(_c("  Connect a free provider, then re-run:", "DIM"))
+                print(_c("    fob providers          open dashboard + provider table", "DIM"))
+                print(_c("    fob providers --wait   same, poll until connected", "DIM"))
+                print(_c("    fob demo --no-start    resume validation", "DIM"))
+            elif failed.detail:
                 print(_c(f"  {failed.detail}", "DIM"))
-        print()
-        print(_c("  Logs / admin:", "DIM"))
-        print(_c("    bash scripts/health.sh         (WorkStation)", "DIM"))
-        print(_c("    curl localhost:20401/admin/decisions/recent?n=5", "DIM"))
+        if not failed or failed.name not in ("providers",):
+            print()
+            print(_c("  Logs / admin:", "DIM"))
+            print(_c("    bash scripts/health.sh         (WorkStation)", "DIM"))
+            print(_c("    curl localhost:20401/admin/decisions/recent?n=5", "DIM"))
     print()
 
 
@@ -482,7 +496,7 @@ def run_demo(args: list[str]) -> int:
         print_summary(result)
         return 1
 
-    # 3b. Provider check
+    # 4. Providers
     nr_port = os.environ.get("PORT_9ROUTER", "20128")
     prov = step_providers(nr_port)
     result.add(prov)
@@ -490,14 +504,14 @@ def run_demo(args: list[str]) -> int:
         print_summary(result)
         return 1
 
-    # 4. SwitchBoard smoke
+    # 5. SwitchBoard smoke
     sb = step_switchboard_smoke(switchboard_url)
     result.add(sb)
     if not sb.passed:
         print_summary(result)
         return 1
 
-    # 5. ControlPlane proof
+    # 6. ControlPlane proof
     cp = step_controlplane_proof(switchboard_url)
     result.add(cp)
 
