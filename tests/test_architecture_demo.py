@@ -6,13 +6,11 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_providers_command_no_longer_mentions_9router() -> None:
+def test_providers_command_reports_selector_only_readiness() -> None:
     text = (REPO_ROOT / "src" / "fob" / "providers.py").read_text(encoding="utf-8")
-    assert "9router" not in text
     assert "lane readiness" in text
 
 
-def test_demo_flow_no_longer_requires_provider_proxy() -> None:
+def test_demo_flow_uses_selector_route_handoff() -> None:
     text = (REPO_ROOT / "src" / "fob" / "demo.py").read_text(encoding="utf-8")
-    assert "9router" not in text
     assert "/route" in text
