@@ -403,12 +403,10 @@ def _run_brief(profiles: list[dict], use_saved_layout: bool = False, tab_name: s
     """Core brief flow shared by `fob brief`, `fob multi`, and `fob restore`."""
     from fob.profile_loader import load_profile
     from fob.launcher import launch, FOB_SESSION
-    from fob.bootstrap import ensure_claude_md, write_bootstrap_file, spawn_update_clis_background
+    from fob.bootstrap import ensure_claude_md, write_bootstrap_file
     from fob.session import session_exists as _sess_exists
     from fob.session_group import save as _sg_save
     import os as _os
-
-    spawn_update_clis_background()
 
     for profile in profiles:
         claude_cfg = profile.get("claude", {})
