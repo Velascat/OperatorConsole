@@ -1,6 +1,7 @@
 """Zellij session creation and attachment."""
 from __future__ import annotations
 import os
+import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -68,7 +69,6 @@ def _single_pane_block(
     git_cmd    = panes_cfg.get("git",  {}).get("command", "lazygit")
     safe_repo  = repo.replace("'", "'\\''")
     safe_cwd   = str(claude_cwd).replace("'", "'\\''") if claude_cwd else safe_repo
-    cp_status  = str(_CP_STATUS).replace("'", "'\\''")
     status_repos = profile.get("status_repos", Path(repo).name)
     status_arg   = f" --repo '{status_repos}'" if status_repos else ""
     i = indent
@@ -121,7 +121,6 @@ def _multi_pane_block(
     indent: str = "        ",
     tab_name: str | None = None,
 ) -> str:
-    cp_status   = str(_CP_STATUS).replace("'", "'\\''")
     safe_cwd    = str(_GITHUB_DIR).replace("'", "'\\''")
     session_key = tab_name or _multi_tab_name(profiles)
     i = indent
@@ -301,7 +300,6 @@ def generate_tab_layout(profiles: list[dict], fob_dir: Path, tab_name: str | Non
 def _delete_dead_session(session_name: str) -> None:
     try:
         r = subprocess.run(["zellij", "list-sessions"], capture_output=True, text=True)
-        import re
         ansi = re.compile(r"\033\[[0-9;]*m")
         for line in r.stdout.splitlines():
             clean = ansi.sub("", line).strip()
@@ -345,7 +343,6 @@ def attach(session_name: str = FOB_SESSION) -> None:
 def launch(
     profiles: list[dict],
     fob_dir: Path,
-    reset_layout: bool = False,
     saved_layout_path: Path | None = None,
     tab_name: str | None = None,
 ) -> None:
