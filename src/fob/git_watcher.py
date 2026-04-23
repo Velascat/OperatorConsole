@@ -68,7 +68,7 @@ def _fmt(s: tuple[int, int, int]) -> str:
 
 # ── TUI ───────────────────────────────────────────────────────────────────────
 
-_HELP = "↑↓ navigate   ↵ lazygit   r refresh   q quit"
+_HELP = "↑↓ navigate   ↵ lazygit (q to return)   r refresh   q quit"
 
 _CLEAN = "✓"
 _DIRTY = "✗"
