@@ -16,6 +16,28 @@ _CP_STATUS  = _GITHUB_DIR / "ControlPlane" / "scripts" / "control-plane.sh"
 
 _C = {"R": "\033[0m", "DIM": "\033[2m", "GRN": "\033[32m", "YLW": "\033[33m"}
 
+def _status_shell(cp_status: str, status_arg: str, key: str = "default") -> str:
+    """Return a bash command that opens a shell with a 'status' alias pre-set.
+
+    Uses bash --init-file so the alias survives in the interactive session.
+    All quoting complexity stays in the temp files, not in the KDL string.
+    """
+    rc_path = Path(tempfile.gettempdir()) / f"fob-status-rc-{key}.sh"
+    rc_path.write_text(
+        "source ~/.bashrc 2>/dev/null\n"
+        f"alias status='bash \"{cp_status}\" status{status_arg}'\n"
+    )
+    script_path = Path(tempfile.gettempdir()) / f"fob-status-{key}.sh"
+    rc = str(rc_path).replace("'", "'\\''")
+    script_path.write_text(
+        "#!/usr/bin/env bash\n"
+        f"exec bash --init-file '{rc}' -i\n"
+    )
+    script_path.chmod(0o755)
+    safe_path = str(script_path).replace("'", "'\\''")
+    return f"bash '{safe_path}'"
+
+
 def _c(text: str, *keys: str) -> str:
     return "".join(_C[k] for k in keys) + text + _C["R"]
 
@@ -42,9 +64,9 @@ def _single_pane_block(
     status_arg   = f" --repo '{status_repos}'" if status_repos else ""
     i = indent
 
-    claude_cmd = get_claude_command(profile, Path(repo), fob_dir=fob_dir, claude_cwd=claude_cwd)
-    codex_cmd  = get_codex_command(profile, Path(repo), fob_dir=fob_dir)
-    status_init = f"alias status='bash \\'{cp_status}\\' status{status_arg}'"
+    claude_cmd  = get_claude_command(profile, Path(repo), fob_dir=fob_dir, claude_cwd=claude_cwd)
+    codex_cmd   = get_codex_command(profile, Path(repo), fob_dir=fob_dir)
+    status_cmd  = _status_shell(cp_status, status_arg, key=profile.get("name", "single"))
 
     return (
         f'{i}pane split_direction="vertical" {{\n'
@@ -70,7 +92,7 @@ def _single_pane_block(
         f'{i}                args "-c" "cd \'{safe_repo}\' && while true; do printf \'\\033[?1000l\\033[?1002l\\033[?1003l\\033[?1006l\\033[?1015l\' 2>/dev/null; bash -l; done"\n'
         f'{i}            }}\n'
         f'{i}            pane name="status" command="bash" {{\n'
-        f'{i}                args "-c" "{status_init}; exec bash -l"\n'
+        f'{i}                args "-c" "{status_cmd}"\n'
         f'{i}            }}\n'
         f'{i}        }}\n'
         f'{i}    }}\n'
@@ -142,7 +164,7 @@ def _multi_pane_block(
         "",
     )
     status_arg = f" --repo '{_repo_filter}'" if _repo_filter else ""
-    status_init = f"alias status='bash \\'{cp_status}\\' status{status_arg}'"
+    status_cmd = _status_shell(cp_status, status_arg, key=session_key)
 
     shell_stack = f'{i}        pane stacked=true {{\n'
     for p in profiles:
@@ -154,7 +176,7 @@ def _multi_pane_block(
         )
     shell_stack += (
         f'{i}            pane name="status" command="bash" {{\n'
-        f'{i}                args "-c" "{status_init}; exec bash -l"\n'
+        f'{i}                args "-c" "{status_cmd}"\n'
         f'{i}            }}\n'
         f'{i}        }}\n'
     )
