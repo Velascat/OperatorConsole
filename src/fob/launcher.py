@@ -23,9 +23,12 @@ def _status_shell(cp_status: str, status_arg: str, key: str = "default") -> str:
     All quoting complexity stays in the temp files, not in the KDL string.
     """
     rc_path = Path(tempfile.gettempdir()) / f"fob-status-rc-{key}.sh"
+    # status_arg may contain single-quoted repo names (e.g. --repo 'Foo').
+    # Inside the alias's outer single quotes that breaks quoting — use double quotes.
+    safe_arg = status_arg.replace("'", '"')
     rc_path.write_text(
         "source ~/.bashrc 2>/dev/null\n"
-        f"alias status='bash \"{cp_status}\" status{status_arg}'\n"
+        f"alias status='bash \"{cp_status}\" status{safe_arg}'\n"
     )
     script_path = Path(tempfile.gettempdir()) / f"fob-status-{key}.sh"
     rc = str(rc_path).replace("'", "'\\''")
