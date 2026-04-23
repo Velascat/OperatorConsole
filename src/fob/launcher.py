@@ -16,23 +16,35 @@ _CP_STATUS  = _GITHUB_DIR / "ControlPlane" / "scripts" / "control-plane.sh"
 
 _C = {"R": "\033[0m", "DIM": "\033[2m", "GRN": "\033[32m", "YLW": "\033[33m"}
 
-# Escape sequence that disables all common xterm mouse-reporting modes.
-# Rich (used by cp-status.py) enables mouse tracking and may not clean up on
-# exit, causing Zellij to receive a flood of mouse-coord bytes on every move.
-_MOUSE_OFF = r"\033[?1000l\033[?1002l\033[?1003l\033[?1006l\033[?1015l"
+def _status_cmd(cp_status: str, status_arg: str, key: str = "default") -> str:
+    """Write the status refresh loop to a temp script and return 'bash /tmp/...'
 
+    KDL strings cannot contain raw escape sequences or nested quotes, so we
+    write the script to a file (same pattern as get_claude_command / get_codex_command)
+    and embed only the clean path in the KDL args.
 
-def _status_cmd(cp_status: str, status_arg: str) -> str:
-    """Return the bash one-liner for the status pane refresh loop."""
-    return (
-        f"trap 'printf \"{_MOUSE_OFF}\"; tput cnorm' EXIT INT TERM HUP; "
-        f"while true; do "
-        f"tput cup 0 0; tput ed; "
-        f"bash '{cp_status}' status{status_arg}; "
-        f"printf \"{_MOUSE_OFF}\"; "
-        f"sleep 10; "
-        f"done"
+    Rich (used by cp-status.py) enables xterm mouse tracking and may not clean
+    up on exit; we disable all five mouse-reporting modes after each run and via
+    a trap so even a killed loop leaves the terminal clean.
+    """
+    # Use printf with octal so no \033 appears in the KDL-embedded path string.
+    mouse_off = r"printf '\033[?1000l\033[?1002l\033[?1003l\033[?1006l\033[?1015l'"
+    script = (
+        "#!/usr/bin/env bash\n"
+        f"trap '{mouse_off}; tput cnorm' EXIT INT TERM HUP\n"
+        "while true; do\n"
+        "  tput cup 0 0\n"
+        "  tput ed\n"
+        f"  bash '{cp_status}' status{status_arg}\n"
+        f"  {mouse_off}\n"
+        "  sleep 10\n"
+        "done\n"
     )
+    script_path = Path(tempfile.gettempdir()) / f"fob-status-{key}.sh"
+    script_path.write_text(script)
+    script_path.chmod(0o755)
+    safe_path = str(script_path).replace("'", "'\\''")
+    return f"bash '{safe_path}'"
 
 
 def _c(text: str, *keys: str) -> str:
@@ -63,7 +75,7 @@ def _single_pane_block(
 
     claude_cmd = get_claude_command(profile, Path(repo), fob_dir=fob_dir, claude_cwd=claude_cwd)
     codex_cmd  = get_codex_command(profile, Path(repo), fob_dir=fob_dir)
-    status_cmd = _status_cmd(cp_status, status_arg)
+    status_cmd = _status_cmd(cp_status, status_arg, key=profile.get("name", "single"))
 
     return (
         f'{i}pane split_direction="vertical" {{\n'
@@ -161,7 +173,7 @@ def _multi_pane_block(
         "",
     )
     status_arg = f" --repo '{_repo_filter}'" if _repo_filter else ""
-    status_cmd = _status_cmd(cp_status, status_arg)
+    status_cmd = _status_cmd(cp_status, status_arg, key=session_key)
 
     shell_stack = f'{i}        pane stacked=true {{\n'
     for p in profiles:
