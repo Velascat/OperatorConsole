@@ -89,7 +89,7 @@ def _single_pane_block(
         f'{i}    pane size="28%" {{\n'
         f'{i}        pane stacked=true {{\n'
         f'{i}            pane name="shell" command="bash" {{\n'
-        f'{i}                args "-c" "cd \'{safe_repo}\' && while true; do printf \'\\033[?1000l\\033[?1002l\\033[?1003l\\033[?1006l\\033[?1015l\' 2>/dev/null; bash -l; done"\n'
+        f'{i}                args "-c" "cd \'{safe_repo}\' && while true; do bash -l; done"\n'
         f'{i}            }}\n'
         f'{i}            pane name="status" command="bash" {{\n'
         f'{i}                args "-c" "{status_cmd}"\n'
