@@ -19,24 +19,24 @@ _C = {"R": "\033[0m", "DIM": "\033[2m", "GRN": "\033[32m", "YLW": "\033[33m"}
 def _status_cmd(cp_status: str, status_arg: str, key: str = "default") -> str:
     """Write the status refresh loop to a temp script and return 'bash /tmp/...'
 
-    KDL strings cannot contain raw escape sequences or nested quotes, so we
-    write the script to a file (same pattern as get_claude_command / get_codex_command)
-    and embed only the clean path in the KDL args.
-
-    Rich (used by cp-status.py) enables xterm mouse tracking and may not clean
-    up on exit; we disable all five mouse-reporting modes after each run and via
-    a trap so even a killed loop leaves the terminal clean.
+    Uses a shell function for mouse-disable so the trap body needs no quoting.
+    Trap with 'printf "\\033[...]"' inside single quotes is broken: bash parses
+    the unquoted \\033 as literal digits, not an escape. A named function sidesteps
+    all of that.
     """
-    # Use printf with octal so no \033 appears in the KDL-embedded path string.
-    mouse_off = r"printf '\033[?1000l\033[?1002l\033[?1003l\033[?1006l\033[?1015l'"
     script = (
         "#!/usr/bin/env bash\n"
-        f"trap '{mouse_off}; tput cnorm' EXIT INT TERM HUP\n"
+        # Function — printf \033 works here because printf interprets the sequence
+        "_mouse_off() {\n"
+        r"  printf '\033[?1000l\033[?1002l\033[?1003l\033[?1006l\033[?1015l'" + "\n"
+        "}\n"
+        # Trap body is now plain identifiers — no quoting issues
+        "trap '_mouse_off; tput cnorm' EXIT INT TERM HUP\n"
         "while true; do\n"
         "  tput cup 0 0\n"
         "  tput ed\n"
         f"  bash '{cp_status}' status{status_arg}\n"
-        f"  {mouse_off}\n"
+        "  _mouse_off\n"
         "  sleep 10\n"
         "done\n"
     )
@@ -98,7 +98,7 @@ def _single_pane_block(
         f'{i}    pane size="28%" {{\n'
         f'{i}        pane stacked=true {{\n'
         f'{i}            pane name="shell" command="bash" {{\n'
-        f'{i}                args "-c" "cd \'{safe_repo}\' && while true; do bash -l; done"\n'
+        f'{i}                args "-c" "cd \'{safe_repo}\' && while true; do printf \'\\033[?1000l\\033[?1002l\\033[?1003l\\033[?1006l\\033[?1015l\' 2>/dev/null; bash -l; done"\n'
         f'{i}            }}\n'
         f'{i}            pane name="status" command="bash" {{\n'
         f'{i}                args "-c" "{status_cmd}"\n'
