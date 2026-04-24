@@ -63,6 +63,7 @@ def run_auto_once(args: list[str]) -> int:
         "--task-type", context["task_type"],
         "--repo-key", context["repo_key"],
         "--clone-url", context["clone_url"],
+        "--source", "auto_once",
     ]
     if use_json:
         delegate_args.append("--json")

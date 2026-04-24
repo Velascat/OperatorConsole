@@ -60,6 +60,7 @@ def show_menu(_: list[str]) -> None:
         ("delegate",   "run a task through the full execution pipeline"),
         ("auto-once",  "single autonomous cycle: observe → propose → execute"),
         ("runs",       "list recent execution runs"),
+        ("clean",      "remove old run artifacts, keep latest N"),
         ("last",       "inspect the most recent execution run"),
         ("demo",      "validate selector + planning handoff architecture"),
         ("providers", "show selector and lane readiness"),
@@ -158,6 +159,8 @@ def show_help(_: list[str]) -> None:
             ("runs",                   "List recent execution runs (newest first)"),
             ("runs --limit N",         "Show N most recent runs (default 20)"),
             ("runs --json",            "Machine-readable run list"),
+            ("clean --keep N",         "Delete runs older than the N most recent (default 10)"),
+            ("clean --dry-run",        "Show what would be deleted without deleting"),
             ("last",                   "Inspect the most recent execution run"),
             ("last --all",             "Show last run + list of recent runs"),
             ("last --json",            "Machine-readable last run summary"),
@@ -624,6 +627,10 @@ def main() -> None:
         case "runs":
             from fob.runs_cmd import run_runs
             sys.exit(run_runs(args))
+
+        case "clean":
+            from fob.clean import run_clean
+            sys.exit(run_clean(args))
 
         case "last":
             from fob.last import run_last

@@ -85,6 +85,7 @@ def _parse_args(args: list[str]) -> dict:
         "task_branch": None,
         "dry_run": False,
         "json": False,
+        "source": "manual",
     }
     i = 0
     while i < len(args):
@@ -103,6 +104,8 @@ def _parse_args(args: list[str]) -> dict:
             parsed["task_id"] = args[i + 1]; i += 2
         elif a == "--task-branch" and i + 1 < len(args):
             parsed["task_branch"] = args[i + 1]; i += 2
+        elif a == "--source" and i + 1 < len(args):
+            parsed["source"] = args[i + 1]; i += 2
         elif a == "--dry-run":
             parsed["dry_run"] = True; i += 1
         elif a == "--json":
@@ -230,6 +233,7 @@ def run_delegate(args: list[str]) -> int:
             "--workspace-path", str(workspace),
             "--task-branch", task_branch,
             "--output", str(result_file),
+            "--source", opts.get("source", "manual"),
         ]
 
         if not opts["json"]:

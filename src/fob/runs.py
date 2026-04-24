@@ -80,6 +80,7 @@ def run_summary(run_dir: Path) -> dict:
         "failure_reason": result.get("failure_reason"),
         "written_at": meta.get("written_at"),
         "partial": meta.get("partial", False),
+        "source": meta.get("source"),
         "goal_text": proposal.get("goal_text"),
         "task_type": proposal.get("task_type"),
         "repo_key": proposal.get("target", {}).get("repo_key"),

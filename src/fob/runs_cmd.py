@@ -71,23 +71,24 @@ def run_runs(args: list[str]) -> int:
     print()
 
     header = (
-        f"  {'':2}  {'run id':<8}  {'status  ':<8}  {'lane':<16}  {'written':<19}  goal"
+        f"  {'':2}  {'run id':<8}  {'status  ':<8}  {'source':<10}  {'lane':<16}  {'written':<19}  goal"
     )
     print(_c(header, "DIM"))
-    print(_c("  " + "─" * 90, "DIM"))
+    print(_c("  " + "─" * 100, "DIM"))
 
     for s in summaries:
         mark = _status_mark(s)
         status_l = _status_label(s)
         run_id_short = s["run_id"][:8]
+        source = (s.get("source") or "—")[:9]
         lane = (s.get("selected_lane") or "?")[:15]
         written = (s.get("written_at") or "?")[:19].replace("T", " ")
-        goal = (s.get("goal_text") or "")[:40]
-        if len(s.get("goal_text") or "") > 40:
+        goal = (s.get("goal_text") or "")[:38]
+        if len(s.get("goal_text") or "") > 38:
             goal += "…"
 
-        print(f"  {mark}  {_c(run_id_short, 'DIM')}  {status_l}  {_c(lane, 'DIM'):<25}  "
-              f"{_c(written, 'DIM')}  {goal}")
+        print(f"  {mark}  {_c(run_id_short, 'DIM')}  {status_l}  {_c(source, 'DIM'):<19}  "
+              f"{_c(lane, 'DIM'):<25}  {_c(written, 'DIM')}  {goal}")
 
     print()
 
