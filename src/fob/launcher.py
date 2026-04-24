@@ -85,7 +85,7 @@ def _single_pane_block(
         # Center: stacked chats — claude / codex
         f'{i}    pane {{\n'
         f'{i}        pane stacked=true {{\n'
-        f'{i}            pane name="claude" command="bash" {{\n'
+        f'{i}            pane name="claude" focus=true command="bash" {{\n'
         f'{i}                args "-c" "cd \'{safe_cwd}\' && {claude_cmd}"\n'
         f'{i}            }}\n'
         f'{i}            pane name="codex" command="bash" {{\n'
@@ -152,7 +152,7 @@ def _multi_pane_block(
     center_block = (
         f'{i}    pane {{\n'
         f'{i}        pane stacked=true {{\n'
-        f'{i}            pane name="claude" command="bash" {{\n'
+        f'{i}            pane name="claude" focus=true command="bash" {{\n'
         f'{i}                args "-c" "cd \'{safe_cwd}\' && {claude_cmd}"\n'
         f'{i}            }}\n'
         f'{i}            pane name="codex" command="bash" {{\n'
