@@ -54,6 +54,7 @@ def show_menu(_: list[str]) -> None:
     options = [
         ("brief",   "pick and launch a workspace"),
         ("restore", "re-open last session group"),
+        ("rewatch", "restart git watcher for this tab's profile"),
         ("status",  "repo, branch, session state"),
         ("resume",  "print mission brief"),
         ("demo",      "validate selector + planning handoff architecture"),
@@ -623,6 +624,9 @@ def main() -> None:
 
         case "loadout":
             commands.cmd_loadout(args, SCRIPTS_DIR)
+
+        case "rewatch":
+            commands.cmd_rewatch(args, FOB_DIR)
 
         case "install":
             commands.cmd_install(args, FOB_DIR)

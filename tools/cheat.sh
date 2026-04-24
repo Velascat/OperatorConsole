@@ -26,6 +26,7 @@ sec "FOB WORKSPACE"
 CMD "fob [brief] [repo]"       "launch — auto-selects current repo"
 CMD "fob multi"                "multi-select picker — open several repos"
 CMD "fob restore [--show]"     "re-open last saved session group"
+CMD "fob rewatch [profiles…]"  "restart git watcher for this tab's profile"
 CMD "fob attach"               "re-attach to running fob session"
 CMD "fob kill"                 "terminate session + all panes"
 echo

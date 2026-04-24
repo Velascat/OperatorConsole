@@ -825,6 +825,64 @@ def cmd_save(args: list[str], default_profile: dict | None, fob_dir: Path) -> No
 
 # ── install ───────────────────────────────────────────────────────────────────
 
+def cmd_rewatch(args: list[str], fob_dir: Path) -> None:
+    from fob.tab_capture import dump_live_layout, focused_tab_name
+    from fob.profile_loader import load_profile
+
+    profiles_dir = fob_dir / "config" / "profiles"
+
+    # Determine which profiles to watch: args override, else infer from focused tab
+    if args:
+        raw_names = args
+    else:
+        kdl = dump_live_layout()
+        if not kdl:
+            print(c("✗ Could not read Zellij layout — not inside a Zellij session?", "RED"))
+            sys.exit(1)
+        tab = focused_tab_name(kdl)
+        if not tab:
+            print(c("✗ Could not detect focused tab name.", "RED"))
+            sys.exit(1)
+        raw_names = tab.split("+")
+
+    # Resolve each name to repo_root(s), expanding group profiles
+    repo_roots: list[str] = []
+    for name in raw_names:
+        try:
+            profile = load_profile(name, profiles_dir)
+        except FileNotFoundError:
+            matches = [p.stem for p in profiles_dir.glob("*.yaml")
+                       if p.stem.lower() == name.lower()]
+            if not matches:
+                print(c(f"  ⚠ Profile '{name}' not found — skipping", "YLW"))
+                continue
+            profile = load_profile(matches[0], profiles_dir)
+
+        if "group" in profile:
+            for sub_name in profile["group"]:
+                try:
+                    sub = load_profile(sub_name, profiles_dir)
+                    if "repo_root" in sub:
+                        repo_roots.append(sub["repo_root"])
+                except Exception:
+                    pass
+        elif "repo_root" in profile:
+            repo_roots.append(profile["repo_root"])
+
+    if not repo_roots:
+        print(c("✗ No repo roots resolved — cannot start watcher.", "RED"))
+        sys.exit(1)
+
+    labels = " ".join(Path(r).name for r in repo_roots)
+    print(c(f"  rewatch → {labels}", "CYN", "B"))
+
+    repo_args = " ".join(f"'{r}'" for r in repo_roots)
+    watcher_cmd = (
+        f"while true; do python3 -m fob.git_watcher {repo_args}; sleep 1; done"
+    )
+    os.execvp("bash", ["bash", "-c", watcher_cmd])
+
+
 def cmd_install(args: list[str], fob_dir: Path) -> None:
     local_bin = Path.home() / ".local" / "bin"
     local_bin.mkdir(parents=True, exist_ok=True)
