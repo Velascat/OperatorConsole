@@ -59,6 +59,7 @@ def show_menu(_: list[str]) -> None:
         ("resume",  "print mission brief"),
         ("delegate",   "run a task through the full execution pipeline"),
         ("auto-once",  "single autonomous cycle: observe → propose → execute"),
+        ("runs",       "list recent execution runs"),
         ("last",       "inspect the most recent execution run"),
         ("demo",      "validate selector + planning handoff architecture"),
         ("providers", "show selector and lane readiness"),
@@ -154,6 +155,9 @@ def show_help(_: list[str]) -> None:
             ("auto-once",              "Single autonomous cycle: observe → propose → execute"),
             ("auto-once --dry-run",    "Observe + plan only — print lane decision without executing"),
             ("auto-once --json",       "Machine-readable auto-once output"),
+            ("runs",                   "List recent execution runs (newest first)"),
+            ("runs --limit N",         "Show N most recent runs (default 20)"),
+            ("runs --json",            "Machine-readable run list"),
             ("last",                   "Inspect the most recent execution run"),
             ("last --all",             "Show last run + list of recent runs"),
             ("last --json",            "Machine-readable last run summary"),
@@ -616,6 +620,10 @@ def main() -> None:
         case "auto-once":
             from fob.auto_once import run_auto_once
             sys.exit(run_auto_once(args))
+
+        case "runs":
+            from fob.runs_cmd import run_runs
+            sys.exit(run_runs(args))
 
         case "last":
             from fob.last import run_last

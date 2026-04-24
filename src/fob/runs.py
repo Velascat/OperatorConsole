@@ -15,12 +15,22 @@ def runs_root() -> Path:
     return _RUNS_ROOT
 
 
+def _run_sort_key(p: Path) -> str:
+    """Sort key for a run directory: written_at timestamp, or empty string (sorts first)."""
+    try:
+        meta = json.loads((p / "run_metadata.json").read_text(encoding="utf-8"))
+        return meta.get("written_at", "") or ""
+    except Exception:
+        return ""
+
+
 def list_runs(root: Path | None = None) -> list[Path]:
-    """Return sorted run directories (oldest first) from the artifact root."""
+    """Return run directories sorted oldest-first by written_at timestamp."""
     r = root or _RUNS_ROOT
     if not r.exists():
         return []
-    return sorted(p for p in r.iterdir() if p.is_dir() and (p / "run_metadata.json").exists())
+    dirs = [p for p in r.iterdir() if p.is_dir() and (p / "run_metadata.json").exists()]
+    return sorted(dirs, key=_run_sort_key)
 
 
 def latest_run(root: Path | None = None) -> Path | None:
