@@ -58,6 +58,7 @@ def show_menu(_: list[str]) -> None:
         ("status",  "repo, branch, session state"),
         ("resume",  "print mission brief"),
         ("delegate",   "run a task through the full execution pipeline"),
+        ("auto-once",  "single autonomous cycle: observe → propose → execute"),
         ("last",       "inspect the most recent execution run"),
         ("demo",      "validate selector + planning handoff architecture"),
         ("providers", "show selector and lane readiness"),
@@ -150,6 +151,9 @@ def show_help(_: list[str]) -> None:
         ("OPS", [
             ("delegate --goal TEXT",   "Run a task through the full ControlPlane pipeline"),
             ("delegate --dry-run",     "Planning only — print lane decision without executing"),
+            ("auto-once",              "Single autonomous cycle: observe → propose → execute"),
+            ("auto-once --dry-run",    "Observe + plan only — print lane decision without executing"),
+            ("auto-once --json",       "Machine-readable auto-once output"),
             ("last",                   "Inspect the most recent execution run"),
             ("last --all",             "Show last run + list of recent runs"),
             ("last --json",            "Machine-readable last run summary"),
@@ -608,6 +612,10 @@ def main() -> None:
         case "delegate":
             from fob.delegate import run_delegate
             sys.exit(run_delegate(args))
+
+        case "auto-once":
+            from fob.auto_once import run_auto_once
+            sys.exit(run_auto_once(args))
 
         case "last":
             from fob.last import run_last
