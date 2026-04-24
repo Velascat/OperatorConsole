@@ -6,7 +6,7 @@
 
 ## What it does
 
-Runs seven sequential steps across the full stack:
+Runs six sequential steps across the full stack:
 
 ```
 1. Preflight       repos present, config bootstrapped
@@ -15,8 +15,10 @@ Runs seven sequential steps across the full stack:
 4. Route           SwitchBoard returns a real LaneDecision
 5. Planning        ControlPlane builds TaskProposal, routes through SwitchBoard
 6. Execution       ControlPlane runs the selected backend adapter
-7. Artifacts       proposal, decision, result saved to disk
 ```
+
+Canonical run artifacts are written to `~/.fob/control_plane/runs/<run_id>/`
+by the execute entrypoint's `RunArtifactWriter`. Use `fob last` to inspect them.
 
 ---
 
@@ -84,12 +86,7 @@ fob demo --json
 ── 6 · Execution ─────────────────────────────────────
   · lane=claude_cli  backend=kodo
   ✓ Backend executed successfully — status=success
-
-── 7 · Artifacts ─────────────────────────────────────
-  ✓ proposal.json
-  ✓ decision.json
-  ✓ execution_result.json
-  · artifacts: ~/.fob/demo-artifacts/
+  · artifacts: ~/.fob/control_plane/runs/<run_id>/
 
 ── Summary ───────────────────────────────────────────
   PASS preflight
@@ -98,26 +95,31 @@ fob demo --json
   PASS route
   PASS planning
   PASS execution      status=success executed=True
-  PASS artifacts      3 files → ~/.fob/demo-artifacts/
 
   ✓ Full end-to-end path verified
+  · artifacts: ~/.fob/control_plane/runs/<run_id>/
+  · run `fob last` to inspect
 ```
 
 ---
 
 ## Artifact location
 
-Artifacts are saved to `~/.fob/demo-artifacts/` after each run (overwriting previous):
+Artifacts are the canonical Phase 7 run artifacts written by `RunArtifactWriter`:
 
-| File | Contents |
-|---|---|
-| `proposal.json` | Canonical `TaskProposal` sent to SwitchBoard |
-| `decision.json` | Canonical `LaneDecision` returned by SwitchBoard |
-| `execution_result.json` | Canonical `ExecutionResult` from the backend adapter |
+```
+~/.fob/control_plane/runs/<run_id>/
+  proposal.json
+  decision.json
+  execution_request.json
+  result.json
+  run_metadata.json
+```
 
 ```bash
-ls ~/.fob/demo-artifacts/
-cat ~/.fob/demo-artifacts/execution_result.json | python3 -m json.tool
+fob last                              # inspect most recent run
+fob last --json                       # machine-readable
+ls ~/.fob/control_plane/runs/         # list all runs
 ```
 
 ---
@@ -146,8 +148,8 @@ The demo exercises the full contract chain:
 PlanningContext
     → build_proposal()     → TaskProposal        (proposal.json)
     → SwitchBoard /route   → LaneDecision         (decision.json)
-    → ExecutionRequestBuilder → ExecutionRequest  (in-process)
-    → backend adapter      → ExecutionResult      (execution_result.json)
+    → ExecutionRequestBuilder → ExecutionRequest  (execution_request.json)
+    → backend adapter      → ExecutionResult      (result.json)
 ```
 
 All four canonical contracts (`TaskProposal`, `LaneDecision`, `ExecutionRequest`,

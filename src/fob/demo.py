@@ -8,13 +8,16 @@ Runs the full stack in order:
   4. Route           — SwitchBoard returns a real LaneDecision
   5. Planning        — ControlPlane builds TaskProposal + routes through SwitchBoard
   6. Execution       — ControlPlane runs the selected adapter, returns ExecutionResult
-  7. Artifacts       — proposal, decision, result saved to ~/.fob/demo-artifacts/
+
+Canonical run artifacts are written to ~/.fob/control_plane/runs/<run_id>/ by the
+execute entrypoint (Phase 7 RunArtifactWriter). Use `fob last` to inspect them.
 """
 from __future__ import annotations
 
 import json
 import os
 import subprocess
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -137,7 +140,7 @@ def _cp_python(cp_repo: Path) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Steps 1–4 (unchanged)
+# Steps 1–4
 # ---------------------------------------------------------------------------
 
 
@@ -287,59 +290,59 @@ def step_planning(cp_repo: Path) -> tuple[StepResult, dict | None]:
 def step_execution(
     cp_repo: Path,
     bundle_data: dict,
-    artifacts_dir: Path,
 ) -> tuple[StepResult, dict | None]:
     """Run the selected backend adapter and return a canonical ExecutionResult.
 
-    Uses ControlPlane's execute entrypoint which enforces the policy gate and
-    invokes the adapter selected by SwitchBoard in the planning step.
-    The result is real regardless of whether the backend binary is installed:
-    a missing binary returns ExecutionResult(success=False, failure_category=backend_error).
+    Intermediate files (bundle, config, workspace) are written to a temp dir
+    that is cleaned up after the subprocess exits. Canonical run artifacts are
+    written to ~/.fob/control_plane/runs/<run_id>/ by the execute entrypoint's
+    RunArtifactWriter — use `fob last` to inspect them.
     """
     _section("6 · Execution")
 
-    artifacts_dir.mkdir(parents=True, exist_ok=True)
-    workspace = artifacts_dir / "workspace"
-    workspace.mkdir(exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="fob-demo-") as tmpdir:
+        tmp = Path(tmpdir)
+        workspace = tmp / "workspace"
+        workspace.mkdir()
 
-    # Write the bundle from planning step for the execute entrypoint to consume
-    bundle_file = artifacts_dir / "bundle.json"
-    bundle_file.write_text(json.dumps(bundle_data), encoding="utf-8")
+        bundle_file = tmp / "bundle.json"
+        bundle_file.write_text(json.dumps(bundle_data), encoding="utf-8")
 
-    # Write minimal ControlPlane config (only backend settings matter here)
-    config_file = artifacts_dir / "control_plane.yaml"
-    config_file.write_text(_DEMO_CP_CONFIG, encoding="utf-8")
+        config_file = tmp / "control_plane.yaml"
+        config_file.write_text(_DEMO_CP_CONFIG, encoding="utf-8")
 
-    result_file = artifacts_dir / "execution_result_raw.json"
+        result_file = tmp / "execution_result.json"
 
-    python = _cp_python(cp_repo)
-    cmd = [
-        python, "-m", "control_plane.entrypoints.execute.main",
-        "--config", str(config_file),
-        "--bundle", str(bundle_file),
-        "--workspace-path", str(workspace),
-        "--task-branch", "auto/fob-demo",
-        "--output", str(result_file),
-    ]
-    env = dict(os.environ)
-    env["PYTHONPATH"] = str(cp_repo / "src")
+        python = _cp_python(cp_repo)
+        cmd = [
+            python, "-m", "control_plane.entrypoints.execute.main",
+            "--config", str(config_file),
+            "--bundle", str(bundle_file),
+            "--workspace-path", str(workspace),
+            "--task-branch", "auto/fob-demo",
+            "--output", str(result_file),
+        ]
+        env = dict(os.environ)
+        env["PYTHONPATH"] = str(cp_repo / "src")
 
-    proc = subprocess.run(cmd, cwd=cp_repo, env=env, capture_output=True, text=True)
-    if proc.returncode != 0:
-        _fail("ControlPlane execute entrypoint crashed")
-        _info(proc.stderr.strip() or proc.stdout.strip())
-        return StepResult("execution", False, f"exit {proc.returncode}"), None
+        proc = subprocess.run(cmd, cwd=cp_repo, env=env, capture_output=True, text=True)
+        if proc.returncode != 0:
+            _fail("ControlPlane execute entrypoint crashed")
+            _info(proc.stderr.strip() or proc.stdout.strip())
+            return StepResult("execution", False, f"exit {proc.returncode}"), None
 
-    if not result_file.exists():
-        _fail("Execute entrypoint produced no output file")
-        return StepResult("execution", False, "no output"), None
+        if not result_file.exists():
+            _fail("Execute entrypoint produced no output file")
+            return StepResult("execution", False, "no output"), None
 
-    outcome = json.loads(result_file.read_text(encoding="utf-8"))
+        outcome = json.loads(result_file.read_text(encoding="utf-8"))
+
     exec_result = outcome.get("result", {})
     status = exec_result.get("status", "unknown")
     executed = outcome.get("executed", False)
     success = exec_result.get("success", False)
     failure_category = exec_result.get("failure_category")
+    run_id = exec_result.get("run_id", "")
 
     lane = bundle_data.get("decision", {}).get("selected_lane", "?")
     backend = bundle_data.get("decision", {}).get("selected_backend", "?")
@@ -356,6 +359,11 @@ def step_execution(
         if policy_notes:
             _info(f"policy: {policy_notes}")
 
+    if run_id:
+        from fob.runs import runs_root
+        canonical_dir = runs_root() / run_id
+        _info(f"artifacts: {canonical_dir}")
+
     return StepResult(
         "execution",
         True,
@@ -364,59 +372,11 @@ def step_execution(
 
 
 # ---------------------------------------------------------------------------
-# Step 7 — Artifact persistence
-# ---------------------------------------------------------------------------
-
-
-def step_artifacts(
-    artifacts_dir: Path,
-    bundle_data: dict,
-    outcome: dict | None,
-) -> StepResult:
-    """Persist canonical contract artifacts to a stable, inspectable location."""
-    _section("7 · Artifacts")
-
-    artifacts_dir.mkdir(parents=True, exist_ok=True)
-    saved: list[str] = []
-
-    proposal_file = artifacts_dir / "proposal.json"
-    proposal_file.write_text(
-        json.dumps(bundle_data.get("proposal", {}), indent=2, sort_keys=True),
-        encoding="utf-8",
-    )
-    _ok(f"proposal.json")
-    saved.append("proposal.json")
-
-    decision_file = artifacts_dir / "decision.json"
-    decision_file.write_text(
-        json.dumps(bundle_data.get("decision", {}), indent=2, sort_keys=True),
-        encoding="utf-8",
-    )
-    _ok(f"decision.json")
-    saved.append("decision.json")
-
-    if outcome is not None:
-        result_file = artifacts_dir / "execution_result.json"
-        result_file.write_text(
-            json.dumps(outcome.get("result", {}), indent=2, sort_keys=True),
-            encoding="utf-8",
-        )
-        _ok(f"execution_result.json")
-        saved.append("execution_result.json")
-
-    print()
-    _info(f"artifacts: {artifacts_dir}")
-    _info(f"inspect:   ls {artifacts_dir}")
-
-    return StepResult("artifacts", True, f"{len(saved)} files → {artifacts_dir}")
-
-
-# ---------------------------------------------------------------------------
 # Summary + entry
 # ---------------------------------------------------------------------------
 
 
-def _print_summary(result: DemoResult, artifacts_dir: Path | None = None) -> None:
+def _print_summary(result: DemoResult, run_id: str = "") -> None:
     _section("Summary")
     for step in result.steps:
         marker = _c("PASS", "GRN") if step.passed else _c("FAIL", "RED")
@@ -424,8 +384,10 @@ def _print_summary(result: DemoResult, artifacts_dir: Path | None = None) -> Non
     print()
     if result.passed:
         _ok("Full end-to-end path verified")
-        if artifacts_dir and artifacts_dir.exists():
-            _info(f"artifacts at: {artifacts_dir}")
+        if run_id:
+            from fob.runs import runs_root
+            _info(f"artifacts: {runs_root() / run_id}")
+            _info("run `fob last` to inspect")
     else:
         _fail("Demo failed — see step above")
 
@@ -438,7 +400,6 @@ def run_demo(args: list[str]) -> int:
 
     workstation_root = _find_workstation()
     cp_repo = _repo_root("ControlPlane")
-    artifacts_dir = Path.home() / ".fob" / "demo-artifacts"
 
     result = DemoResult()
 
@@ -473,25 +434,25 @@ def run_demo(args: list[str]) -> int:
         _print_summary(result)
         return 1
 
-    # Step 6 — Execution (adapter runs, returns ExecutionResult)
-    execution_step, outcome = step_execution(cp_repo, bundle_data, artifacts_dir)
+    # Step 6 — Execution (adapter runs; RunArtifactWriter writes canonical artifacts)
+    execution_step, outcome = step_execution(cp_repo, bundle_data)
     result.add(execution_step)
     if not execution_step.passed:
         _print_summary(result)
         return 1
 
-    # Step 7 — Artifacts
-    artifact_step = step_artifacts(artifacts_dir, bundle_data, outcome)
-    result.add(artifact_step)
+    run_id = (outcome or {}).get("result", {}).get("run_id", "") if outcome else ""
 
     if use_json:
+        from fob.runs import runs_root
         summary = {
             "passed": result.passed,
             "steps": [{"name": s.name, "passed": s.passed, "detail": s.detail} for s in result.steps],
-            "artifacts_dir": str(artifacts_dir),
+            "run_id": run_id,
+            "artifacts_dir": str(runs_root() / run_id) if run_id else None,
         }
         print(json.dumps(summary, indent=2))
     else:
-        _print_summary(result, artifacts_dir)
+        _print_summary(result, run_id)
 
     return 0 if result.passed else 1
