@@ -165,53 +165,64 @@ def get_codex_command(
     fob_dir: Path | None = None,
     session_key: str | None = None,
 ) -> str:
-    """Return a shell command string that launches Codex CLI, or a usable shell if not installed."""
+    """Return a shell command string that launches Codex CLI, or a usable shell if not installed.
+
+    Single-repo (session_key is None): uses `codex resume --last` so codex's own cwd
+    filter picks the right session — avoids cross-profile UUID contamination.
+
+    Multi-repo (session_key provided): file-based UUID keyed by tab name, because all
+    profiles share the same cwd (~/Documents/GitHub) and codex can't distinguish them.
+    """
     import tempfile
 
-    key = (session_key or profile.get("name", "unknown")).lower()
     codex_cfg = profile.get("codex", {})
     codex_bin = codex_cfg.get("bin", "codex")
+    safe_bin  = codex_bin.replace("'", "'\\''")
 
-    safe_bin = codex_bin.replace("'", "'\\''")
+    not_found_block = (
+        "#!/usr/bin/env bash\n"
+        f"if ! command -v '{safe_bin}' &>/dev/null; then\n"
+        "  echo 'codex CLI not found.'\n"
+        "  echo 'Install: npm install -g @openai/codex'\n"
+        "  exec bash -l\n"
+        "fi\n"
+    )
 
-    if fob_dir is None:
-        session_file = None
-    else:
-        session_file = fob_dir / "config" / "profiles" / f"{key}.codex-session"
-
-    if session_file is not None:
-        sf = str(session_file).replace("'", "'\\''")
+    if session_key is None:
+        # Single-repo: let codex filter by cwd natively
         script = (
-            "#!/usr/bin/env bash\n"
-            f"if ! command -v '{safe_bin}' &>/dev/null; then\n"
-            "  echo 'codex CLI not found.'\n"
-            "  echo 'Install: npm install -g @openai/codex'\n"
-            "  exec bash -l\n"
-            "fi\n"
-            f"SESSION_FILE='{sf}'\n"
-            "if [ -f \"$SESSION_FILE\" ]; then\n"
-            f"    '{safe_bin}' resume \"$(cat \"$SESSION_FILE\")\" || '{safe_bin}'\n"
-            "else\n"
-            f"    '{safe_bin}'\n"
-            "fi\n"
-            # Extract UUID from newest session file after exit
-            "newest=$(find ~/.codex/sessions -name 'rollout-*.jsonl' 2>/dev/null"
-            " | sort -r | head -1)\n"
-            "[ -n \"$newest\" ] && basename \"$newest\" .jsonl"
-            " | grep -oE '[0-9a-f-]{36}$' > \"$SESSION_FILE\" || true\n"
-            "exec bash -l\n"
+            not_found_block
+            + f"'{safe_bin}' resume --last 2>/dev/null || '{safe_bin}'\n"
+            + "exec bash -l\n"
         )
+        key = profile.get("name", "unknown").lower()
     else:
-        script = (
-            "#!/usr/bin/env bash\n"
-            f"if ! command -v '{safe_bin}' &>/dev/null; then\n"
-            "  echo 'codex CLI not found.'\n"
-            "  echo 'Install: npm install -g @openai/codex'\n"
-            "  exec bash -l\n"
-            "fi\n"
-            f"'{safe_bin}'\n"
-            "exec bash -l\n"
-        )
+        # Multi-repo: file-based UUID keyed by tab name
+        key = session_key.lower()
+        if fob_dir is not None:
+            session_file = fob_dir / "config" / "profiles" / f"{key}.codex-session"
+            sf = str(session_file).replace("'", "'\\''")
+            script = (
+                not_found_block
+                + f"SESSION_FILE='{sf}'\n"
+                + "if [ -f \"$SESSION_FILE\" ]; then\n"
+                + f"    '{safe_bin}' resume \"$(cat \"$SESSION_FILE\")\" || '{safe_bin}'\n"
+                + "else\n"
+                + f"    '{safe_bin}'\n"
+                + "fi\n"
+                # Extract UUID from newest session file after exit
+                + "newest=$(find ~/.codex/sessions -name 'rollout-*.jsonl' 2>/dev/null"
+                + " | sort -r | head -1)\n"
+                + "[ -n \"$newest\" ] && basename \"$newest\" .jsonl"
+                + " | grep -oE '[0-9a-f-]{36}$' > \"$SESSION_FILE\" || true\n"
+                + "exec bash -l\n"
+            )
+        else:
+            script = (
+                not_found_block
+                + f"'{safe_bin}'\n"
+                + "exec bash -l\n"
+            )
 
     script_path = Path(tempfile.gettempdir()) / f"fob-codex-{key}.sh"
     script_path.write_text(script)
