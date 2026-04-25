@@ -1,4 +1,4 @@
-"""fob providers — report selector and lane readiness."""
+"""console providers — report selector and lane readiness."""
 from __future__ import annotations
 
 import os
@@ -51,14 +51,14 @@ def run_providers(args: list[str]) -> int:
     switchboard_port = os.environ.get("PORT_SWITCHBOARD", "20401")
     switchboard_health = f"http://localhost:{switchboard_port}/health"
 
-    print(_c("\n  fob providers", "B", "CYN") + _c(" — execution lane readiness", "DIM"))
+    print(_c("\n  console providers", "B", "CYN") + _c(" — execution lane readiness", "DIM"))
 
     _section("Selector")
     if _http_ok(switchboard_health):
         _ok(f"SwitchBoard healthy at {switchboard_health}")
     else:
         _fail(f"SwitchBoard not reachable at {switchboard_health}")
-        _info("Start the stack first with:  fob demo")
+        _info("Start the stack first with:  console demo")
         if not do_wait:
             return 1
 
@@ -76,8 +76,8 @@ def run_providers(args: list[str]) -> int:
         else:
             _fail(f"{binary} CLI not found")
 
-    _section("ControlPlane")
-    worker_path = _find_repo("ControlPlane") / "src" / "control_plane" / "entrypoints" / "worker" / "main.py"
+    _section("OperationsCenter")
+    worker_path = _find_repo("OperationsCenter") / "src" / "operations_center" / "entrypoints" / "worker" / "main.py"
     if worker_path.exists():
         _ok("planning handoff entrypoint present")
     else:

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# FOB shell pane welcome — shows on brief launch
+# OperatorConsole shell pane welcome — shows on brief launch
 
 R='\033[0m'; B='\033[1m'; DIM='\033[2m'
 GRN='\033[32m'; YLW='\033[33m'; CYN='\033[36m'; RED='\033[31m'
@@ -20,31 +20,31 @@ cat << 'BANNER'
   ██║     ╚██████╔╝██████╔╝
   ╚═╝      ╚═════╝ ╚═════╝
 BANNER
-echo -e "${DIM}  shell pane  ·  forward operating base${R}"
+echo -e "${DIM}  shell pane  ·  Operator Console${R}"
 echo
 
 hr
 echo -e "  ${B}TOOL STATUS${R}"
 hr
-chk lazygit  && ok lazygit  "git TUI"            || miss lazygit  "run: fob loadout"
-chk fzf      && ok fzf      "fuzzy finder"       || miss fzf      "run: fob loadout"
+chk lazygit  && ok lazygit  "git TUI"            || miss lazygit  "run: console loadout"
+chk fzf      && ok fzf      "fuzzy finder"       || miss fzf      "run: console loadout"
 (chk bat || command -v batcat &>/dev/null) \
-             && ok bat      "syntax cat"         || miss bat      "run: fob loadout"
-chk eza      && ok eza      "modern ls"          || miss eza      "run: fob loadout"
-chk rg       && ok rg       "fast grep"          || miss rg       "run: fob loadout"
-chk zoxide   && ok zoxide   "smart cd"           || miss zoxide   "run: fob loadout"
-chk delta    && ok delta    "git diffs"          || miss delta    "run: fob loadout"
-chk starship && ok starship "shell prompt"       || miss starship "run: fob loadout"
+             && ok bat      "syntax cat"         || miss bat      "run: console loadout"
+chk eza      && ok eza      "modern ls"          || miss eza      "run: console loadout"
+chk rg       && ok rg       "fast grep"          || miss rg       "run: console loadout"
+chk zoxide   && ok zoxide   "smart cd"           || miss zoxide   "run: console loadout"
+chk delta    && ok delta    "git diffs"          || miss delta    "run: console loadout"
+chk starship && ok starship "shell prompt"       || miss starship "run: console loadout"
 echo
 
 hr
 echo -e "  ${B}QUICK REFERENCE${R}"
 hr
-printf "  ${CYN}%-18s${R} ${DIM}%s${R}\n" "fob status"    "situation report"
-printf "  ${CYN}%-18s${R} ${DIM}%s${R}\n" "fob resume"    "claude mission brief"
-printf "  ${CYN}%-18s${R} ${DIM}%s${R}\n" "fob test"      "run project tests"
-printf "  ${CYN}%-18s${R} ${DIM}%s${R}\n" "fob loadout"   "install / update dev tools"
-printf "  ${CYN}%-18s${R} ${DIM}%s${R}\n" "fob cheat"     "open full cheatsheet"
+printf "  ${CYN}%-18s${R} ${DIM}%s${R}\n" "console status"    "situation report"
+printf "  ${CYN}%-18s${R} ${DIM}%s${R}\n" "console resume"    "claude mission brief"
+printf "  ${CYN}%-18s${R} ${DIM}%s${R}\n" "console test"      "run project tests"
+printf "  ${CYN}%-18s${R} ${DIM}%s${R}\n" "console loadout"   "install / update dev tools"
+printf "  ${CYN}%-18s${R} ${DIM}%s${R}\n" "console cheat"     "open full cheatsheet"
 echo
 
 hr
@@ -60,7 +60,7 @@ printf "  ${YLW}%-22s${R} ${DIM}%s${R}\n" "Ctrl+o d"        "detach session"
 printf "  ${YLW}%-22s${R} ${DIM}%s${R}\n" "Ctrl+h"          "all keybindings"
 echo
 hr
-echo -e "  ${DIM}run ${CYN}fob cheat${DIM} to open the full floating reference${R}"
+echo -e "  ${DIM}run ${CYN}console cheat${DIM} to open the full floating reference${R}"
 hr
 echo
 

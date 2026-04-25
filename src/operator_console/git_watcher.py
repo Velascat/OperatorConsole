@@ -4,7 +4,7 @@ Displays live dirty/clean status across repo roots. Arrow keys navigate,
 Enter launches lazygit for the selected repo (exec — the restart loop in
 the launcher brings the watcher back when lazygit exits).
 
-Usage: python3 -m fob.git_watcher <repo1> <repo2> ...
+Usage: python3 -m operator_console.git_watcher <repo1> <repo2> ...
 """
 from __future__ import annotations
 import curses
@@ -185,7 +185,7 @@ def _watcher(stdscr, repos: list[str]) -> None:
 def main() -> None:
     repos = sys.argv[1:]
     if not repos:
-        print("usage: python3 -m fob.git_watcher <repo> [<repo> ...]")
+        print("usage: python3 -m operator_console.git_watcher <repo> [<repo> ...]")
         sys.exit(1)
     curses.wrapper(_watcher, repos)
 

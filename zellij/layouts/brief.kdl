@@ -1,6 +1,6 @@
 // brief.kdl — reference layout (do not use directly)
 // The launcher generates a runtime version of this at launch time.
-// See: src/fob/launcher.py  generate_session_layout()
+// See: src/console/launcher.py  generate_session_layout()
 //
 // Session layout: default_tab_template injects chrome (tab-bar + status-bar)
 // into every tab. Tab content is the four-pane split below.
@@ -8,7 +8,7 @@
 // Pane arrangement per tab:
 //   Left (60%)       : Claude pane — claude --continue
 //   Top-right (34%)  : git pane   — lazygit
-//   Mid-right (33%)  : logs pane  — tail -f .fob/runtime.log
+//   Mid-right (33%)  : logs pane  — tail -f .console/runtime.log
 //   Bottom-right     : shell pane — bash
 
 layout {
@@ -31,7 +31,7 @@ layout {
                     args "-c" "cd '<repo_root>' && lazygit; exec bash -l"
                 }
                 pane name="logs" size="33%" command="bash" {
-                    args "-c" "cd '<repo_root>' && tail -f .fob/runtime.log 2>/dev/null; exec bash -l"
+                    args "-c" "cd '<repo_root>' && tail -f .console/runtime.log 2>/dev/null; exec bash -l"
                 }
                 pane name="shell" command="bash" {
                     args "-c" "cd '<repo_root>' && bash '<welcome.sh>'"

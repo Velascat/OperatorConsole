@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""fob — forward operating base CLI entrypoint."""
+"""console — Operator Console CLI entrypoint."""
 from __future__ import annotations
 import os
 import sys
 from pathlib import Path
 
-FOB_DIR = Path(__file__).resolve().parent.parent.parent
-PROFILES_DIR = FOB_DIR / "config" / "profiles"
-SCRIPTS_DIR = FOB_DIR / "tools"
+CONSOLE_DIR = Path(__file__).resolve().parent.parent.parent
+PROFILES_DIR = CONSOLE_DIR / "config" / "profiles"
+SCRIPTS_DIR = CONSOLE_DIR / "tools"
 
 _C = {
     "R": "\033[0m", "B": "\033[1m", "DIM": "\033[2m",
@@ -22,12 +22,12 @@ def c(text: str, *keys: str) -> str:
 
 
 BANNER = r"""
-    ███████╗ ██████╗ ██████╗
-    ██╔════╝██╔═══██╗██╔══██╗
-    █████╗  ██║   ██║██████╔╝
-    ██╔══╝  ██║   ██║██╔══██╗
-    ██║     ╚██████╔╝██████╔╝
-    ╚═╝      ╚═════╝ ╚═════╝
+     ██████╗ ██████╗ ███╗   ██╗███████╗ ██████╗ ██╗     ███████╗
+    ██╔════╝██╔═══██╗████╗  ██║██╔════╝██╔═══██╗██║     ██╔════╝
+    ██║     ██║   ██║██╔██╗ ██║███████╗██║   ██║██║     █████╗
+    ██║     ██║   ██║██║╚██╗██║╚════██║██║   ██║██║     ██╔══╝
+    ╚██████╗╚██████╔╝██║ ╚████║███████║╚██████╔╝███████╗███████╗
+     ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚══════╝╚══════╝
 """
 
 
@@ -47,18 +47,18 @@ def _dep_status_line() -> str:
 def show_menu(_: list[str]) -> None:
     import subprocess
     print(c(BANNER, "CYN", "B"))
-    print(c("    forward operating base\n", "DIM"))
+    print(c("    Operator Console\n", "DIM"))
     print(_dep_status_line())
     print()
 
     options = [
-        ("brief",   "pick and launch a workspace"),
-        ("restore", "re-open last session group"),
+        ("open",    "pick and launch a workspace"),
+        ("context", "re-open last session group"),
         ("rewatch", "restart git watcher for this tab's profile"),
         ("status",  "repo, branch, session state"),
-        ("resume",  "print mission brief"),
-        ("delegate",   "run a task through the full execution pipeline"),
-        ("auto-once",  "single autonomous cycle: observe → propose → execute"),
+        ("context", "print mission brief"),
+        ("run",        "run a task through the full execution pipeline"),
+        ("cycle",      "single autonomous cycle: observe → propose → execute"),
         ("runs",       "list recent execution runs"),
         ("clean",      "remove old run artifacts, keep latest N"),
         ("last",       "inspect the most recent execution run"),
@@ -66,7 +66,7 @@ def show_menu(_: list[str]) -> None:
         ("providers", "show selector and lane readiness"),
         ("doctor",    "full dependency check + install"),
         ("update",  "update claude, codex, and aider CLIs"),
-        ("loadout", "install and configure dev tools"),
+        ("install", "install and configure dev tools"),
         ("cheat",   "keybinding reference"),
         ("help",    "full command reference"),
     ]
@@ -80,7 +80,7 @@ def show_menu(_: list[str]) -> None:
     if has_fzf:
         fzf_input = "\n".join(f"{cmd:<10} {desc}" for cmd, desc in options)
         result = subprocess.run(
-            ["fzf", "--prompt", "  fob > ", "--height", "12",
+            ["fzf", "--prompt", "  console > ", "--height", "12",
              "--border", "--no-sort", "--tabstop", "1"],
             input=fzf_input, text=True, stdout=subprocess.PIPE,
         )
@@ -114,48 +114,48 @@ def show_menu(_: list[str]) -> None:
 
 def show_help(_: list[str]) -> None:
     print(c(BANNER, "CYN", "B"))
-    print(c("    forward operating base\n", "DIM"))
+    print(c("    Operator Console\n", "DIM"))
 
     sections = [
         ("WORKSPACE", [
-            ("brief [profile]",   "Auto-select current repo and launch"),
-            ("brief --layout",    "Launch using saved layout (explicit restore)"),
+            ("open [profile]",    "Auto-select current repo and launch"),
+            ("open --layout",     "Launch using saved layout (explicit restore)"),
             ("multi [--all]",     "Multi-select picker — open several repos; --all skips picker"),
-            ("restore [--show]",  "Re-open last saved session group (--show to preview)"),
-            ("attach",            "Re-attach to running fob session"),
-            ("kill",              "Terminate fob session and all panes (with warning)"),
-            ("resume",            "Print Claude resume context from .fob/"),
-            ("init    [repo]",    "Initialize .fob/ state files in repo"),
+            ("context [--show]",  "Re-open last saved session group (--show to preview)"),
+            ("attach",            "Re-attach to running console session"),
+            ("kill",              "Terminate console session and all panes (with warning)"),
+            ("context",           "Print Claude resume context from .console/"),
+            ("init    [repo]",    "Initialize .console/ state files in repo"),
             ("doctor",            "Check dependencies (Zellij, Claude, lazygit…)"),
         ]),
         ("VISIBILITY", [
-            ("status",            "System readiness: SwitchBoard, ControlPlane, lanes, last run"),
-            ("status --repo",     "Repo/session state (branch, layout, .fob/ files)"),
+            ("status",            "System readiness: SwitchBoard, OperationsCenter, lanes, last run"),
+            ("status --repo",     "Repo/session state (branch, layout, .console/ files)"),
             ("status --all",      "All repos compact table"),
-            ("map",               "Full state snapshot  (--json for machine output)"),
-            ("map --all",         "Snapshot of all repos  (--json supported)"),
+            ("overview",          "Full state snapshot  (--json for machine output)"),
+            ("overview --all",    "Snapshot of all repos  (--json supported)"),
         ]),
         ("RESET", [
             ("reset",             "Full reset — session + layout + state (confirms first)"),
             ("reset --session",   "Kill session only"),
             ("reset --layout",    "Clear saved layout only"),
-            ("reset --state",     "Delete .fob/ mission files only"),
+            ("reset --state",     "Delete .console/ mission files only"),
             ("clear [--all]",     "Delete saved layout (current repo or all)"),
         ]),
         ("LAYOUT", [
             ("save [profile]",    "Capture live Zellij tab → save to config/profiles/<name>.kdl"),
             ("save --reset [p]",  "Delete saved layout, revert to YAML-generated"),
-            ("layout save",       "Save current repo layout to .fob/layout.json"),
+            ("layout save",       "Save current repo layout to .console/layout.json"),
             ("layout load",       "Restore saved layout (starts Zellij session)"),
             ("layout show",       "Show saved layout metadata and path"),
             ("layout reset",      "Delete saved layout state for current repo"),
         ]),
         ("OPS", [
-            ("delegate --goal TEXT",   "Run a task through the full ControlPlane pipeline"),
-            ("delegate --dry-run",     "Planning only — print lane decision without executing"),
-            ("auto-once",              "Single autonomous cycle: observe → propose → execute"),
-            ("auto-once --dry-run",    "Observe + plan only — print lane decision without executing"),
-            ("auto-once --json",       "Machine-readable auto-once output"),
+            ("run --goal TEXT",        "Run a task through the full OperationsCenter pipeline"),
+            ("run --dry-run",          "Planning only — print lane decision without executing"),
+            ("cycle",                  "Single autonomous cycle: observe → propose → execute"),
+            ("cycle --dry-run",        "Observe + plan only — print lane decision without executing"),
+            ("cycle --json",           "Machine-readable cycle output"),
             ("runs",                   "List recent execution runs (newest first)"),
             ("runs --limit N",         "Show N most recent runs (default 20)"),
             ("runs --json",            "Machine-readable run list"),
@@ -164,9 +164,9 @@ def show_help(_: list[str]) -> None:
             ("last",                   "Inspect the most recent execution run"),
             ("last --all",             "Show last run + list of recent runs"),
             ("last --json",            "Machine-readable last run summary"),
-            ("status",                 "System readiness: SwitchBoard, ControlPlane, lanes"),
+            ("status",                 "System readiness: SwitchBoard, OperationsCenter, lanes"),
             ("status --json",          "Machine-readable system readiness"),
-            ("demo",              "Validate stack → SwitchBoard route → ControlPlane handoff"),
+            ("demo",              "Validate stack → SwitchBoard route → OperationsCenter handoff"),
             ("demo --no-start",   "Run the same validation without starting the stack"),
             ("demo --json",       "Machine-readable summary"),
             ("providers",         "Show selector and lane readiness"),
@@ -177,8 +177,8 @@ def show_help(_: list[str]) -> None:
         ("TOOLS", [
             ("update",            "Update claude, codex, and aider CLIs"),
             ("cheat",             "Open full cheatsheet in floating pane"),
-            ("loadout",           "Install and configure dev tools"),
-            ("install",           "Symlink fob to ~/.local/bin"),
+            ("install",           "Install and configure dev tools"),
+            ("install",           "Symlink console to ~/.local/bin"),
         ]),
     ]
 
@@ -219,7 +219,7 @@ def _discover_repos() -> dict[str, dict]:
             data = yaml.safe_load(p.read_text())
             if not data:
                 continue
-            from fob.profile_loader import _expand_paths
+            from operator_console.profile_loader import _expand_paths
             _expand_paths(data)
             if "group" in data and "repo_root" not in data:
                 # Group profile — register by name, never overlay a repo entry
@@ -241,8 +241,8 @@ def _discover_repos() -> dict[str, dict]:
 def _autopick() -> tuple[list[dict], str | None]:
     """Auto-select current repo, or show single-select picker if not in any repo."""
     import subprocess
-    from fob.session import session_exists
-    from fob.launcher import FOB_SESSION
+    from operator_console.session import session_exists
+    from operator_console.launcher import CONSOLE_SESSION
 
     all_profiles = _discover_repos()
     if not all_profiles:
@@ -264,7 +264,7 @@ def _autopick() -> tuple[list[dict], str | None]:
 
 
 def _pick_multi(all: bool = False) -> tuple[list[dict], str | None]:
-    """Explicit multi-select picker — used by `fob multi`."""
+    """Explicit multi-select picker — used by `console multi`."""
     all_profiles = _discover_repos()
     if not all_profiles:
         print(c("✗ No repos found", "RED"))
@@ -281,7 +281,7 @@ def _expand_selection(selected_raw: list[dict]) -> tuple[list[dict], str | None]
     tab_name_override is set when a single group profile was selected — the tab
     is named after the group rather than the joined member names.
     """
-    from fob.profile_loader import load_profile
+    from operator_console.profile_loader import load_profile
     result = []
     seen = set()
     # Single group selected → use group name as tab label
@@ -312,12 +312,12 @@ def _run_picker(all_profiles: dict, multi: bool) -> tuple[list[dict], str | None
     show their member list so the distinction is immediately visible.
     """
     import subprocess
-    from fob.session import session_exists
-    from fob.launcher import FOB_SESSION
+    from operator_console.session import session_exists
+    from operator_console.launcher import CONSOLE_SESSION
 
     repo_keys  = sorted(k for k, v in all_profiles.items() if "repo_root" in v)
     group_keys = sorted(k for k, v in all_profiles.items() if "group" in v and "repo_root" not in v)
-    session_running = session_exists(FOB_SESSION)
+    session_running = session_exists(CONSOLE_SESSION)
 
     try:
         result = subprocess.run(["fzf", "--version"], capture_output=True)
@@ -417,17 +417,17 @@ def _require_zellij() -> None:
     except (FileNotFoundError, subprocess.CalledProcessError):
         print(c("✗ Zellij not found.", "RED"))
         print(c("  Install: https://zellij.dev/documentation/installation", "DIM"))
-        print(c("  Or check with: fob doctor", "DIM"))
+        print(c("  Or check with: console doctor", "DIM"))
         sys.exit(1)
 
 
 def _run_brief(profiles: list[dict], use_saved_layout: bool = False, tab_name: str | None = None) -> None:
-    """Core brief flow shared by `fob brief`, `fob multi`, and `fob restore`."""
-    from fob.profile_loader import load_profile
-    from fob.launcher import launch, FOB_SESSION
-    from fob.bootstrap import ensure_claude_md, write_bootstrap_file
-    from fob.session import session_exists as _sess_exists
-    from fob.session_group import save as _sg_save
+    """Core brief flow shared by `console open`, `console multi`, and `console context`."""
+    from operator_console.profile_loader import load_profile
+    from operator_console.launcher import launch, CONSOLE_SESSION
+    from operator_console.bootstrap import ensure_claude_md, write_bootstrap_file
+    from operator_console.session import session_exists as _sess_exists
+    from operator_console.session_group import save as _sg_save
     import os as _os
 
     for profile in profiles:
@@ -450,38 +450,38 @@ def _run_brief(profiles: list[dict], use_saved_layout: bool = False, tab_name: s
                         peer_roots.append((sibling["name"], sibling_root))
 
         repo_root = Path(profile["repo_root"])
-        if not (repo_root / ".fob").exists():
-            from fob import commands as _cmds
-            print(c(f"  .fob/ not found in {profile['name']} — initializing...", "YLW"))
-            _cmds.cmd_init([str(repo_root)], FOB_DIR)
+        if not (repo_root / ".console").exists():
+            from operator_console import commands as _cmds
+            print(c(f"  .console/ not found in {profile['name']} — initializing...", "YLW"))
+            _cmds.cmd_init([str(repo_root)], CONSOLE_DIR)
         write_bootstrap_file(repo_root, files=bootstrap_files,
                              peer_roots=peer_roots or None, profile_name=profile["name"])
         extra_files = [f for f in (bootstrap_files or [])
                        if Path(f).name not in {
-                           "standing-orders.md", "active-mission.md",
+                           "directives.md", "active-task.md",
                            "objectives.md", "mission-log.md",
                        }]
-        ensure_claude_md(repo_root, FOB_DIR / "templates" / "mission",
+        ensure_claude_md(repo_root, CONSOLE_DIR / "templates" / "mission",
                          extra_files=extra_files or None)
 
-    _sg_save([p["name"] for p in profiles], FOB_SESSION)
+    _sg_save([p["name"] for p in profiles], CONSOLE_SESSION)
 
     saved_layout_path = None
     if use_saved_layout and profiles:
-        from fob import layout as layout_mod
+        from operator_console import layout as layout_mod
         result = layout_mod.load(Path(profiles[0]["repo_root"]))
         if result:
             saved_layout_path = result[1]
 
-    already_in = _os.environ.get("ZELLIJ_SESSION_NAME") == FOB_SESSION
-    session_running = already_in or _sess_exists(FOB_SESSION)
+    already_in = _os.environ.get("ZELLIJ_SESSION_NAME") == CONSOLE_SESSION
+    session_running = already_in or _sess_exists(CONSOLE_SESSION)
 
     label = ", ".join(p["name"] for p in profiles)
     print(c(f"\n  Brief: {label}", "B", "CYN"))
     if session_running:
-        print(f"  {c('session  ', 'DIM')}attaching  {c(f'({FOB_SESSION})', 'DIM')}")
+        print(f"  {c('session  ', 'DIM')}attaching  {c(f'({CONSOLE_SESSION})', 'DIM')}")
     else:
-        print(f"  {c('session  ', 'DIM')}creating   {c(f'({FOB_SESSION})', 'DIM')}")
+        print(f"  {c('session  ', 'DIM')}creating   {c(f'({CONSOLE_SESSION})', 'DIM')}")
         if saved_layout_path:
             layout_desc = c("saved", "GRN")
         elif use_saved_layout:
@@ -490,14 +490,14 @@ def _run_brief(profiles: list[dict], use_saved_layout: bool = False, tab_name: s
             layout_desc = c("fresh", "DIM")
         print(f"  {c('layout   ', 'DIM')}{layout_desc}")
     if profiles:
-        _ap = Path(profiles[0]["repo_root"]) / ".fob" / "active-mission.md"
+        _ap = Path(profiles[0]["repo_root"]) / ".console" / "active-task.md"
         if _ap.exists():
-            from fob.commands import _mission_snippet
+            from operator_console.commands import _mission_snippet
             snip = _mission_snippet(_ap)
             if snip:
                 print(f"  {c('mission  ', 'DIM')}{c(snip, 'DIM')}")
     print()
-    launch(profiles, FOB_DIR, saved_layout_path=saved_layout_path, tab_name=tab_name)
+    launch(profiles, CONSOLE_DIR, saved_layout_path=saved_layout_path, tab_name=tab_name)
 
 
 # ── dispatch ──────────────────────────────────────────────────────────────────
@@ -511,10 +511,10 @@ def main() -> None:
         cmd = "help"
     if cmd == "--menu":
         cmd = "menu"
-    if cmd == "--brief":
-        cmd = "brief"
+    if cmd == "--open":
+        cmd = "open"
 
-    from fob import commands
+    from operator_console import commands
 
     match cmd:
 
@@ -524,12 +524,12 @@ def main() -> None:
         case "help":
             show_help(args)
 
-        case "brief":
+        case "open" | "brief":
             _require_zellij()
             use_saved_layout = "--layout" in args
             named = [a for a in args if not a.startswith("--")]
             if named:
-                from fob.profile_loader import load_profile, validate_profile
+                from operator_console.profile_loader import load_profile, validate_profile
                 raw = []
                 for pname in named:
                     try:
@@ -556,12 +556,12 @@ def main() -> None:
         case "kill":
             commands.cmd_kill(args)
 
-        case "restore":
-            from fob.session_group import load as _sg_load
+        case "context" | "restore":
+            from operator_console.session_group import load as _sg_load
             data = _sg_load()
             if not data:
                 print(c("  No saved session group found.", "DIM"))
-                print(c("  Run `fob brief` to create a restorable group.", "DIM"))
+                print(c("  Run `console open` to create a restorable group.", "DIM"))
                 sys.exit(1)
             repo_names = data.get("repos", [])
             saved_at   = data.get("saved_at", "?")
@@ -585,71 +585,71 @@ def main() -> None:
             _run_brief(profiles)
 
         case "save":
-            commands.cmd_save(args, _profile_for_cwd(), FOB_DIR)
+            commands.cmd_save(args, _profile_for_cwd(), CONSOLE_DIR)
 
         case "layout":
             _require_zellij()
-            commands.cmd_layout(args, _profile_for_cwd(), FOB_DIR)
+            commands.cmd_layout(args, _profile_for_cwd(), CONSOLE_DIR)
 
         case "reset":
-            commands.cmd_reset(args, _profile_for_cwd(), FOB_DIR)
+            commands.cmd_reset(args, _profile_for_cwd(), CONSOLE_DIR)
 
-        case "map":
+        case "overview" | "map":
             all_repos = _discover_repos() if "--all" in args else None
-            commands.cmd_map(args, _profile_for_cwd(), FOB_DIR, all_repos)
+            commands.cmd_map(args, _profile_for_cwd(), CONSOLE_DIR, all_repos)
 
         case "clear":
             commands.cmd_clear(args, _profile_for_cwd())
 
         case "attach":
             _require_zellij()
-            from fob.launcher import attach, FOB_SESSION
-            from fob.session import session_exists
-            if not session_exists(FOB_SESSION):
-                print(c(f"✗ No session '{FOB_SESSION}'. Run: fob brief", "RED"))
+            from operator_console.launcher import attach, CONSOLE_SESSION
+            from operator_console.session import session_exists
+            if not session_exists(CONSOLE_SESSION):
+                print(c(f"✗ No session '{CONSOLE_SESSION}'. Run: console open", "RED"))
                 sys.exit(1)
-            attach(FOB_SESSION)
+            attach(CONSOLE_SESSION)
 
         case "init":
-            commands.cmd_init(args, FOB_DIR)
+            commands.cmd_init(args, CONSOLE_DIR)
 
-        case "resume":
+        case "context" | "resume":
             commands.cmd_resume(args, _profile_for_cwd())
 
-        case "delegate":
-            from fob.delegate import run_delegate
+        case "run" | "delegate":
+            from operator_console.delegate import run_delegate
             sys.exit(run_delegate(args))
 
-        case "auto-once":
-            from fob.auto_once import run_auto_once
+        case "cycle" | "auto-once":
+            from operator_console.auto_once import run_auto_once
             sys.exit(run_auto_once(args))
 
         case "runs":
-            from fob.runs_cmd import run_runs
+            from operator_console.runs_cmd import run_runs
             sys.exit(run_runs(args))
 
         case "clean":
-            from fob.clean import run_clean
+            from operator_console.clean import run_clean
             sys.exit(run_clean(args))
 
         case "last":
-            from fob.last import run_last
+            from operator_console.last import run_last
             sys.exit(run_last(args))
 
         case "status":
             if "--repo" in args or "--all" in args:
                 all_repos = _discover_repos() if "--all" in args else None
-                commands.cmd_status(args, FOB_DIR, _profile_for_cwd(), all_repos)
+                commands.cmd_status(args, CONSOLE_DIR, _profile_for_cwd(), all_repos)
             else:
-                from fob.system_status import run_status
+                from operator_console.system_status import run_status
                 sys.exit(run_status(args))
 
         case "demo":
-            from fob.demo import run_demo
+            from operator_console.demo import run_demo
             sys.exit(run_demo(args))
 
         case "providers":
-            from fob.providers import run_providers
+            from operator_console.providers import run_providers
             sys.exit(run_providers(args))
 
         case "test":
@@ -667,18 +667,15 @@ def main() -> None:
         case "update":
             commands.cmd_update(args)
 
-        case "loadout":
+        case "install" | "loadout":
             commands.cmd_loadout(args, SCRIPTS_DIR)
 
         case "rewatch":
-            commands.cmd_rewatch(args, FOB_DIR)
-
-        case "install":
-            commands.cmd_install(args, FOB_DIR)
+            commands.cmd_rewatch(args, CONSOLE_DIR)
 
         case _:
             print(c(f"✗ Unknown command: {cmd}", "RED"))
-            print(c("  Run: fob help", "DIM"))
+            print(c("  Run: console help", "DIM"))
             sys.exit(1)
 
 

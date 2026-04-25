@@ -1,6 +1,6 @@
 name: platform
 group:
   - controlplane
-  - fob
+  - console
   - switchboard
   - workstation

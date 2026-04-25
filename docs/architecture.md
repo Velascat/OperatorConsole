@@ -3,15 +3,15 @@
 ## Overview
 
 ```
-fob (shell wrapper)
-└── src/fob/cli.py              ← main dispatcher + repo discovery + profile picker
+console (shell wrapper)
+└── src/console/cli.py              ← main dispatcher + repo discovery + profile picker
     ├── profile_loader.py       ← YAML profile loading + validation
     ├── launcher.py             ← Zellij session creation / tab management
     ├── demo.py                 ← end-to-end platform validation flow
     ├── providers.py            ← provider dashboard helper + free-provider guide
     ├── layout.py               ← layout persistence (save/load/show/reset)
     ├── tab_capture.py          ← live Zellij layout capture (dump-layout + KDL extraction)
-    ├── session_group.py        ← session group persistence (save/load last group for fob restore)
+    ├── session_group.py        ← session group persistence (save/load last group for console restore)
     ├── session.py              ← Zellij session state queries
     ├── guardrails.py           ← branch detection + warnings
     ├── bootstrap.py            ← Claude mission brief generation + session wrapper scripts
@@ -20,61 +20,61 @@ fob (shell wrapper)
 
 ## Entry Point
 
-Running `fob` (no subcommand) is equivalent to `fob brief`. The shell wrapper (`fob`) runs first:
+Running `console` (no subcommand) is equivalent to `console brief`. The shell wrapper (`console`) runs first:
 
 1. Check for `.venv/bin/python3` — if absent, run `bootstrap.sh` automatically (first run only)
 2. Set `PYTHONPATH` to `src/`
-3. Exec `python3 -m fob.cli` with any arguments
+3. Exec `python3 -m operator_console.cli` with any arguments
 
-`fob brief` is preserved as an explicit alias; both paths are identical.
+`console brief` is preserved as an explicit alias; both paths are identical.
 
 ## Launcher Flow
 
-`fob` / `fob brief`:
+`console` / `console brief`:
 
 1. Scan `~/Documents/GitHub/` for git repos; overlay any YAML profiles from `config/profiles/`
 2. Group profiles (those with `group:` and no `repo_root:`) are registered separately and never shadow repo entries
 3. If cwd is inside a known repo → always auto-select that repo, skip picker entirely
 4. If that repo's tab is already open → `launch()` attaches without adding a duplicate tab
 5. If cwd is outside all known repos (e.g. `~/Documents/GitHub/`) → single-select picker (fzf or numbered fallback)
-6. `fob multi` → explicit multi-select picker (Tab to toggle); each selected repo opens as a named tab
+6. `console multi` → explicit multi-select picker (Tab to toggle); each selected repo opens as a named tab
 7. Group selection is expanded to constituent profiles via `_expand_selection()`
-8. For each selected repo: initialize `.fob/` if missing; if multiple repos selected, inject siblings as implicit peers in each briefing; write `.fob/.briefing`, ensure `CLAUDE.md`
+8. For each selected repo: initialize `.console/` if missing; if multiple repos selected, inject siblings as implicit peers in each briefing; write `.console/.briefing`, ensure `CLAUDE.md`
 9. Multi-repo layout: Claude pane starts at `~/Documents/GitHub/` instead of the individual repo root
-10. Auto-save group to `~/.local/share/fob/last-session.json` (for `fob restore`)
-11. Print structured brief block: `session attaching/creating (fob)`, `layout fresh/saved` (new sessions only), active mission snippet
+10. Auto-save group to `~/.local/share/console/last-session.json` (for `console restore`)
+11. Print structured brief block: `session attaching/creating (console)`, `layout fresh/saved` (new sessions only), active mission snippet
 12. Check branch via `guardrails.py` — warn if on main/master
-13. If session `fob` exists → add each repo as a new named tab (skip if tab already open)
-14. Otherwise → generate fresh KDL layout (or use saved layout if `--layout` flag passed), launch `zellij --session fob --new-session-with-layout <kdl>`
+13. If session `console` exists → add each repo as a new named tab (skip if tab already open)
+14. Otherwise → generate fresh KDL layout (or use saved layout if `--layout` flag passed), launch `zellij --session console --new-session-with-layout <kdl>`
 
-`fob restore`: loads `last-session.json`, resolves repo names against `_discover_repos()`, injects siblings as implicit peers (same logic as multi-select brief), regenerates briefings, then calls `launch()`.
+`console restore`: loads `last-session.json`, resolves repo names against `_discover_repos()`, injects siblings as implicit peers (same logic as multi-select brief), regenerates briefings, then calls `launch()`.
 
 ## Python Environment
 
-FOB uses an isolated venv at `.venv/` inside the FOB repo root. `bootstrap.sh` creates it and installs `PyYAML` from `requirements.txt`. The `fob` wrapper triggers this automatically on first run — no manual setup step required.
+OperatorConsole uses an isolated venv at `.venv/` inside the OperatorConsole repo root. `bootstrap.sh` creates it and installs `PyYAML` from `requirements.txt`. The `console` wrapper triggers this automatically on first run — no manual setup step required.
 
 ## Zellij Session Model
 
-FOB uses a **single named session**: `fob`. Each project opens as a **named tab** within that session.
+OperatorConsole uses a **single named session**: `console`. Each project opens as a **named tab** within that session.
 
 - Tab bar and status bar are present in every tab via explicit chrome panes in each layout
-- Running `fob` from inside the session adds tabs without re-attaching
+- Running `console` from inside the session adds tabs without re-attaching
 - Dead (EXITED) sessions are auto-deleted before creating a new one
-- `fob kill` terminates the session and all panes (with confirmation prompt); `tput reset` is run afterwards to clear any stale terminal state
+- `console kill` terminates the session and all panes (with confirmation prompt); `tput reset` is run afterwards to clear any stale terminal state
 
 Layout files:
-- Session start: `/tmp/fob-session.kdl` — includes `default_tab_template` + named first tab
-- New tabs: `/tmp/fob-tab-<name>.kdl` — panes + explicit chrome
+- Session start: `/tmp/console-session.kdl` — includes `default_tab_template` + named first tab
+- New tabs: `/tmp/console-tab-<name>.kdl` — panes + explicit chrome
 
 Pane arrangement — **single repo**:
-- **Left 28%**: Git (`lazygit`) top + ControlPlane status (bottom 25%)
+- **Left 28%**: Git (`lazygit`) top + OperationsCenter status (bottom 25%)
 - **Center**: Claude (`claude --resume <id>`) top + Shell (`bash`) bottom 15% — horizontal split
-- **Right 28%**: Logs (`tail -f .fob/runtime.log`)
+- **Right 28%**: Logs (`tail -f .console/runtime.log`)
 
 Pane arrangement — **multi repo** (single tab):
 - **Left 28%**: stacked lazygits (all repos)
 - **Center**: Claude only — starts at `~/Documents/GitHub/`
-- **Right 28%**: stacked shells (auto height, 75%) + ControlPlane status (bottom 25%)
+- **Right 28%**: stacked shells (auto height, 75%) + OperationsCenter status (bottom 25%)
 
 Tab naming: group profiles use the group name (e.g. `platform`); ad-hoc multi-select joins all repo names (`RepoA+RepoB+RepoC`). `_multi_tab_name()` always lists all repos — no truncation.
 
@@ -84,7 +84,7 @@ Profiles live in `config/profiles/<name>.yaml`. They are **optional** — any gi
 
 Two profile types:
 
-**Repo profile** — has `repo_root:`. Adds `claude.*` (bootstrap files, peer context), `panes.*` (per-pane command overrides), `helpers.*` (test/audit commands), and `status_repos` (ControlPlane status filter).
+**Repo profile** — has `repo_root:`. Adds `claude.*` (bootstrap files, peer context), `panes.*` (per-pane command overrides), `helpers.*` (test/audit commands), and `status_repos` (OperationsCenter status filter).
 
 **Group profile** — has `group:` list but no `repo_root:`. Appears in picker with `▸` prefix. Selecting it expands to constituent profiles.
 
@@ -100,11 +100,11 @@ See [profiles.md](profiles.md) for format reference.
 3. Overlays configured YAML profiles: any profile whose `repo_root` matches a discovered repo replaces the auto-generated entry
 4. Group profiles (no `repo_root:`) are registered under their own key and never replace repo entries
 
-`_profile_for_cwd()` uses the same discovery to find which profile's `repo_root` contains the current directory — used by `fob status`, `fob resume`, `fob test`, and `fob audit`.
+`_profile_for_cwd()` uses the same discovery to find which profile's `repo_root` contains the current directory — used by `console status`, `console resume`, `console test`, and `console audit`.
 
 ## Claude Session Tracking
 
-`get_claude_command()` in `bootstrap.py` generates a per-profile shell wrapper script written to `/tmp/fob-claude-<name>.sh`. The wrapper:
+`get_claude_command()` in `bootstrap.py` generates a per-profile shell wrapper script written to `/tmp/console-claude-<name>.sh`. The wrapper:
 
 1. Reads `config/profiles/<name>.session` — the saved Claude conversation ID
 2. Runs `claude --resume <id>` if saved, otherwise `claude` (fresh start); falls back to `claude` if the session no longer exists
@@ -124,7 +124,7 @@ Session files (`config/profiles/*.session`) are always gitignored.
 - `extract_panes_kdl(kdl, tab_name)` — extracts the inner content panes from a named tab, stripping chrome plugins (tab-bar, status-bar) and the tab wrapper; returns raw KDL ready to embed in a session or tab layout
 - `focused_tab_name(kdl)` — returns the name of the focused tab from a dump
 
-`fob save [name]` (in `commands.py`) calls these to capture the live layout and write it to `config/profiles/<name>.kdl`. On the next `fob brief`, `_saved_panes_kdl()` in `launcher.py` checks for this file and uses it instead of generating from YAML.
+`console save [name]` (in `commands.py`) calls these to capture the live layout and write it to `config/profiles/<name>.kdl`. On the next `console brief`, `_saved_panes_kdl()` in `launcher.py` checks for this file and uses it instead of generating from YAML.
 
 ## Layout Persistence
 
@@ -133,25 +133,25 @@ Two separate systems:
 **Live capture** (`config/profiles/<name>.kdl`):
 - Captures actual live pane arrangement via `zellij action dump-layout`
 - Gitignored; profile-scoped
-- Used automatically on next `fob brief`
-- `fob save` / `fob save --reset`
+- Used automatically on next `console brief`
+- `console save` / `console save --reset`
 
-**KDL-based restore** (`.fob/layout.kdl` + `.fob/layout.json`):
+**KDL-based restore** (`.console/layout.kdl` + `.console/layout.json`):
 - Saves the YAML-generated layout for session-level restore
 - `layout.py` provides `save`, `load`, `load_any`, `reset`
-- `fob brief` always generates fresh layout; `fob brief --layout` is the explicit opt-in
-- `fob layout load` starts Zellij directly with the saved KDL
+- `console brief` always generates fresh layout; `console brief --layout` is the explicit opt-in
+- `console layout load` starts Zellij directly with the saved KDL
 
 ## Two-Layer Continuity Model
 
-FOB uses a two-layer model for Claude context:
+OperatorConsole uses a two-layer model for Claude context:
 
 **Layer 1 — Human-editable source files** (edit these directly):
 
 | File | Role |
 |------|------|
-| `active-mission.md` | Current objective — singular, concise, replace when focus changes |
-| `standing-orders.md` | Stable repo policy — branch rules, operating constraints, low-churn |
+| `active-task.md` | Current objective — singular, concise, replace when focus changes |
+| `directives.md` | Stable repo policy — branch rules, operating constraints, low-churn |
 | `objectives.md` | Work inventory — in-progress, up-next, done |
 | `mission-log.md` | Chronological log — decisions, stop points, what changed and why |
 
@@ -161,59 +161,59 @@ FOB uses a two-layer model for Claude context:
 |------|------|
 | `.briefing` | Compiled startup context — all four files + runtime context, regenerated each launch |
 
-`fob init` creates the source files from `templates/mission/` if missing. `fob` auto-inits on first launch.
+`console init` creates the source files from `templates/mission/` if missing. `console` auto-inits on first launch.
 
-`CLAUDE.md` in the repo root tells Claude to read `.fob/.briefing` as the primary startup context.
+`CLAUDE.md` in the repo root tells Claude to read `.console/.briefing` as the primary startup context.
 
 ## Briefing Generation
 
-`bootstrap.py` reads the four source files and compiles `.fob/.briefing` at launch time. The briefing includes:
+`bootstrap.py` reads the four source files and compiles `.console/.briefing` at launch time. The briefing includes:
 
 - Active Mission, Standing Orders, Objectives, Mission Log (from source files)
 - Runtime context: repo name, repo root, current branch, timestamp, profile name
 - Peer sections if `claude.peers` is configured
 
-The briefing is regenerated fresh on every `fob brief` run — it is always current.
+The briefing is regenerated fresh on every `console brief` run — it is always current.
 
-`fob resume` prints the compiled briefing to stdout so the operator can inspect what Claude will see.
+`console resume` prints the compiled briefing to stdout so the operator can inspect what Claude will see.
 
 ## State Boundaries
 
-FOB state is distributed across five distinct layers:
+OperatorConsole state is distributed across five distinct layers:
 
 | Layer | What persists | Location |
 |-------|--------------|----------|
 | Zellij | Session name, tabs, live pane processes | Zellij session manager |
-| `.fob/` | Mission files, layout files, compiled briefing | `<repo>/.fob/` (gitignored) |
+| `.console/` | Mission files, layout files, compiled briefing | `<repo>/.console/` (gitignored) |
 | CLI config | Profile YAML (platform group tracked) | `config/profiles/*.yaml` |
 | Private config | Saved live layouts, Claude session IDs | `config/profiles/*.kdl`, `*.session` (gitignored) |
-| Global state | Last session group (for `fob restore`) | `~/.local/share/fob/last-session.json` |
+| Global state | Last session group (for `console restore`) | `~/.local/share/console/last-session.json` |
 
-These layers are independent. Resetting one does not affect the others. `fob reset` scopes resets explicitly:
+These layers are independent. Resetting one does not affect the others. `console reset` scopes resets explicitly:
 - `--session` → kills Zellij session only
-- `--layout` → deletes `.fob/layout.json` + `.fob/layout.kdl` only
+- `--layout` → deletes `.console/layout.json` + `.console/layout.kdl` only
 - `--state` → deletes the four mission source files only
-- bare `fob reset` → all three (with confirmation)
+- bare `console reset` → all three (with confirmation)
 
 ## Visibility Commands
 
-`fob status` — shows session (running/stopped, attached/detached), layout (saved/none, metadata), branch, profile, and `.fob/` file presence. Active mission snippet is shown if the file exists.
+`console status` — shows session (running/stopped, attached/detached), layout (saved/none, metadata), branch, profile, and `.console/` file presence. Active mission snippet is shown if the file exists.
 
-`fob map` — structured full-state snapshot. Includes repo info, session state, layout metadata, and mission file presence. `--json` flag emits machine-readable JSON for tooling/piping.
+`console map` — structured full-state snapshot. Includes repo info, session state, layout metadata, and mission file presence. `--json` flag emits machine-readable JSON for tooling/piping.
 
 ## Platform Validation Commands
 
-FOB also owns operator-facing validation commands for the shared platform:
+OperatorConsole also owns operator-facing validation commands for the shared platform:
 
-- `fob demo` — the golden-path architecture check: preflight, stack health, SwitchBoard route selection, and ControlPlane handoff
-- `fob demo --no-start` — same validation but assumes the stack is already up
-- `fob providers` — reports selector and lane readiness
-- `fob providers --wait` — polls until the selector is healthy and then points the operator back to the demo flow
+- `console demo` — the golden-path architecture check: preflight, stack health, SwitchBoard route selection, and OperationsCenter handoff
+- `console demo --no-start` — same validation but assumes the stack is already up
+- `console providers` — reports selector and lane readiness
+- `console providers --wait` — polls until the selector is healthy and then points the operator back to the demo flow
 
 These are operator UX commands. They do not move infrastructure ownership out of WorkStation.
 
 ## Dev Toolchain
 
-`fob loadout` runs `tools/loadout.sh` — an interactive installer for the recommended dev toolchain (fzf, bat, eza, ripgrep, fd, zoxide, delta, lazygit, starship, fastfetch). Tools not available in Ubuntu's standard apt repos (eza, git-delta, fastfetch) use custom GitHub release installers.
+`console loadout` runs `tools/loadout.sh` — an interactive installer for the recommended dev toolchain (fzf, bat, eza, ripgrep, fd, zoxide, delta, lazygit, starship, fastfetch). Tools not available in Ubuntu's standard apt repos (eza, git-delta, fastfetch) use custom GitHub release installers.
 
-`fob doctor` checks both core FOB dependencies and all loadout tools, with install status for each.
+`console doctor` checks both core OperatorConsole dependencies and all loadout tools, with install status for each.

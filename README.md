@@ -1,25 +1,25 @@
-# FOB — Forward Operating Base
+# OperatorConsole — Operator Console
 
-Operator console for Claude-driven development. Persistent Zellij workspaces with mission-file continuity, plus a full execution pipeline that delegates tasks to ControlPlane, routes them through SwitchBoard, and records canonical run artifacts.
+Operator console for Claude-driven development. Persistent Zellij workspaces with mission-file continuity, plus a full execution pipeline that delegates tasks to OperationsCenter, routes them through SwitchBoard, and records canonical run artifacts.
 
-## What FOB Is
+## What OperatorConsole Is
 
-FOB maintains a persistent workspace that you can leave and return to without losing context.
+OperatorConsole maintains a persistent workspace that you can leave and return to without losing context.
 
-- **Session persistence** — a single named Zellij session (`fob`) stays alive across terminal closes and reconnects; `fob brief` attaches to it or creates it
-- **Context persistence** — `.fob/` mission files give Claude structured, explicit context that survives across sessions
-- **Layout persistence** — `fob save` captures the live Zellij tab layout per profile; `fob layout save/load` for explicit KDL-based restore
+- **Session persistence** — a single named Zellij session (`console`) stays alive across terminal closes and reconnects; `console brief` attaches to it or creates it
+- **Context persistence** — `.console/` mission files give Claude structured, explicit context that survives across sessions
+- **Layout persistence** — `console save` captures the live Zellij tab layout per profile; `console layout save/load` for explicit KDL-based restore
 - **Auto-discovery** — every git repo under `~/Documents/GitHub/` appears in the picker automatically; no YAML required
 - **Group profiles** — define named groups (e.g. `platform`) to open multiple repos as a single tab with one command
 
-FOB is not a neutral bootstrap script or a multiplexer-agnostic tool. Zellij is a core dependency, and persistence is the point.
+OperatorConsole is not a neutral bootstrap script or a multiplexer-agnostic tool. Zellij is a core dependency, and persistence is the point.
 
 ## Workspace Layout
 
 **Single repo:**
 ```
 ┌────────────────────────────────────────────────────────┐
-│  FOB  │  YourRepo  │  ...                         │  ← tab bar
+│  OperatorConsole  │  YourRepo  │  ...                         │  ← tab bar
 ├──────────┬──────────────────────────────┬──────────────┤
 │          │                              │              │
 │ lazygit  │   claude / codex / aider     │     logs     │
@@ -28,12 +28,12 @@ FOB is not a neutral bootstrap script or a multiplexer-agnostic tool. Zellij is 
 │ status   │  shell  (15%)                │              │
 │  (25%)   │                              │              │
 └──────────┴──────────────────────────────┴──────────────┘
-│  NORMAL  │  fob  │  ...                               │  ← status bar
+│  NORMAL  │  console  │  ...                               │  ← status bar
 ```
 
-Left 28%: lazygit (top) + ControlPlane status script (bottom 25%). Center 44%: stacked `claude`, `codex`, and `aider`, plus a shell at the bottom (15%). Right 28%: logs.
+Left 28%: lazygit (top) + OperationsCenter status script (bottom 25%). Center 44%: stacked `claude`, `codex`, and `aider`, plus a shell at the bottom (15%). Right 28%: logs.
 
-**Multi repo (`fob multi` or group profile) — single tab:**
+**Multi repo (`console multi` or group profile) — single tab:**
 ```
 ┌──────────────────────────────────────────────────────┐
 │  platform  │  ...                                │  ← tab bar (group name, not member list)
@@ -46,33 +46,33 @@ Left 28%: lazygit (top) + ControlPlane status script (bottom 25%). Center 44%: s
 └──────────┴─────────────────────────┴──────────────────┘
 ```
 
-Left 28%: stacked lazygits (all repos). Center: stacked `claude`, `codex`, and `aider`, rooted at `~/Documents/GitHub/`. Right 28%: stacked shells (75%) + ControlPlane status (25%).
+Left 28%: stacked lazygits (all repos). Center: stacked `claude`, `codex`, and `aider`, rooted at `~/Documents/GitHub/`. Right 28%: stacked shells (75%) + OperationsCenter status (25%).
 
 Tab naming: group profiles use the group name (`platform`); ad-hoc multi-select joins all repo names (`RepoA+RepoB+RepoC`).
 
-## What Happens When You Run `fob`
+## What Happens When You Run `console`
 
 1. Python environment bootstraps itself if needed (first run only)
 2. If inside a known repo → always auto-selects that repo, no picker
 3. If that repo's tab is already open → attaches to the running session (no duplicate tab)
 4. If outside all known repos (e.g. at `~/Documents/GitHub/`) → single-select picker
-5. Session `fob` exists → adds repo as a new named tab
-6. Session `fob` doesn't exist → generates layout, launches Zellij session
+5. Session `console` exists → adds repo as a new named tab
+6. Session `console` doesn't exist → generates layout, launches Zellij session
 7. Claude starts with `claude --resume <session-id>` (first run: fresh; subsequent runs: resumes saved session)
 
-Use `fob multi` to explicitly open multiple repos at once.
+Use `console multi` to explicitly open multiple repos at once.
 
 ## Why It Exists
 
-`claude --continue` resumes the most recent conversation globally — wrong when you have multiple groups running. FOB tracks a session ID per profile/group in `config/profiles/<name>.session` (gitignored) and uses `claude --resume <id>` so each workspace always resumes its own conversation. `.fob/` mission files give Claude structured context: standing orders, active mission, objectives, and a mission log.
+`claude --continue` resumes the most recent conversation globally — wrong when you have multiple groups running. OperatorConsole tracks a session ID per profile/group in `config/profiles/<name>.session` (gitignored) and uses `claude --resume <id>` so each workspace always resumes its own conversation. `.console/` mission files give Claude structured context: standing orders, active mission, objectives, and a mission log.
 
 ## Installation
 
 ```bash
-cd ~/Documents/GitHub/FOB
-./fob install         # symlinks fob to ~/.local/bin (bootstraps Python env automatically)
+cd ~/Documents/GitHub/OperatorConsole
+./console install         # symlinks console to ~/.local/bin (bootstraps Python env automatically)
 source ~/.bashrc
-fob doctor            # verify dependencies
+console doctor            # verify dependencies
 ```
 
 Dependencies: `zellij`, `claude` (Claude Code CLI), `lazygit`, `git`, `python3`, `fzf`
@@ -81,10 +81,10 @@ Dependencies: `zellij`, `claude` (Claude Code CLI), `lazygit`, `git`, `python3`,
 
 ```bash
 cd ~/Documents/GitHub/YourRepo
-fob
+console
 ```
 
-`.fob/` is auto-initialized in the repo on first launch.
+`.console/` is auto-initialized in the repo on first launch.
 
 ## Group Profiles
 
@@ -95,37 +95,37 @@ Create a group profile to open multiple repos as a single tab in one step:
 name: platform
 group:
   - controlplane
-  - fob
+  - console
   - switchboard
   - workstation
 ```
 
 ```bash
-fob brief platform    # opens all four repos in one multi-pane tab
+console brief platform    # opens all four repos in one multi-pane tab
 ```
 
 Groups appear in the picker with a `▸` prefix and their member list. Selecting a group expands it into its constituent profiles automatically.
 
 ## State Boundaries
 
-FOB state lives in four distinct layers:
+OperatorConsole state lives in four distinct layers:
 
 | Layer | What persists | Location |
 |-------|--------------|----------|
 | Zellij | Session, tabs, pane arrangement | Zellij session manager |
-| `.fob/` | Mission files, layout, compiled briefing | `<repo>/.fob/` (gitignored) |
+| `.console/` | Mission files, layout, compiled briefing | `<repo>/.console/` (gitignored) |
 | CLI config | Profile YAML (tracked for platform group) | `config/profiles/*.yaml` |
 | Private config | Saved layouts, session IDs | `config/profiles/*.kdl`, `*.session` (gitignored) |
-| Global | Last session group (for `fob restore`) | `~/.local/share/fob/last-session.json` |
+| Global | Last session group (for `console restore`) | `~/.local/share/console/last-session.json` |
 
-## `.fob/` Continuity Model
+## `.console/` Continuity Model
 
 **Source files** — edit these directly:
 
 | File | Role |
 |------|------|
-| `active-mission.md` | Current objective — singular, replace when focus changes |
-| `standing-orders.md` | Stable repo policy — branch rules, operating constraints |
+| `active-task.md` | Current objective — singular, replace when focus changes |
+| `directives.md` | Stable repo policy — branch rules, operating constraints |
 | `objectives.md` | Work inventory — in-progress, up-next, done |
 | `mission-log.md` | Chronological log — decisions, stop points, what changed |
 
@@ -135,7 +135,7 @@ FOB state lives in four distinct layers:
 |------|------|
 | `.briefing` | All four files + runtime context compiled into one startup document |
 
-`fob resume` prints the current briefing so you can inspect exactly what Claude will see.
+`console resume` prints the current briefing so you can inspect exactly what Claude will see.
 
 ## Commands
 
@@ -143,89 +143,89 @@ FOB state lives in four distinct layers:
 
 | Command | Description |
 |---------|-------------|
-| `fob` / `fob brief [profile]` | Auto-select current repo and launch |
-| `fob brief --layout` | Launch using saved layout (explicit restore) |
-| `fob multi` | Multi-select picker — open several repos as tabs |
-| `fob restore` | Re-open last saved session group (`--show` to preview without launching) |
-| `fob attach` | Re-attach to running `fob` session |
-| `fob kill` | Terminate the `fob` session and all panes (warns first) |
-| `fob init [repo]` | Initialize `.fob/` mission files in a repo |
-| `fob resume` | Print current mission brief from `.fob/` |
-| `fob test` | Run project tests |
-| `fob audit` | Run project audit |
-| `fob doctor` | Check and install dependencies |
+| `console` / `console brief [profile]` | Auto-select current repo and launch |
+| `console brief --layout` | Launch using saved layout (explicit restore) |
+| `console multi` | Multi-select picker — open several repos as tabs |
+| `console restore` | Re-open last saved session group (`--show` to preview without launching) |
+| `console attach` | Re-attach to running `console` session |
+| `console kill` | Terminate the `console` session and all panes (warns first) |
+| `console init [repo]` | Initialize `.console/` mission files in a repo |
+| `console resume` | Print current mission brief from `.console/` |
+| `console test` | Run project tests |
+| `console audit` | Run project audit |
+| `console doctor` | Check and install dependencies |
 
 **Visibility:**
 
 | Command | Description |
 |---------|-------------|
-| `fob status` | Session, layout, branch, `.fob/` state |
-| `fob status --all` | Compact table of all repos |
-| `fob map` | Full state snapshot |
-| `fob map --all` | Snapshot of all repos |
-| `fob map --json` | Machine-readable state (single repo or `--all`) |
+| `console status` | Session, layout, branch, `.console/` state |
+| `console status --all` | Compact table of all repos |
+| `console map` | Full state snapshot |
+| `console map --all` | Snapshot of all repos |
+| `console map --json` | Machine-readable state (single repo or `--all`) |
 
 **Reset & Recovery:**
 
-FOB is a persistent system. Every persistent system needs a clear escape hatch.
+OperatorConsole is a persistent system. Every persistent system needs a clear escape hatch.
 
 | Command | Description |
 |---------|-------------|
-| `fob reset` | Full reset — kills session, clears layout, deletes mission files (confirms first) |
-| `fob reset --session` | Kill session only |
-| `fob reset --layout` | Clear saved layout only |
-| `fob reset --state` | Delete `.fob/` mission files only |
-| `fob clear [--all]` | Delete saved layout (current repo or all) |
+| `console reset` | Full reset — kills session, clears layout, deletes mission files (confirms first) |
+| `console reset --session` | Kill session only |
+| `console reset --layout` | Clear saved layout only |
+| `console reset --state` | Delete `.console/` mission files only |
+| `console clear [--all]` | Delete saved layout (current repo or all) |
 
 **Layout:**
 
 | Command | Description |
 |---------|-------------|
-| `fob save [profile]` | Capture live Zellij tab layout → saved to `config/profiles/<name>.kdl` (gitignored) |
-| `fob save --reset [profile]` | Delete saved layout, revert to YAML-generated |
-| `fob layout save` | Save generated layout to `.fob/layout.json` (explicit KDL-based restore) |
-| `fob layout load` | Restore saved layout (starts Zellij session) |
-| `fob layout show` | Show saved layout metadata and path |
-| `fob layout reset` | Delete saved layout for current repo |
+| `console save [profile]` | Capture live Zellij tab layout → saved to `config/profiles/<name>.kdl` (gitignored) |
+| `console save --reset [profile]` | Delete saved layout, revert to YAML-generated |
+| `console layout save` | Save generated layout to `.console/layout.json` (explicit KDL-based restore) |
+| `console layout load` | Restore saved layout (starts Zellij session) |
+| `console layout show` | Show saved layout metadata and path |
+| `console layout reset` | Delete saved layout for current repo |
 
-`fob save` captures the live pane arrangement from the running session. `fob layout save` saves the YAML-generated layout for session-level restore via `--new-session-with-layout`.
+`console save` captures the live pane arrangement from the running session. `console layout save` saves the YAML-generated layout for session-level restore via `--new-session-with-layout`.
 
 **Utility:**
 
 | Command | Description |
 |---------|-------------|
-| `fob loadout` | Install and configure dev tools |
-| `fob cheat` | Open keybinding reference |
-| `fob install` | Symlink `fob` to `~/.local/bin` |
+| `console loadout` | Install and configure dev tools |
+| `console cheat` | Open keybinding reference |
+| `console install` | Symlink `console` to `~/.local/bin` |
 
 **Execution pipeline:**
 
 | Command | Description |
 |---------|-------------|
-| `fob status` | System readiness: SwitchBoard, ControlPlane, lane binaries, last run |
-| `fob status --json` | Machine-readable system readiness |
-| `fob delegate --goal TEXT` | Run a task through the full ControlPlane pipeline |
-| `fob delegate --dry-run` | Planning only — print lane decision without executing |
-| `fob auto-once` | Single autonomous cycle: observe → propose → decide → execute |
-| `fob auto-once --dry-run` | Observe + plan only, no execution |
-| `fob last` | Inspect the most recent run (status, lane, artifacts) |
-| `fob last --all` | Most recent run + list of recent runs |
-| `fob last --json` | Machine-readable last run summary |
-| `fob runs` | List recent runs newest-first (status, lane, timestamp, goal) |
-| `fob runs --limit N` | Show N most recent runs |
-| `fob runs --json` | Machine-readable run list |
+| `console status` | System readiness: SwitchBoard, OperationsCenter, lane binaries, last run |
+| `console status --json` | Machine-readable system readiness |
+| `console delegate --goal TEXT` | Run a task through the full OperationsCenter pipeline |
+| `console delegate --dry-run` | Planning only — print lane decision without executing |
+| `console auto-once` | Single autonomous cycle: observe → propose → decide → execute |
+| `console auto-once --dry-run` | Observe + plan only, no execution |
+| `console last` | Inspect the most recent run (status, lane, artifacts) |
+| `console last --all` | Most recent run + list of recent runs |
+| `console last --json` | Machine-readable last run summary |
+| `console runs` | List recent runs newest-first (status, lane, timestamp, goal) |
+| `console runs --limit N` | Show N most recent runs |
+| `console runs --json` | Machine-readable run list |
 
-Run artifacts are written to `~/.fob/control_plane/runs/<run_id>/` by ControlPlane's `RunArtifactWriter`. Each run directory contains `proposal.json`, `decision.json`, `execution_request.json`, `result.json`, and `run_metadata.json`. Runs accumulate — use `fob runs` to browse history.
+Run artifacts are written to `~/.console/operations_center/runs/<run_id>/` by OperationsCenter's `RunArtifactWriter`. Each run directory contains `proposal.json`, `decision.json`, `execution_request.json`, `result.json`, and `run_metadata.json`. Runs accumulate — use `console runs` to browse history.
 
 **Platform validation:**
 
 | Command | Description |
 |---------|-------------|
-| `fob demo` | End-to-end validation: preflight → stack → health → route → planning → execution |
-| `fob demo --no-start` | Same validation without starting the stack |
-| `fob demo --json` | Machine-readable demo summary |
-| `fob providers` | Show selector and lane readiness |
-| `fob providers --wait` | Poll until SwitchBoard is healthy |
+| `console demo` | End-to-end validation: preflight → stack → health → route → planning → execution |
+| `console demo --no-start` | Same validation without starting the stack |
+| `console demo --json` | Machine-readable demo summary |
+| `console providers` | Show selector and lane readiness |
+| `console providers --wait` | Poll until SwitchBoard is healthy |
 
 ## Typical Session
 
@@ -233,23 +233,23 @@ First run (no existing session):
 
 ```
 $ cd ~/Documents/GitHub/YourRepo
-$ fob
+$ console
 
   Brief: YourRepo
-  session  creating   (fob)
+  session  creating   (console)
   layout   fresh
   mission  implement feature X…
 
-[Zellij opens — Claude pane starts, reads .fob/.briefing, begins fresh session]
+[Zellij opens — Claude pane starts, reads .console/.briefing, begins fresh session]
 ```
 
 Returning to an existing session:
 
 ```
-$ fob
+$ console
 
   Brief: YourRepo
-  session  attaching  (fob)
+  session  attaching  (console)
   mission  implement feature X…
 
 [Zellij attaches — Claude resumes saved session ID for this profile]
@@ -257,35 +257,35 @@ $ fob
 
 ## Inter-Repo Work
 
-FOB handles multiple repos in two complementary ways:
+OperatorConsole handles multiple repos in two complementary ways:
 
-**Group profiles** — define a named group in `config/profiles/<name>.yaml` with a `group:` list. `fob brief platform` opens all members as a single multi-pane tab. Groups appear in the picker with `▸` prefix.
+**Group profiles** — define a named group in `config/profiles/<name>.yaml` with a `group:` list. `console brief platform` opens all members as a single multi-pane tab. Groups appear in the picker with `▸` prefix.
 
-**Multi-tab** — run `fob multi` from anywhere to get the multi-select picker. Tab to select multiple repos; each opens as a named tab in the same `fob` session. In multi-repo mode, Claude's working directory starts at `~/Documents/GitHub/` so it can navigate across repos freely.
+**Multi-tab** — run `console multi` from anywhere to get the multi-select picker. Tab to select multiple repos; each opens as a named tab in the same `console` session. In multi-repo mode, Claude's working directory starts at `~/Documents/GitHub/` so it can navigate across repos freely.
 
-**Peer context** — when multiple repos are opened together in a single `fob brief`, each repo's `.fob/.briefing` automatically includes the active mission and objectives of the other selected repos. Claude in each tab sees what the others are working on without any profile config required.
+**Peer context** — when multiple repos are opened together in a single `console brief`, each repo's `.console/.briefing` automatically includes the active mission and objectives of the other selected repos. Claude in each tab sees what the others are working on without any profile config required.
 
-For persistent cross-repo awareness (across separate `fob brief` invocations), configure peers in a profile:
+For persistent cross-repo awareness (across separate `console brief` invocations), configure peers in a profile:
 
 ```yaml
 claude:
   peers:
-    - controlplane   # always pulls ControlPlane's mission + objectives into this briefing
+    - controlplane   # always pulls OperationsCenter's mission + objectives into this briefing
 ```
 
-**Session groups** — every `fob brief` auto-saves the selected repos as the "last group". Re-open the exact same set with:
+**Session groups** — every `console brief` auto-saves the selected repos as the "last group". Re-open the exact same set with:
 
 ```bash
-fob restore             # re-open last saved group (briefings regenerated fresh)
-fob restore --show      # preview what would be restored without launching
+console restore             # re-open last saved group (briefings regenerated fresh)
+console restore --show      # preview what would be restored without launching
 ```
 
 **Cross-repo visibility:**
 
 ```bash
-fob status --all        # one-line summary of every repo: tab, layout, branch, mission
-fob map --all           # detailed snapshot of every repo
-fob map --all --json    # machine-readable — useful for ControlPlane delegation
+console status --all        # one-line summary of every repo: tab, layout, branch, mission
+console map --all           # detailed snapshot of every repo
+console map --all --json    # machine-readable — useful for OperationsCenter delegation
 ```
 
 ## Profiles (Optional)
@@ -293,16 +293,16 @@ fob map --all --json    # machine-readable — useful for ControlPlane delegatio
 Repos are auto-discovered — no YAML needed for basic use. Create `config/profiles/<name>.yaml` to configure custom Claude context files, peer repo awareness, custom pane commands, or group multiple repos under one name.
 
 Profile visibility:
-- **Platform group members** (`controlplane`, `fob`, `switchboard`, `workstation`, `platform`) are tracked in git
+- **Platform group members** (`controlplane`, `console`, `switchboard`, `workstation`, `platform`) are tracked in git
 - **All other profiles** are gitignored by default — private repos never appear in tracked files
 
 See [docs/profiles.md](docs/profiles.md).
 
 ## Ownership boundary
 
-FOB owns the operator experience: session management, workspace layout, mission files, and execution pipeline commands (`fob delegate`, `fob auto-once`, `fob last`, `fob runs`, `fob demo`). FOB delegates platform lifecycle actions (stack up/down/health) to WorkStation and delegates all planning, routing, and execution to ControlPlane and SwitchBoard via subprocess.
+OperatorConsole owns the operator experience: session management, workspace layout, mission files, and execution pipeline commands (`console delegate`, `console auto-once`, `console last`, `console runs`, `console demo`). OperatorConsole delegates platform lifecycle actions (stack up/down/health) to WorkStation and delegates all planning, routing, and execution to OperationsCenter and SwitchBoard via subprocess.
 
-FOB does **not** own service Dockerfiles, compose manifests, routing policy, adapter logic, or contract definitions. Those belong to WorkStation, SwitchBoard, and ControlPlane respectively. FOB has no direct imports from any of those repos at runtime.
+OperatorConsole does **not** own service Dockerfiles, compose manifests, routing policy, adapter logic, or contract definitions. Those belong to WorkStation, SwitchBoard, and OperationsCenter respectively. OperatorConsole has no direct imports from any of those repos at runtime.
 
 For the full platform ownership model see `WorkStation/docs/architecture/ownership.md`.
 

@@ -11,21 +11,21 @@ _Edit when project rules change — not during normal work sessions._
 
 ## Session Start
 
-1. Read `.fob/.briefing` — your compiled startup context for this session.
+1. Read `.console/.briefing` — your compiled startup context for this session.
 2. Summarize your plan before making any edits.
 3. Confirm you are on the correct branch.
 
 ## During Work
 
-- Run `fob test` before and after changes.
-- Use `fob audit` for linting and static checks.
-- Use `fob status` to check repo and session state.
+- Run `console test` before and after changes.
+- Use `console audit` for linting and static checks.
+- Use `console status` to check repo and session state.
 - Prefer small, targeted edits over large rewrites.
 
 ## After Meaningful Progress
 
-- Update `.fob/objectives.md` to reflect completed and remaining work.
-- Update `.fob/mission-log.md` with decisions made and rationale.
+- Update `.console/objectives.md` to reflect completed and remaining work.
+- Update `.console/mission-log.md` with decisions made and rationale.
 - Summarize what changed and what's next.
 
 ## What Not to Do
@@ -33,4 +33,4 @@ _Edit when project rules change — not during normal work sessions._
 - Do not run destructive commands (`rm -rf`, `git reset --hard`) without explicit operator confirmation.
 - Do not push to remote branches without the operator's explicit request.
 - Do not modify files outside the repo root without explicit justification.
-- Do not edit `.fob/.briefing` directly — it is generated at each launch.
+- Do not edit `.console/.briefing` directly — it is generated at each launch.

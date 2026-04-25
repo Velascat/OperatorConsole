@@ -4,10 +4,10 @@ repo_root: /home/dev/Documents/GitHub/WorkStation
 claude:
   continue: true
   bootstrap_files:
-    - .fob/standing-orders.md
-    - .fob/active-mission.md
-    - .fob/objectives.md
-    - .fob/mission-log.md
+    - .console/directives.md
+    - .console/active-task.md
+    - .console/objectives.md
+    - .console/mission-log.md
   peers: []
 
 panes:

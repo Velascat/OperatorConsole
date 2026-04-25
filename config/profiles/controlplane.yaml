@@ -1,13 +1,13 @@
-name: ControlPlane
-repo_root: /home/dev/Documents/GitHub/ControlPlane
+name: OperationsCenter
+repo_root: /home/dev/Documents/GitHub/OperationsCenter
 
 claude:
   continue: true
   bootstrap_files:
-    - .fob/standing-orders.md
-    - .fob/active-mission.md
-    - .fob/objectives.md
-    - .fob/mission-log.md
+    - .console/directives.md
+    - .console/active-task.md
+    - .console/objectives.md
+    - .console/mission-log.md
   peers: []
 
 panes:
@@ -21,6 +21,6 @@ panes:
 helpers:
   test: .venv/bin/pytest -q
   audit: .venv/bin/ruff check .
-  status: bash scripts/control-plane.sh watch-all-status
-  dev-up: bash scripts/control-plane.sh dev-up
-  dev-down: bash scripts/control-plane.sh dev-down
+  status: bash scripts/operations-center.sh watch-all-status
+  dev-up: bash scripts/operations-center.sh dev-up
+  dev-down: bash scripts/operations-center.sh dev-down

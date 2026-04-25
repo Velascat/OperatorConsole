@@ -1,4 +1,4 @@
-"""fob status — show system readiness: SwitchBoard, ControlPlane, lane binaries, last run."""
+"""console status — show system readiness: SwitchBoard, OperationsCenter, lane binaries, last run."""
 from __future__ import annotations
 
 import os
@@ -49,13 +49,13 @@ def run_status(args: list[str]) -> int:
     sb_health_url = f"http://localhost:{switchboard_port}/health"
 
     sb_ok = _http_ok(sb_health_url)
-    cp_repo = _repo_root("ControlPlane")
-    cp_ok = (cp_repo / "src" / "control_plane" / "entrypoints" / "execute" / "main.py").exists()
+    cp_repo = _repo_root("OperationsCenter")
+    cp_ok = (cp_repo / "src" / "operations_center" / "entrypoints" / "execute" / "main.py").exists()
 
     binaries = ["claude", "codex", "kodo", "aider"]
     binary_status = {b: _which(b) for b in binaries}
 
-    from fob.runs import latest_run, run_summary
+    from operator_console.runs import latest_run, run_summary
     last_run_dir = latest_run()
     last = run_summary(last_run_dir) if last_run_dir else None
 
@@ -63,21 +63,21 @@ def run_status(args: list[str]) -> int:
         import json
         payload = {
             "switchboard": {"ok": sb_ok, "url": sb_health_url},
-            "control_plane": {"ok": cp_ok, "path": str(cp_repo)},
+            "operations_center": {"ok": cp_ok, "path": str(cp_repo)},
             "binaries": binary_status,
             "last_run": last,
         }
         print(json.dumps(payload, indent=2, default=str))
         return 0
 
-    print(_c("\n  fob status", "B", "CYN") + _c(" — system readiness", "DIM"))
+    print(_c("\n  console status", "B", "CYN") + _c(" — system readiness", "DIM"))
     print()
 
     # SwitchBoard
     _row("SwitchBoard", sb_ok, sb_health_url if sb_ok else f"not reachable at {sb_health_url}")
 
-    # ControlPlane
-    _row("ControlPlane", cp_ok, str(cp_repo) if cp_ok else f"not found at {cp_repo}")
+    # OperationsCenter
+    _row("OperationsCenter", cp_ok, str(cp_repo) if cp_ok else f"not found at {cp_repo}")
 
     print()
 
@@ -117,7 +117,7 @@ def run_status(args: list[str]) -> int:
         print(f"    {_c('at     ', 'DIM')} {_c(written_at, 'DIM')}")
     else:
         print(_c("  Last run", "B"))
-        print(f"    {_c('·', 'DIM')} no runs yet — try `fob delegate` or `fob demo`")
+        print(f"    {_c('·', 'DIM')} no runs yet — try `console run` or `console demo`")
 
     print()
 

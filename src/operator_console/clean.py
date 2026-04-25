@@ -1,10 +1,10 @@
-"""fob clean — remove old run artifacts, keeping the most recent N runs."""
+"""console clean — remove old run artifacts, keeping the most recent N runs."""
 from __future__ import annotations
 
 import shutil
 from pathlib import Path
 
-from fob.runs import list_runs, runs_root
+from operator_console.runs import list_runs, runs_root
 
 _C = {
     "R": "\033[0m", "B": "\033[1m", "DIM": "\033[2m",
@@ -54,7 +54,7 @@ def run_clean(args: list[str]) -> int:
         print(_c(f"  {len(all_runs)} run(s) present — fewer than keep={keep}, nothing to remove.", "DIM"))
         return 0
 
-    print(_c(f"\n  fob clean", "B", "CYN") + _c(f" — keeping {keep} most recent runs", "DIM"))
+    print(_c(f"\n  console clean", "B", "CYN") + _c(f" — keeping {keep} most recent runs", "DIM"))
     print()
     print(_c(f"  Total runs : {len(all_runs)}", "DIM"))
     print(_c(f"  To delete  : {len(to_delete)}", "DIM"))

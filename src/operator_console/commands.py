@@ -5,9 +5,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-from fob.session import list_sessions
-from fob.guardrails import get_branch, PROTECTED_BRANCHES
-from fob.bootstrap import build_resume_prompt, write_bootstrap_file
+from operator_console.session import list_sessions
+from operator_console.guardrails import get_branch, PROTECTED_BRANCHES
+from operator_console.bootstrap import build_resume_prompt, write_bootstrap_file
 
 _C = {
     "R": "\033[0m", "B": "\033[1m", "DIM": "\033[2m",
@@ -27,13 +27,13 @@ def hr(width: int = 60) -> str:
 
 # ── init ──────────────────────────────────────────────────────────────────────
 
-def cmd_init(args: list[str], fob_dir: Path) -> None:
+def cmd_init(args: list[str], console_dir: Path) -> None:
     repo_root = Path(args[0]) if args else Path.cwd()
-    templates_dir = fob_dir / "templates" / "mission"
-    claude_dir = repo_root / ".fob"
+    templates_dir = console_dir / "templates" / "mission"
+    claude_dir = repo_root / ".console"
     claude_dir.mkdir(exist_ok=True)
 
-    files = ["standing-orders.md", "active-mission.md", "objectives.md", "mission-log.md"]
+    files = ["directives.md", "active-task.md", "objectives.md", "mission-log.md"]
     created = []
     skipped = []
     for name in files:
@@ -48,16 +48,16 @@ def cmd_init(args: list[str], fob_dir: Path) -> None:
                 dst.write_text(f"# {name.replace('.md','').replace('-',' ').title()}\n\n")
             created.append(name)
 
-    from fob.bootstrap import ensure_claude_md
+    from operator_console.bootstrap import ensure_claude_md
     ensure_claude_md(repo_root, templates_dir)
 
-    print(c("Initialized .fob/ mission files", "B"))
+    print(c("Initialized .console/ mission files", "B"))
     print(f"  Repo: {repo_root}")
     print()
     for name in created:
-        print(c(f"  ✓ created  .fob/{name}", "GRN"))
+        print(c(f"  ✓ created  .console/{name}", "GRN"))
     for name in skipped:
-        print(c(f"  – skipped  .fob/{name}  (already exists)", "DIM"))
+        print(c(f"  – skipped  .console/{name}  (already exists)", "DIM"))
     print()
     print(c("  CLAUDE.md updated with context reference.", "DIM"))
 
@@ -66,7 +66,7 @@ def cmd_init(args: list[str], fob_dir: Path) -> None:
 
 def cmd_status(
     args: list[str],
-    fob_dir: Path,
+    console_dir: Path,
     default_profile: dict | None,
     all_repos: dict | None = None,
 ) -> None:
@@ -74,10 +74,10 @@ def cmd_status(
 
     # ── all-repos mode ────────────────────────────────────────────────────────
     if "--all" in args and all_repos is not None:
-        from fob.launcher import FOB_SESSION, _list_tabs
-        from fob.session import session_exists as _session_exists
-        running  = _session_exists(FOB_SESSION)
-        tabs     = _list_tabs(FOB_SESSION) if running else set()
+        from operator_console.launcher import CONSOLE_SESSION, _list_tabs
+        from operator_console.session import session_exists as _session_exists
+        running  = _session_exists(CONSOLE_SESSION)
+        tabs     = _list_tabs(CONSOLE_SESSION) if running else set()
         sess_tag = c("running", "GRN") if running else c("stopped", "DIM")
         snapshots = [
             _repo_snapshot(p, p["name"] in tabs)
@@ -86,11 +86,11 @@ def cmd_status(
         print(hr())
         print(c("  STATUS", "B", "CYN") + f"  {c('—', 'DIM')}  "
               f"{c('all repos', 'DIM')}  {c('·', 'DIM')}  "
-              f"{c('fob', 'DIM')} {sess_tag}")
+              f"{c('operator_console', 'DIM')} {sess_tag}")
         print(hr())
         col_w = max(len(s["name"]) for s in snapshots) + 2
         for s in snapshots:
-            init_mark   = c("●", "GRN") if s["fob_initialized"] else c("⚠", "YLW")
+            init_mark   = c("●", "GRN") if s["console_initialized"] else c("⚠", "YLW")
             branch_str  = (c(s["branch"] + " ⚠", "YLW") if s["branch_protected"]
                            else c(s["branch"], "DIM"))
             tab_mark    = c("tab ✓", "GRN") if s["tab_open"]    else c("tab –", "DIM")
@@ -109,13 +109,13 @@ def cmd_status(
     if branch in PROTECTED_BRANCHES:
         branch_disp = c(f"{branch}  ⚠ protected", "YLW", "B")
 
-    from fob.launcher import FOB_SESSION
-    from fob import layout as layout_mod
+    from operator_console.launcher import CONSOLE_SESSION
+    from operator_console import layout as layout_mod
     sessions = list_sessions()
-    fob_running = FOB_SESSION in sessions
-    session_disp = (c(f"{FOB_SESSION}  (running)", "GRN") if fob_running
-                    else c(f"{FOB_SESSION}  (stopped)", "DIM"))
-    attached = os.environ.get("ZELLIJ_SESSION_NAME") == FOB_SESSION
+    console_running = CONSOLE_SESSION in sessions
+    session_disp = (c(f"{CONSOLE_SESSION}  (running)", "GRN") if console_running
+                    else c(f"{CONSOLE_SESSION}  (stopped)", "DIM"))
+    attached = os.environ.get("ZELLIJ_SESSION_NAME") == CONSOLE_SESSION
     attached_disp = c("yes", "GRN") if attached else c("no", "DIM")
 
     profile_name = default_profile.get("name", "—") if default_profile else c("none loaded", "DIM")
@@ -141,24 +141,24 @@ def cmd_status(
         print(f"  {c('layout      ', 'DIM')} {c('saved', 'GRN')}  ·  {pname}  ·  {saved_at}{tag}")
         print(f"  {c('            ', 'DIM')} {c(str(kdl_path), 'DIM')}")
     else:
-        print(f"  {c('layout      ', 'DIM')} {c('none saved', 'DIM')}  {c('(run: fob layout save)', 'DIM')}")
+        print(f"  {c('layout      ', 'DIM')} {c('none saved', 'DIM')}  {c('(run: console layout save)', 'DIM')}")
     print()
 
     # Mission files + active mission snippet
-    claude_dir = repo_root / ".fob"
+    claude_dir = repo_root / ".console"
     if claude_dir.exists():
-        print(f"  {c('.fob/', 'DIM')}")
-        for name in ["active-mission.md", "standing-orders.md", "objectives.md", "mission-log.md"]:
+        print(f"  {c('.console/', 'DIM')}")
+        for name in ["active-task.md", "directives.md", "objectives.md", "mission-log.md"]:
             p = claude_dir / name
             mark = c("✓", "GRN") if p.exists() else c("✗", "DIM")
             print(f"    {mark}  {name}")
-        mission_path = claude_dir / "active-mission.md"
+        mission_path = claude_dir / "active-task.md"
         if mission_path.exists():
             snippet = _mission_snippet(mission_path)
             if snippet:
                 print(f"\n  {c('mission     ', 'DIM')} {c(snippet, 'DIM')}")
     else:
-        print(c("  ✗  .fob/ not initialized — run: fob init", "YLW"))
+        print(c("  ✗  .console/ not initialized — run: console init", "YLW"))
     print()
 
 
@@ -194,7 +194,7 @@ def cmd_resume(args: list[str], default_profile: dict | None) -> None:
     print()
 
     # Also write the bootstrap file for reference
-    if (repo_root / ".fob").exists():
+    if (repo_root / ".console").exists():
         out = write_bootstrap_file(repo_root)
         print(c(f"  Written to: {out}", "DIM"))
     print()
@@ -312,7 +312,7 @@ def cmd_doctor(args: list[str], scripts_dir: Path | None = None) -> None:
             print()
 
     if installable and scripts_dir:
-        print(c(f"  {len(installable)} tool(s) missing — fob loadout can install them", "YLW"))
+        print(c(f"  {len(installable)} tool(s) missing — console install can install them", "YLW"))
         try:
             answer = input(c("  Install now? [y/N] ", "B"))
         except (EOFError, KeyboardInterrupt):
@@ -320,9 +320,9 @@ def cmd_doctor(args: list[str], scripts_dir: Path | None = None) -> None:
         if answer.strip().lower() == "y":
             os.execvp("bash", ["bash", str(scripts_dir / "loadout.sh"), "install"])
         else:
-            print(c("  Run: fob loadout  to install when ready", "DIM"))
+            print(c("  Run: console install  to install when ready", "DIM"))
     elif installable:
-        print(c("  Run: fob loadout  to install missing tools", "YLW"))
+        print(c("  Run: console install  to install missing tools", "YLW"))
     print()
 
 
@@ -339,10 +339,10 @@ def _which_any(binaries: list[str]) -> str | None:
 
 
 def cmd_kill(args: list[str]) -> None:
-    from fob.launcher import FOB_SESSION
-    from fob.session import session_exists
-    if not session_exists(FOB_SESSION):
-        print(c(f"  No active session '{FOB_SESSION}'", "DIM"))
+    from operator_console.launcher import CONSOLE_SESSION
+    from operator_console.session import session_exists
+    if not session_exists(CONSOLE_SESSION):
+        print(c(f"  No active session '{CONSOLE_SESSION}'", "DIM"))
         return
     print()
     print(c("  ⚠  This terminates the session and ALL panes.", "YLW", "B"))
@@ -358,8 +358,8 @@ def cmd_kill(args: list[str]) -> None:
     if answer.strip().lower() != "y":
         print(c("  Aborted.", "DIM"))
         sys.exit(0)
-    print(c(f"  Killing session '{FOB_SESSION}'...", "YLW"))
-    subprocess.run(["zellij", "kill-session", FOB_SESSION])
+    print(c(f"  Killing session '{CONSOLE_SESSION}'...", "YLW"))
+    subprocess.run(["zellij", "kill-session", CONSOLE_SESSION])
     # Reset terminal — Zellij leaves mouse tracking enabled when killed externally
     subprocess.run(["tput", "reset"])
 
@@ -383,7 +383,7 @@ def cmd_loadout(args: list[str], scripts_dir: Path) -> None:
 
 def cmd_update(args: list[str]) -> None:
     """Update claude, codex, and aider CLIs."""
-    from fob.bootstrap import update_clis, _CLI_UPDATES
+    from operator_console.bootstrap import update_clis, _CLI_UPDATES
     print()
     print(c("  UPDATING CLIs", "B", "CYN"))
     print(hr())
@@ -401,12 +401,12 @@ def cmd_update(args: list[str]) -> None:
 
 # ── reset ────────────────────────────────────────────────────────────────────
 
-def cmd_reset(args: list[str], default_profile: dict | None, fob_dir: Path) -> None:
-    """Reset FOB state — session, layout, and/or mission files."""
+def cmd_reset(args: list[str], default_profile: dict | None, console_dir: Path) -> None:
+    """Reset OperatorConsole state — session, layout, and/or mission files."""
     import os
-    from fob.launcher import FOB_SESSION
-    from fob.session import session_exists as _session_exists
-    from fob import layout as layout_mod
+    from operator_console.launcher import CONSOLE_SESSION
+    from operator_console.session import session_exists as _session_exists
+    from operator_console import layout as layout_mod
 
     repo_root = Path(default_profile["repo_root"]) if default_profile else Path.cwd()
 
@@ -418,17 +418,17 @@ def cmd_reset(args: list[str], default_profile: dict | None, fob_dir: Path) -> N
 
     # Build description of what will happen
     actions: list[tuple[str, str]] = []
-    if do_session and _session_exists(FOB_SESSION):
-        actions.append(("session", f"kill '{FOB_SESSION}' session"))
+    if do_session and _session_exists(CONSOLE_SESSION):
+        actions.append(("session", f"kill '{CONSOLE_SESSION}' session"))
     if do_layout and layout_mod.load_any(repo_root):
-        actions.append(("layout", f"delete .fob/layout.json + .fob/layout.kdl"))
+        actions.append(("layout", f"delete .console/layout.json + .console/layout.kdl"))
     if do_state:
         present = [
-            n for n in ("active-mission.md", "standing-orders.md", "objectives.md", "mission-log.md")
-            if (repo_root / ".fob" / n).exists()
+            n for n in ("active-task.md", "directives.md", "objectives.md", "mission-log.md")
+            if (repo_root / ".console" / n).exists()
         ]
         if present:
-            actions.append(("state", f"delete .fob/ mission files ({len(present)} files)"))
+            actions.append(("state", f"delete .console/ mission files ({len(present)} files)"))
 
     if not actions:
         print(c("  Nothing to reset.", "DIM"))
@@ -452,10 +452,10 @@ def cmd_reset(args: list[str], default_profile: dict | None, fob_dir: Path) -> N
         sys.exit(0)
 
     print()
-    if do_session and _session_exists(FOB_SESSION):
-        subprocess.run(["zellij", "kill-session", FOB_SESSION], capture_output=True)
-        print(c(f"  ✓ session  killed '{FOB_SESSION}'", "GRN"))
-        if os.environ.get("ZELLIJ_SESSION_NAME") != FOB_SESSION:
+    if do_session and _session_exists(CONSOLE_SESSION):
+        subprocess.run(["zellij", "kill-session", CONSOLE_SESSION], capture_output=True)
+        print(c(f"  ✓ session  killed '{CONSOLE_SESSION}'", "GRN"))
+        if os.environ.get("ZELLIJ_SESSION_NAME") != CONSOLE_SESSION:
             subprocess.run(["tput", "reset"])
 
     if do_layout:
@@ -465,17 +465,17 @@ def cmd_reset(args: list[str], default_profile: dict | None, fob_dir: Path) -> N
 
     if do_state:
         mission_files = [
-            "active-mission.md", "standing-orders.md", "objectives.md", "mission-log.md"
+            "active-task.md", "directives.md", "objectives.md", "mission-log.md"
         ]
         removed = 0
         for name in mission_files:
-            p = repo_root / ".fob" / name
+            p = repo_root / ".console" / name
             if p.exists():
                 p.unlink()
                 removed += 1
         if removed:
             print(c(f"  ✓ state    deleted {removed} mission file(s)", "GRN"))
-            print(c(f"    Run `fob init` or `fob brief` to reinitialize.", "DIM"))
+            print(c(f"    Run `console init` or `console open` to reinitialize.", "DIM"))
     print()
 
 
@@ -483,16 +483,16 @@ def cmd_reset(args: list[str], default_profile: dict | None, fob_dir: Path) -> N
 
 def _repo_snapshot(profile: dict, tab_open: bool) -> dict:
     """Gather cross-repo state for a single profile — used by --all commands."""
-    from fob import layout as layout_mod
+    from operator_console import layout as layout_mod
     repo_root = Path(profile["repo_root"]).resolve()
     branch = get_branch(repo_root)
-    fob_init = (repo_root / ".fob").exists()
-    layout_res = layout_mod.load_any(repo_root) if fob_init else None
-    mission = _mission_snippet(repo_root / ".fob" / "active-mission.md") if fob_init else ""
+    console_init = (repo_root / ".console").exists()
+    layout_res = layout_mod.load_any(repo_root) if console_init else None
+    mission = _mission_snippet(repo_root / ".console" / "active-task.md") if console_init else ""
     return {
         "name":             profile["name"],
         "repo_root":        str(repo_root),
-        "fob_initialized":  fob_init,
+        "console_initialized":  console_init,
         "tab_open":         tab_open,
         "branch":           branch or "unknown",
         "branch_protected": branch in PROTECTED_BRANCHES if branch else False,
@@ -504,23 +504,23 @@ def _repo_snapshot(profile: dict, tab_open: bool) -> dict:
 def cmd_map(
     args: list[str],
     default_profile: dict | None,
-    fob_dir: Path | None = None,
+    console_dir: Path | None = None,
     all_repos: dict | None = None,
 ) -> None:
-    """Print a structured snapshot of current FOB state."""
+    """Print a structured snapshot of current OperatorConsole state."""
     import os
     import json as _json
-    from fob.launcher import FOB_SESSION, _list_tabs
-    from fob.session import session_exists as _session_exists
-    from fob import layout as layout_mod
+    from operator_console.launcher import CONSOLE_SESSION, _list_tabs
+    from operator_console.session import session_exists as _session_exists
+    from operator_console import layout as layout_mod
 
     use_json = "--json" in args
 
     # ── all-repos mode ────────────────────────────────────────────────────────
     if "--all" in args and all_repos is not None:
-        running  = _session_exists(FOB_SESSION)
-        attached = os.environ.get("ZELLIJ_SESSION_NAME") == FOB_SESSION
-        tabs     = _list_tabs(FOB_SESSION) if running else set()
+        running  = _session_exists(CONSOLE_SESSION)
+        attached = os.environ.get("ZELLIJ_SESSION_NAME") == CONSOLE_SESSION
+        tabs     = _list_tabs(CONSOLE_SESSION) if running else set()
         snapshots = [
             _repo_snapshot(p, p["name"] in tabs)
             for p in all_repos.values()
@@ -528,7 +528,7 @@ def cmd_map(
 
         if use_json:
             print(_json.dumps({
-                "session": {"name": FOB_SESSION, "running": running, "attached": attached},
+                "session": {"name": CONSOLE_SESSION, "running": running, "attached": attached},
                 "repos":   snapshots,
             }, indent=2))
             return
@@ -536,23 +536,23 @@ def cmd_map(
         print()
         print(hr())
         sess_tag = c("●", "GRN") if running else c("○", "DIM")
-        print(c("  ALL REPOS", "B", "CYN") + f"  {c('session:', 'DIM')} {FOB_SESSION} {sess_tag}")
+        print(c("  ALL REPOS", "B", "CYN") + f"  {c('session:', 'DIM')} {CONSOLE_SESSION} {sess_tag}")
         print(hr())
         for s in snapshots:
             tab_mark    = c("tab ●", "GRN") if s["tab_open"]    else c("tab ○", "DIM")
             layout_mark = c("layout ✓", "GRN") if s["layout_saved"] else c("layout –", "DIM")
             branch_str  = c(s["branch"] + " ⚠", "YLW") if s["branch_protected"] else s["branch"]
-            init_mark   = c("●", "GRN") if s["fob_initialized"] else c("⚠", "YLW")
+            init_mark   = c("●", "GRN") if s["console_initialized"] else c("⚠", "YLW")
             print(f"\n  {init_mark}  {c(s['name'], 'B'):<22} {branch_str:<18} {tab_mark}  {layout_mark}")
             if s["mission_snippet"]:
                 print(f"     {c(s['mission_snippet'], 'DIM')}")
-            elif not s["fob_initialized"]:
-                print(f"     {c('(not initialized — run: fob init)', 'DIM')}")
+            elif not s["console_initialized"]:
+                print(f"     {c('(not initialized — run: console init)', 'DIM')}")
             else:
                 print(f"     {c('(no active mission)', 'DIM')}")
         print()
         print(hr())
-        print(f"  {c('●', 'GRN')} fob initialized  "
+        print(f"  {c('●', 'GRN')} console initialized  "
               f"{c('⚠', 'YLW')} uninitialized or protected branch  "
               f"{c('tab ●', 'GRN')} open  {c('tab ○', 'DIM')} closed")
         print()
@@ -563,18 +563,18 @@ def cmd_map(
     profile_name = default_profile.get("name", repo_root.name) if default_profile else repo_root.name
 
     branch     = get_branch(repo_root)
-    running    = _session_exists(FOB_SESSION)
-    attached   = os.environ.get("ZELLIJ_SESSION_NAME") == FOB_SESSION
+    running    = _session_exists(CONSOLE_SESSION)
+    attached   = os.environ.get("ZELLIJ_SESSION_NAME") == CONSOLE_SESSION
     layout_res = layout_mod.load_any(repo_root)
 
-    fob_state_dir = repo_root / ".fob"
-    mission_files = ["active-mission.md", "standing-orders.md", "objectives.md", "mission-log.md", ".briefing"]
-    mission_state = {n: (fob_state_dir / n).exists() for n in mission_files}
+    console_state_dir = repo_root / ".console"
+    mission_files = ["active-task.md", "directives.md", "objectives.md", "mission-log.md", ".briefing"]
+    mission_state = {n: (console_state_dir / n).exists() for n in mission_files}
 
     if use_json:
         data = {
             "repo": {"name": profile_name, "path": str(repo_root), "branch": branch or "unknown"},
-            "session": {"name": FOB_SESSION, "running": running, "attached": attached},
+            "session": {"name": CONSOLE_SESSION, "running": running, "attached": attached},
             "layout": (
                 {
                     "saved":    True,
@@ -593,7 +593,7 @@ def cmd_map(
 
     print()
     print(hr())
-    print(c("  FOB STATE MAP", "B", "CYN"))
+    print(c("  CONSOLE STATE MAP", "B", "CYN"))
     print(hr())
 
     def row(label: str, value: str) -> None:
@@ -606,7 +606,7 @@ def cmd_map(
     print()
 
     print(c("  session", "B"))
-    row("name",     FOB_SESSION)
+    row("name",     CONSOLE_SESSION)
     row("status",   c("running", "GRN") if running else c("stopped", "DIM"))
     row("attached", c("yes", "GRN") if attached else c("no", "DIM"))
     print()
@@ -621,10 +621,10 @@ def cmd_map(
         row("backend",  meta.get("backend", "?"))
         row("file",     c(str(kdl_path), "DIM"))
     else:
-        row("saved", c("none", "DIM") + f"  {c('(run: fob layout save)', 'DIM')}")
+        row("saved", c("none", "DIM") + f"  {c('(run: console layout save)', 'DIM')}")
     print()
 
-    print(c("  mission (.fob/)", "B"))
+    print(c("  mission (.console/)", "B"))
     for name, exists in mission_state.items():
         mark  = c("✓", "GRN") if exists else c("✗", "DIM")
         label = name + ("  (compiled)" if name == ".briefing" else "")
@@ -636,34 +636,34 @@ def cmd_map(
 
 # ── layout ───────────────────────────────────────────────────────────────────
 
-def cmd_layout(args: list[str], default_profile: dict | None, fob_dir: Path) -> None:
+def cmd_layout(args: list[str], default_profile: dict | None, console_dir: Path) -> None:
     sub = args[0] if args else "show"
-    from fob import layout as layout_mod
-    from fob.launcher import FOB_SESSION, generate_session_kdl
+    from operator_console import layout as layout_mod
+    from operator_console.launcher import CONSOLE_SESSION, generate_session_kdl
 
     repo_root = Path(default_profile["repo_root"]) if default_profile else Path.cwd()
     profile_name = default_profile.get("name", repo_root.name) if default_profile else repo_root.name
 
     if sub == "save":
-        if not (repo_root / ".fob").exists():
-            print(c(f"  ✗ .fob/ not found in {repo_root.name} — run: fob init", "RED"))
+        if not (repo_root / ".console").exists():
+            print(c(f"  ✗ .console/ not found in {repo_root.name} — run: console init", "RED"))
             sys.exit(1)
         profile = default_profile or {"name": profile_name, "repo_root": str(repo_root)}
-        kdl = generate_session_kdl([profile], fob_dir)
+        kdl = generate_session_kdl([profile], console_dir)
         meta = layout_mod.save(repo_root, profile_name, kdl)
         print(c("  Layout saved", "GRN", "B"))
         print(f"  {c('backend ', 'DIM')}  {meta['backend']}")
         print(f"  {c('profile ', 'DIM')}  {meta['profile_name']}")
         print(f"  {c('saved at', 'DIM')}  {meta['saved_at']}")
-        print(f"  {c('path    ', 'DIM')}  {repo_root / '.fob' / layout_mod.LAYOUT_KDL}")
+        print(f"  {c('path    ', 'DIM')}  {repo_root / '.console' / layout_mod.LAYOUT_KDL}")
         print()
-        print(c("  Run `fob layout load` to restore this layout later.", "DIM"))
+        print(c("  Run `console layout load` to restore this layout later.", "DIM"))
 
     elif sub == "load":
         import os
-        from fob.launcher import _delete_dead_session, attach
-        from fob.session import session_exists as _session_exists
-        from fob.guardrails import check_branch
+        from operator_console.launcher import _delete_dead_session, attach
+        from operator_console.session import session_exists as _session_exists
+        from operator_console.guardrails import check_branch
 
         result = layout_mod.load(repo_root)
         if not result:
@@ -674,18 +674,18 @@ def cmd_layout(args: list[str], default_profile: dict | None, fob_dir: Path) -> 
                 print(c(f"  ✗ Saved layout references a different repo root:", "YLW"))
                 print(c(f"    saved:   {saved_root}", "DIM"))
                 print(c(f"    current: {repo_root.resolve()}", "DIM"))
-                print(c(f"  Run `fob layout reset` then `fob layout save` to update it.", "DIM"))
+                print(c(f"  Run `console layout reset` then `console layout save` to update it.", "DIM"))
             else:
                 print(c(f"  No saved layout for {repo_root.name}.", "YLW"))
-                print(c(f"  Run `fob layout save` to create one.", "DIM"))
+                print(c(f"  Run `console layout save` to create one.", "DIM"))
             sys.exit(1)
 
         meta, kdl_path = result
-        _delete_dead_session(FOB_SESSION)
-        already_in = os.environ.get("ZELLIJ_SESSION_NAME") == FOB_SESSION
-        if already_in or _session_exists(FOB_SESSION):
-            print(c(f"  Session '{FOB_SESSION}' is already running.", "YLW"))
-            print(c(f"  Run `fob kill` first, then `fob layout load`.", "DIM"))
+        _delete_dead_session(CONSOLE_SESSION)
+        already_in = os.environ.get("ZELLIJ_SESSION_NAME") == CONSOLE_SESSION
+        if already_in or _session_exists(CONSOLE_SESSION):
+            print(c(f"  Session '{CONSOLE_SESSION}' is already running.", "YLW"))
+            print(c(f"  Run `console kill` first, then `console layout load`.", "DIM"))
             sys.exit(1)
 
         check_branch(repo_root)
@@ -695,14 +695,14 @@ def cmd_layout(args: list[str], default_profile: dict | None, fob_dir: Path) -> 
         print(f"  {c('saved at', 'DIM')}  {meta.get('saved_at', '—')}")
         os.execvp(
             "zellij",
-            ["zellij", "--session", FOB_SESSION, "--new-session-with-layout", str(kdl_path)],
+            ["zellij", "--session", CONSOLE_SESSION, "--new-session-with-layout", str(kdl_path)],
         )
 
     elif sub == "show":
         result = layout_mod.load_any(repo_root)
         if not result:
             print(c(f"  No saved layout for {repo_root.name}.", "DIM"))
-            print(c(f"  Run `fob layout save` to create one.", "DIM"))
+            print(c(f"  Run `console layout save` to create one.", "DIM"))
         else:
             meta, kdl_path, is_current = result
             print(hr())
@@ -716,7 +716,7 @@ def cmd_layout(args: list[str], default_profile: dict | None, fob_dir: Path) -> 
             if not is_current:
                 print()
                 print(c("  ⚠ Repo root mismatch — layout may be stale.", "YLW"))
-                print(c("    Run `fob layout reset` then `fob layout save` to refresh.", "DIM"))
+                print(c("    Run `console layout reset` then `console layout save` to refresh.", "DIM"))
             print()
 
     elif sub == "reset":
@@ -731,21 +731,21 @@ def cmd_layout(args: list[str], default_profile: dict | None, fob_dir: Path) -> 
 
     else:
         print(c(f"  ✗ Unknown subcommand: layout {sub}", "RED"))
-        print(c("  Usage: fob layout save | load | show | reset", "DIM"))
+        print(c("  Usage: console layout save | load | show | reset", "DIM"))
         sys.exit(1)
 
 
 # ── clear ────────────────────────────────────────────────────────────────────
 
 def cmd_clear(args: list[str], default_profile: dict | None) -> None:
-    from fob import layout as layout_mod
+    from operator_console import layout as layout_mod
     clear_all = "--all" in args
     if clear_all:
         github_dir = Path.home() / "Documents" / "GitHub"
         cleared = 0
         if github_dir.exists():
-            for fob_dir in github_dir.glob("*/.fob"):
-                repo_root = fob_dir.parent
+            for console_dir in github_dir.glob("*/.console"):
+                repo_root = console_dir.parent
                 deleted = layout_mod.reset(repo_root)
                 for f in deleted:
                     print(c(f"  ✓ cleared  {f}", "GRN"))
@@ -767,10 +767,10 @@ def cmd_clear(args: list[str], default_profile: dict | None) -> None:
 
 # ── save ─────────────────────────────────────────────────────────────────────
 
-def cmd_save(args: list[str], default_profile: dict | None, fob_dir: Path) -> None:
+def cmd_save(args: list[str], default_profile: dict | None, console_dir: Path) -> None:
     """Capture the live Zellij tab layout and save it to config/profiles/<name>.kdl."""
     import os
-    from fob.tab_capture import dump_live_layout, extract_panes_kdl, focused_tab_name
+    from operator_console.tab_capture import dump_live_layout, extract_panes_kdl, focused_tab_name
 
     reset = "--reset" in args
     named = [a for a in args if not a.startswith("--")]
@@ -780,7 +780,7 @@ def cmd_save(args: list[str], default_profile: dict | None, fob_dir: Path) -> No
         print(c("✗ Cannot determine profile — run from inside a repo or pass a name.", "RED"))
         sys.exit(1)
 
-    profiles_dir = fob_dir / "config" / "profiles"
+    profiles_dir = console_dir / "config" / "profiles"
     kdl_path = profiles_dir / f"{profile_name.lower()}.kdl"
 
     if reset:
@@ -794,7 +794,7 @@ def cmd_save(args: list[str], default_profile: dict | None, fob_dir: Path) -> No
 
     if not os.environ.get("ZELLIJ"):
         print(c("✗ Not inside a Zellij session.", "RED"))
-        print(c("  Run `fob save` from inside the fob session.", "DIM"))
+        print(c("  Run `console save` from inside the console session.", "DIM"))
         sys.exit(1)
 
     kdl = dump_live_layout()
@@ -819,17 +819,17 @@ def cmd_save(args: list[str], default_profile: dict | None, fob_dir: Path) -> No
 
     kdl_path.write_text(panes)
     print(c(f"  ✓ saved  config/profiles/{kdl_path.name}", "GRN"))
-    print(c(f"  Next `fob brief {profile_name}` will use this layout.", "DIM"))
-    print(c(f"  Run `fob save --reset {profile_name}` to revert to YAML-generated.", "DIM"))
+    print(c(f"  Next `console open {profile_name}` will use this layout.", "DIM"))
+    print(c(f"  Run `console save --reset {profile_name}` to revert to YAML-generated.", "DIM"))
 
 
 # ── install ───────────────────────────────────────────────────────────────────
 
-def cmd_rewatch(args: list[str], fob_dir: Path) -> None:
-    from fob.tab_capture import dump_live_layout, focused_tab_name
-    from fob.profile_loader import load_profile
+def cmd_rewatch(args: list[str], console_dir: Path) -> None:
+    from operator_console.tab_capture import dump_live_layout, focused_tab_name
+    from operator_console.profile_loader import load_profile
 
-    profiles_dir = fob_dir / "config" / "profiles"
+    profiles_dir = console_dir / "config" / "profiles"
 
     # Determine which profiles to watch: args override, else infer from focused tab
     if args:
@@ -878,27 +878,27 @@ def cmd_rewatch(args: list[str], fob_dir: Path) -> None:
 
     repo_args = " ".join(f"'{r}'" for r in repo_roots)
     watcher_cmd = (
-        f"while true; do python3 -m fob.git_watcher {repo_args}; sleep 1; done"
+        f"while true; do python3 -m operator_console.git_watcher {repo_args}; sleep 1; done"
     )
     os.execvp("bash", ["bash", "-c", watcher_cmd])
 
 
-def cmd_install(args: list[str], fob_dir: Path) -> None:
+def cmd_install(args: list[str], console_dir: Path) -> None:
     local_bin = Path.home() / ".local" / "bin"
     local_bin.mkdir(parents=True, exist_ok=True)
 
-    src = fob_dir / "fob"
-    link = local_bin / "fob"
+    src = console_dir / "console"
+    link = local_bin / "console"
 
     if link.exists() or link.is_symlink():
         if link.is_symlink() and link.resolve() == src.resolve():
-            print(c("✓ fob already installed", "GRN"))
+            print(c("✓ console already installed", "GRN"))
             print(c(f"  {link} → {src}", "DIM"))
             return
         link.unlink()
 
     link.symlink_to(src)
-    print(c("✓ Installed fob", "GRN"))
+    print(c("✓ Installed console", "GRN"))
     print(c(f"  {link} → {src}", "DIM"))
 
     # ~/.local/bin must be in PATH — add to .bashrc if missing

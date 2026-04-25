@@ -1,6 +1,6 @@
 # Profiles
 
-Profiles are **optional**. Any git repo under `~/Documents/GitHub/` is auto-discovered and appears when you run `fob` without a profile. Create a profile when you need custom Claude context, peer cross-repo awareness, custom pane commands, or to define a named group of repos.
+Profiles are **optional**. Any git repo under `~/Documents/GitHub/` is auto-discovered and appears when you run `console` without a profile. Create a profile when you need custom Claude context, peer cross-repo awareness, custom pane commands, or to define a named group of repos.
 
 Profiles live in `config/profiles/<name>.yaml`.
 
@@ -12,7 +12,7 @@ Only platform-group member profiles are tracked in git. All other profiles are g
 config/profiles/*.yaml        # gitignored
 !config/profiles/platform.yaml      # tracked
 !config/profiles/controlplane.yaml  # tracked
-!config/profiles/fob.yaml           # tracked
+!config/profiles/console.yaml           # tracked
 !config/profiles/switchboard.yaml   # tracked
 !config/profiles/workstation.yaml   # tracked
 
@@ -28,15 +28,15 @@ To add a private repo profile: create `config/profiles/<name>.yaml` — it will 
 name: myrepo                              # Profile identifier (matches filename stem)
 repo_root: /absolute/path/to/repo         # Target repository root
 
-status_repos: MyRepo                      # ControlPlane status filter (empty = show all)
+status_repos: MyRepo                      # OperationsCenter status filter (empty = show all)
 
 claude:
   bootstrap_files:                        # Files fed to Claude at launch (in order)
-    - .fob/standing-orders.md             # Omit to use these four defaults
-    - .fob/active-mission.md
-    - .fob/objectives.md
-    - .fob/mission-log.md
-    # - .fob/extra-context.md            # Add project-specific files here
+    - .console/directives.md             # Omit to use these four defaults
+    - .console/active-task.md
+    - .console/objectives.md
+    - .console/mission-log.md
+    # - .console/extra-context.md            # Add project-specific files here
   peers: []                              # Other profile names to pull context from
     # - controlplane                     # Includes that repo's active-mission + objectives
 
@@ -59,18 +59,18 @@ A profile with a `group:` list (and no `repo_root:`) defines a named group. Sele
 name: platform
 group:
   - controlplane
-  - fob
+  - console
   - switchboard
   - workstation
 ```
 
-Groups appear in the picker with `▸` prefix and their member list. `fob brief platform` opens all four repos as a single multi-pane tab.
+Groups appear in the picker with `▸` prefix and their member list. `console brief platform` opens all four repos as a single multi-pane tab.
 
 ## Adding a Profile
 
 1. Create `config/profiles/<name>.yaml` — minimum required fields are `name` and `repo_root`
-2. Run `fob init <repo_root>` if `.fob/` doesn't exist in the target repo yet
-3. Launch: `fob brief <name>` or just run `fob` from inside the repo
+2. Run `console init <repo_root>` if `.console/` doesn't exist in the target repo yet
+3. Launch: `console brief <name>` or just run `console` from inside the repo
 
 ## Profile Constraints
 
@@ -81,16 +81,16 @@ Groups appear in the picker with `▸` prefix and their member list. `fob brief 
 
 ## status_repos
 
-Controls which repos appear in the ControlPlane status pane. Set to the repo's board key to filter, or omit/empty to show all managed repos:
+Controls which repos appear in the OperationsCenter status pane. Set to the repo's board key to filter, or omit/empty to show all managed repos:
 
 ```yaml
-status_repos: ControlPlane    # show only ControlPlane on the board
-status_repos: ""              # show all CP-tracked repos (useful for FOB itself)
+status_repos: OperationsCenter    # show only OperationsCenter on the board
+status_repos: ""              # show all CP-tracked repos (useful for OperatorConsole itself)
 ```
 
 ## Claude Session IDs
 
-FOB tracks a Claude session ID per profile in `config/profiles/<name>.session` (gitignored). On launch, if a session ID is saved, Claude starts with `claude --resume <id>` instead of a fresh conversation. If the saved session no longer exists, it falls back to a fresh start automatically.
+OperatorConsole tracks a Claude session ID per profile in `config/profiles/<name>.session` (gitignored). On launch, if a session ID is saved, Claude starts with `claude --resume <id>` instead of a fresh conversation. If the saved session no longer exists, it falls back to a fresh start automatically.
 
 The session ID is captured when Claude exits — no manual step needed. Each profile and group maintains its own session independently.
 
@@ -101,39 +101,39 @@ rm config/profiles/<name>.session
 
 ## Claude Context: bootstrap_files
 
-`bootstrap_files` controls which files are concatenated into `.fob/.briefing` at launch. If omitted, the standard four `.fob/` files are used. Add extra files for project-specific context:
+`bootstrap_files` controls which files are concatenated into `.console/.briefing` at launch. If omitted, the standard four `.console/` files are used. Add extra files for project-specific context:
 
 ```yaml
 claude:
   bootstrap_files:
-    - .fob/standing-orders.md
-    - .fob/active-mission.md
-    - .fob/objectives.md
-    - .fob/mission-log.md
-    - .fob/api-contracts.md        # project-specific: pipeline I/O spec
+    - .console/directives.md
+    - .console/active-task.md
+    - .console/objectives.md
+    - .console/mission-log.md
+    - .console/api-contracts.md        # project-specific: pipeline I/O spec
 ```
 
 ## Claude Context: peers
 
 ### Automatic (multi-select brief)
 
-When multiple repos are selected in a single `fob brief` run, each repo's `.fob/.briefing` automatically includes the active mission and objectives of the other selected repos. No profile config needed — it's implicit when repos are opened together.
+When multiple repos are selected in a single `console brief` run, each repo's `.console/.briefing` automatically includes the active mission and objectives of the other selected repos. No profile config needed — it's implicit when repos are opened together.
 
 ### Configured (persistent across sessions)
 
-`peers` lists other profile names. At launch, `active-mission.md` and `objectives.md` from each peer repo are appended to the brief as `PEER: <name>` sections. Use this when repos are tightly coupled and Claude needs cross-repo awareness on every session, not just when opened together:
+`peers` lists other profile names. At launch, `active-task.md` and `objectives.md` from each peer repo are appended to the brief as `PEER: <name>` sections. Use this when repos are tightly coupled and Claude needs cross-repo awareness on every session, not just when opened together:
 
 ```yaml
 claude:
   peers:
-    - controlplane    # Claude sees ControlPlane's current mission + objectives
+    - controlplane    # Claude sees OperationsCenter's current mission + objectives
 ```
 
 ## Layout Persistence
 
-### Live Layout Capture (fob save)
+### Live Layout Capture (console save)
 
-`fob save [profile]` captures the current Zellij tab layout — pane sizes, commands, everything — and saves it to `config/profiles/<name>.kdl` (gitignored). The next `fob brief` uses it automatically instead of regenerating from YAML.
+`console save [profile]` captures the current Zellij tab layout — pane sizes, commands, everything — and saves it to `config/profiles/<name>.kdl` (gitignored). The next `console brief` uses it automatically instead of regenerating from YAML.
 
 The default generated layouts now assume:
 
@@ -141,43 +141,43 @@ The default generated layouts now assume:
 - multi-repo tabs: the same stacked chat/tool panes, rooted at `~/Documents/GitHub/`
 
 ```bash
-fob save                      # save current tab for the auto-detected profile
-fob save myrepo               # save the tab named "myrepo"
-fob save --reset myrepo       # delete saved layout, revert to YAML-generated
+console save                      # save current tab for the auto-detected profile
+console save myrepo               # save the tab named "myrepo"
+console save --reset myrepo       # delete saved layout, revert to YAML-generated
 ```
 
-### KDL-Based Restore (fob layout)
+### KDL-Based Restore (console layout)
 
-`fob layout save` saves the YAML-generated layout for explicit session-level restore:
+`console layout save` saves the YAML-generated layout for explicit session-level restore:
 
 ```bash
-fob layout save         # save generated layout to .fob/layout.json + .fob/layout.kdl
-fob layout load         # restore saved layout (starts Zellij session)
-fob brief --layout      # full brief flow + restore saved layout
-fob layout show         # inspect what is saved (backend, profile, saved_at, path)
-fob layout reset        # delete saved layout for current repo
-fob clear               # same as layout reset
-fob clear --all         # delete saved layouts across all repos
+console layout save         # save generated layout to .console/layout.json + .console/layout.kdl
+console layout load         # restore saved layout (starts Zellij session)
+console brief --layout      # full brief flow + restore saved layout
+console layout show         # inspect what is saved (backend, profile, saved_at, path)
+console layout reset        # delete saved layout for current repo
+console clear               # same as layout reset
+console clear --all         # delete saved layouts across all repos
 ```
 
-Saved layout metadata (`.fob/layout.json`) includes the backend, repo root, profile name, and timestamp. If the repo root in the saved file does not match the current path, `fob layout load` will refuse and explain the mismatch.
+Saved layout metadata (`.console/layout.json`) includes the backend, repo root, profile name, and timestamp. If the repo root in the saved file does not match the current path, `console layout load` will refuse and explain the mismatch.
 
 ## Example: Configured Profile
 
 ```yaml
 name: controlplane
-repo_root: /home/dev/Documents/GitHub/ControlPlane
-status_repos: ControlPlane
+repo_root: /home/dev/Documents/GitHub/OperationsCenter
+status_repos: OperationsCenter
 
 claude:
   bootstrap_files:
-    - .fob/standing-orders.md
-    - .fob/active-mission.md
-    - .fob/objectives.md
-    - .fob/mission-log.md
-    - .fob/agent-boundaries.md    # ControlPlane-specific rules
+    - .console/directives.md
+    - .console/active-task.md
+    - .console/objectives.md
+    - .console/mission-log.md
+    - .console/agent-boundaries.md    # OperationsCenter-specific rules
   peers:
-    - fob                         # pulls FOB's mission context
+    - console                         # pulls OperatorConsole's mission context
 
 panes:
   logs:

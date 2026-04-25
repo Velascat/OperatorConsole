@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# console — Operator Console CLI
+# Thin shell wrapper. Logic lives in src/operator_console/cli.py
+set -euo pipefail
+
+CONSOLE_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+VENV="$CONSOLE_DIR/.venv"
+
+# Auto-bootstrap Python environment on first run
+if [[ ! -f "$VENV/bin/python3" ]]; then
+  echo "▶ OperatorConsole: first run — setting up Python environment..."
+  bash "$CONSOLE_DIR/bootstrap.sh" || { echo "✗ Bootstrap failed." >&2; exit 1; }
+  echo
+fi
+
+export PYTHONPATH="$CONSOLE_DIR/src${PYTHONPATH:+:$PYTHONPATH}"
+exec "$VENV/bin/python3" -m operator_console.cli "$@"

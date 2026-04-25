@@ -1,10 +1,10 @@
-"""fob auto-once — execute exactly one autonomous cycle.
+"""console auto-once — execute exactly one autonomous cycle.
 
 Observe → Propose → Decide → Execute → Record
 
-Reads goal from .fob/active-mission.md (or --goal override), then drives the
-full ControlPlane pipeline via run_delegate(). Canonical run artifacts are
-written to ~/.fob/control_plane/runs/<run_id>/ by the execute entrypoint.
+Reads goal from .console/active-task.md (or --goal override), then drives the
+full OperationsCenter pipeline via run_delegate(). Canonical run artifacts are
+written to ~/.console/operations_center/runs/<run_id>/ by the execute entrypoint.
 """
 from __future__ import annotations
 
@@ -35,21 +35,21 @@ def _fail(msg: str) -> None:
 
 def run_auto_once(args: list[str]) -> int:
     """Single-cycle autonomy loop. Returns 0 on success, 1 on failure."""
-    from fob.observer import observe
-    from fob.delegate import run_delegate
+    from operator_console.observer import observe
+    from operator_console.delegate import run_delegate
 
     use_json = "--json" in args
     dry_run = "--dry-run" in args
 
     if not use_json:
-        print(_c("\n  fob auto-once", "B", "CYN") + _c(" — single autonomous cycle", "DIM"))
+        print(_c("\n  console cycle", "B", "CYN") + _c(" — single autonomous cycle", "DIM"))
         print()
 
     # Observe: derive goal context from local state
     context = observe(args)
 
     if not use_json:
-        source_label = {"arg": "flag", "mission": "active-mission.md", "default": "default"}.get(
+        source_label = {"arg": "flag", "mission": "active-task.md", "default": "default"}.get(
             context["source"], context["source"]
         )
         _info(f"goal source: {_c(source_label, 'B')}")

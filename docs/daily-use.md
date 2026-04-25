@@ -1,4 +1,4 @@
-# FOB — Daily Use
+# OperatorConsole — Daily Use
 
 Practical notes for repeated, reliable use.
 
@@ -16,10 +16,10 @@ cd ~/Documents/GitHub/WorkStation
 Confirm readiness:
 
 ```bash
-fob status
+console status
 ```
 
-Expected: SwitchBoard OK, ControlPlane OK, at least one lane binary available.
+Expected: SwitchBoard OK, OperationsCenter OK, at least one lane binary available.
 
 ---
 
@@ -28,25 +28,25 @@ Expected: SwitchBoard OK, ControlPlane OK, at least one lane binary available.
 **Manual goal:**
 
 ```bash
-fob delegate --goal "Refresh the README summary"
+console delegate --goal "Refresh the README summary"
 ```
 
 **With task type:**
 
 ```bash
-fob delegate --goal "Fix lint errors in src/" --task-type lint_fix
+console delegate --goal "Fix lint errors in src/" --task-type lint_fix
 ```
 
 **Planning only (no execution):**
 
 ```bash
-fob delegate --goal "..." --dry-run
+console delegate --goal "..." --dry-run
 ```
 
-**Autonomous cycle (reads goal from `.fob/active-mission.md`):**
+**Autonomous cycle (reads goal from `.console/active-task.md`):**
 
 ```bash
-fob auto-once
+console auto-once
 ```
 
 ---
@@ -56,39 +56,39 @@ fob auto-once
 **Most recent run:**
 
 ```bash
-fob last
+console last
 ```
 
 **All fields + recent run list:**
 
 ```bash
-fob last --all
+console last --all
 ```
 
 **List of recent runs (newest first):**
 
 ```bash
-fob runs
+console runs
 ```
 
 **Limit to last 5:**
 
 ```bash
-fob runs --limit 5
+console runs --limit 5
 ```
 
 **Machine-readable:**
 
 ```bash
-fob last --json
-fob runs --json
+console last --json
+console runs --json
 ```
 
 **Browse artifact files directly:**
 
 ```bash
-ls ~/.fob/control_plane/runs/
-ls ~/.fob/control_plane/runs/<run_id>/
+ls ~/.console/operations_center/runs/
+ls ~/.console/operations_center/runs/<run_id>/
 ```
 
 Each run directory contains:
@@ -109,7 +109,7 @@ Each run gets a unique UUID-based run ID. Directories never overwrite each other
 
 Failed runs remain as `failure_category=backend_error` or `partial` directories. They do not affect subsequent runs.
 
-`fob last` and `fob runs` sort by `written_at` timestamp in the metadata — newest run is always correct regardless of directory naming.
+`console last` and `console runs` sort by `written_at` timestamp in the metadata — newest run is always correct regardless of directory naming.
 
 ---
 
@@ -118,8 +118,8 @@ Failed runs remain as `failure_category=backend_error` or `partial` directories.
 Runs accumulate indefinitely. To prune old runs:
 
 ```bash
-ls -lt ~/.fob/control_plane/runs/     # newest first
-rm -rf ~/.fob/control_plane/runs/<run_id>
+ls -lt ~/.console/operations_center/runs/     # newest first
+rm -rf ~/.console/operations_center/runs/<run_id>
 ```
 
 There is no automatic pruning. Delete by hand when the directory grows large.
@@ -133,8 +133,8 @@ If a run fails (backend not installed, SwitchBoard unreachable), the failure is 
 Check what went wrong:
 
 ```bash
-fob last
-cat ~/.fob/control_plane/runs/<run_id>/result.json
+console last
+cat ~/.console/operations_center/runs/<run_id>/result.json
 ```
 
 `failure_category=backend_error` with `success=False` is **expected** when a backend binary (`kodo`, `aider`, etc.) is not installed. The execution boundary was still exercised.
@@ -146,19 +146,19 @@ cat ~/.fob/control_plane/runs/<run_id>/result.json
 Run these in order to confirm the system is working:
 
 ```bash
-fob status                       # stack + ControlPlane + binaries
-fob delegate --goal "smoke test" --dry-run   # planning only, no adapter needed
-fob last                         # confirm a run was recorded
+console status                       # stack + OperationsCenter + binaries
+console delegate --goal "smoke test" --dry-run   # planning only, no adapter needed
+console last                         # confirm a run was recorded
 ```
 
-All three should complete without errors. If `fob status` shows SwitchBoard unreachable, run `./scripts/up.sh` from WorkStation first.
+All three should complete without errors. If `console status` shows SwitchBoard unreachable, run `./scripts/up.sh` from WorkStation first.
 
 ---
 
 ## Full End-to-End Validation
 
 ```bash
-fob demo
+console demo
 ```
 
 Runs all six steps: preflight → stack → health → route → planning → execution.
@@ -170,9 +170,9 @@ Runs all six steps: preflight → stack → health → route → planning → ex
 | Limit | Detail |
 |---|---|
 | Single machine only | No distributed or multi-user support |
-| No scheduling | `fob auto-once` must be triggered manually each cycle |
+| No scheduling | `console auto-once` must be triggered manually each cycle |
 | No pruning | Artifacts accumulate — manual cleanup required |
 | Backend binary required for success | Execution without `kodo`/`aider` records `backend_error` — not a pipeline bug |
 | SwitchBoard must be running | All routing calls fail if WorkStation stack is down |
-| No run search | `fob runs` shows recent runs by time; no filtering by status or goal |
-| Partial runs counted | `fob runs` shows partial artifacts alongside complete runs |
+| No run search | `console runs` shows recent runs by time; no filtering by status or goal |
+| Partial runs counted | `console runs` shows partial artifacts alongside complete runs |

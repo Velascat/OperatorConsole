@@ -1,6 +1,6 @@
-# fob demo — End-to-End Architecture Verification
+# console demo — End-to-End Architecture Verification
 
-`fob demo` proves the full path from operator to execution result.
+`console demo` proves the full path from operator to execution result.
 
 ---
 
@@ -13,12 +13,12 @@ Runs six sequential steps across the full stack:
 2. Stack           WorkStation Docker stack healthy
 3. Health          SwitchBoard reachable at /health
 4. Route           SwitchBoard returns a real LaneDecision
-5. Planning        ControlPlane builds TaskProposal, routes through SwitchBoard
-6. Execution       ControlPlane runs the selected backend adapter
+5. Planning        OperationsCenter builds TaskProposal, routes through SwitchBoard
+6. Execution       OperationsCenter runs the selected backend adapter
 ```
 
-Canonical run artifacts are written to `~/.fob/control_plane/runs/<run_id>/`
-by the execute entrypoint's `RunArtifactWriter`. Use `fob last` to inspect them.
+Canonical run artifacts are written to `~/.console/operations_center/runs/<run_id>/`
+by the execute entrypoint's `RunArtifactWriter`. Use `console last` to inspect them.
 
 ---
 
@@ -29,10 +29,10 @@ by the execute entrypoint's `RunArtifactWriter`. Use `fob last` to inspect them.
 ./scripts/up.sh          # start the full stack (SwitchBoard must be healthy)
 ```
 
-ControlPlane and SwitchBoard repos must be at:
+OperationsCenter and SwitchBoard repos must be at:
 
 ```
-~/Documents/GitHub/ControlPlane/
+~/Documents/GitHub/OperationsCenter/
 ~/Documents/GitHub/SwitchBoard/
 ~/Documents/GitHub/WorkStation/
 ```
@@ -42,19 +42,19 @@ ControlPlane and SwitchBoard repos must be at:
 ## Run the demo
 
 ```bash
-fob demo
+console demo
 ```
 
 Skip the stack start (if already running):
 
 ```bash
-fob demo --no-start
+console demo --no-start
 ```
 
 Machine-readable output:
 
 ```bash
-fob demo --json
+console demo --json
 ```
 
 ---
@@ -62,12 +62,12 @@ fob demo --json
 ## What success looks like
 
 ```
-  fob demo — end-to-end architecture validation
+  console demo — end-to-end architecture validation
 
 ── 1 · Preflight ─────────────────────────────────────
   ✓ WorkStation: ~/Documents/GitHub/WorkStation
   ✓ SwitchBoard: ~/Documents/GitHub/SwitchBoard
-  ✓ ControlPlane: ~/Documents/GitHub/ControlPlane
+  ✓ OperationsCenter: ~/Documents/GitHub/OperationsCenter
   ✓ .env present
   ✓ workstation endpoints config present
 
@@ -81,12 +81,12 @@ fob demo --json
   ✓ lane=claude_cli backend=kodo
 
 ── 5 · Planning ──────────────────────────────────────
-  ✓ proposal=<id> task=fob-demo-worker lane=claude_cli backend=kodo rule=...
+  ✓ proposal=<id> task=console-demo-worker lane=claude_cli backend=kodo rule=...
 
 ── 6 · Execution ─────────────────────────────────────
   · lane=claude_cli  backend=kodo
   ✓ Backend executed successfully — status=success
-  · artifacts: ~/.fob/control_plane/runs/<run_id>/
+  · artifacts: ~/.console/operations_center/runs/<run_id>/
 
 ── Summary ───────────────────────────────────────────
   PASS preflight
@@ -97,8 +97,8 @@ fob demo --json
   PASS execution      status=success executed=True
 
   ✓ Full end-to-end path verified
-  · artifacts: ~/.fob/control_plane/runs/<run_id>/
-  · run `fob last` to inspect
+  · artifacts: ~/.console/operations_center/runs/<run_id>/
+  · run `console last` to inspect
 ```
 
 ---
@@ -108,7 +108,7 @@ fob demo --json
 Artifacts are the canonical Phase 7 run artifacts written by `RunArtifactWriter`:
 
 ```
-~/.fob/control_plane/runs/<run_id>/
+~/.console/operations_center/runs/<run_id>/
   proposal.json
   decision.json
   execution_request.json
@@ -117,9 +117,9 @@ Artifacts are the canonical Phase 7 run artifacts written by `RunArtifactWriter`
 ```
 
 ```bash
-fob last                              # inspect most recent run
-fob last --json                       # machine-readable
-ls ~/.fob/control_plane/runs/         # list all runs
+console last                              # inspect most recent run
+console last --json                       # machine-readable
+ls ~/.console/operations_center/runs/         # list all runs
 ```
 
 ---
@@ -130,7 +130,7 @@ ls ~/.fob/control_plane/runs/         # list all runs
 |---|---|---|
 | Step 1 fails (WorkStation not found) | Repo not at expected path | Clone WorkStation to `~/Documents/GitHub/WorkStation` |
 | Step 3 fails (HTTP 0) | SwitchBoard not running | Run `./scripts/up.sh` from WorkStation |
-| Step 5 fails (exit 1) | ControlPlane venv missing | `cd ControlPlane && pip install -e .` |
+| Step 5 fails (exit 1) | OperationsCenter venv missing | `cd OperationsCenter && pip install -e .` |
 | Step 6 — backend failure | Backend binary not installed | Install `kodo` or `aider`; result is still canonical |
 | Step 6 — policy skipped | Policy gate blocked the task | Check SwitchBoard policy config |
 

@@ -4,7 +4,7 @@ Covers:
 - list_runs() sorts by written_at, not directory name
 - latest_run() returns the most recently written run
 - artifact isolation (no overwrites)
-- fob runs command
+- console runs command
 """
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from fob.runs import _run_sort_key, latest_run, list_runs, run_summary
+from operator_console.runs import _run_sort_key, latest_run, list_runs, run_summary
 
 
 # ---------------------------------------------------------------------------
@@ -157,25 +157,25 @@ class TestArtifactIsolation:
 
 
 # ---------------------------------------------------------------------------
-# fob runs command
+# console runs command
 # ---------------------------------------------------------------------------
 
 
 class TestRunsCommand:
     def test_returns_1_when_no_runs(self, tmp_path, capsys):
-        from fob.runs_cmd import run_runs
+        from operator_console.runs_cmd import run_runs
         code = run_runs(["--root", str(tmp_path)])
         assert code == 1
 
     def test_returns_0_when_runs_exist(self, tmp_path, capsys):
         _make_run(tmp_path, "run-a", "2026-04-24T10:00:00")
-        from fob.runs_cmd import run_runs
+        from operator_console.runs_cmd import run_runs
         code = run_runs(["--root", str(tmp_path)])
         assert code == 0
 
     def test_json_output_has_runs_key(self, tmp_path, capsys):
         _make_run(tmp_path, "run-a", "2026-04-24T10:00:00")
-        from fob.runs_cmd import run_runs
+        from operator_console.runs_cmd import run_runs
         run_runs(["--root", str(tmp_path), "--json"])
         out = json.loads(capsys.readouterr().out)
         assert "runs" in out
@@ -184,7 +184,7 @@ class TestRunsCommand:
     def test_json_runs_newest_first(self, tmp_path, capsys):
         _make_run(tmp_path, "run-old", "2026-04-24T08:00:00")
         _make_run(tmp_path, "run-new", "2026-04-24T16:00:00")
-        from fob.runs_cmd import run_runs
+        from operator_console.runs_cmd import run_runs
         run_runs(["--root", str(tmp_path), "--json"])
         out = json.loads(capsys.readouterr().out)
         assert out["runs"][0]["run_id"] == "run-new"
@@ -193,21 +193,21 @@ class TestRunsCommand:
     def test_limit_applied(self, tmp_path, capsys):
         for i in range(5):
             _make_run(tmp_path, f"run-{i:02d}", f"2026-04-24T{10+i:02d}:00:00")
-        from fob.runs_cmd import run_runs
+        from operator_console.runs_cmd import run_runs
         run_runs(["--root", str(tmp_path), "--json", "--limit", "2"])
         out = json.loads(capsys.readouterr().out)
         assert len(out["runs"]) == 2
         assert out["total"] == 5
 
     def test_json_empty_has_runs_key(self, tmp_path, capsys):
-        from fob.runs_cmd import run_runs
+        from operator_console.runs_cmd import run_runs
         run_runs(["--root", str(tmp_path), "--json"])
         out = json.loads(capsys.readouterr().out)
         assert out["runs"] == []
 
     def test_text_output_contains_run_id_prefix(self, tmp_path, capsys):
         _make_run(tmp_path, "abcd1234-rest", "2026-04-24T10:00:00")
-        from fob.runs_cmd import run_runs
+        from operator_console.runs_cmd import run_runs
         run_runs(["--root", str(tmp_path)])
         out = capsys.readouterr().out
         assert "abcd1234" in out

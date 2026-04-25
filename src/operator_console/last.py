@@ -1,9 +1,9 @@
-"""fob last — inspect the most recent execution run."""
+"""console last — inspect the most recent execution run."""
 from __future__ import annotations
 
 from pathlib import Path
 
-from fob.runs import latest_run, list_runs, run_summary, runs_root
+from operator_console.runs import latest_run, list_runs, run_summary, runs_root
 
 _C = {
     "R": "\033[0m", "B": "\033[1m", "DIM": "\033[2m",
@@ -40,7 +40,7 @@ def run_last(args: list[str]) -> int:
         else:
             print(_c("  No runs found.", "DIM"))
             print(_c(f"  Expected location: {runs_root()}", "DIM"))
-            print(_c("  Run `fob delegate` or `fob demo` to create a run.", "DIM"))
+            print(_c("  Run `console run` or `console demo` to create a run.", "DIM"))
         return 1
 
     summary = run_summary(run_dir)
@@ -50,7 +50,7 @@ def run_last(args: list[str]) -> int:
         print(json.dumps(summary, indent=2, default=str))
         return 0
 
-    print(_c("\n  fob last", "B", "CYN") + _c(" — most recent execution run", "DIM"))
+    print(_c("\n  console last", "B", "CYN") + _c(" — most recent execution run", "DIM"))
     print()
 
     run_id = summary["run_id"]

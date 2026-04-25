@@ -2,7 +2,7 @@
 
 observer.observe() is a pure function (no subprocess / FS side effects when
 given --goal and --clone-url on the command line). auto_once.run_auto_once()
-is tested by mocking run_delegate so we don't need live ControlPlane.
+is tested by mocking run_delegate so we don't need live OperationsCenter.
 """
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from fob.observer import (
+from operator_console.observer import (
     _DEFAULT_CLONE_URL,
     _DEFAULT_GOAL,
     _DEFAULT_REPO_KEY,
@@ -32,8 +32,8 @@ class TestObserveArgPriority:
 
     def _observe(self, *args):
         # Patch git commands so tests don't depend on the environment
-        with patch("fob.observer._git_remote_url", return_value=None), \
-             patch("fob.observer._find_repo_root", return_value=Path("/tmp")):
+        with patch("operator_console.observer._git_remote_url", return_value=None), \
+             patch("operator_console.observer._find_repo_root", return_value=Path("/tmp")):
             return observe(list(args))
 
     def test_goal_from_flag(self):
@@ -74,46 +74,46 @@ class TestObserveArgPriority:
 
 
 class TestObserveMissionFile:
-    """active-mission.md is read when no --goal flag is given."""
+    """active-task.md is read when no --goal flag is given."""
 
     def test_reads_objective_section(self, tmp_path):
-        fob_dir = tmp_path / ".fob"
-        fob_dir.mkdir()
-        (fob_dir / "active-mission.md").write_text(
+        console_dir = tmp_path / ".console"
+        console_dir.mkdir()
+        (console_dir / "active-task.md").write_text(
             "# Current Focus\n\n## Objective\n\nRefactor the routing layer.\n\n## Context\n\nSome context.\n"
         )
-        with patch("fob.observer._find_repo_root", return_value=tmp_path), \
-             patch("fob.observer._git_remote_url", return_value=None):
+        with patch("operator_console.observer._find_repo_root", return_value=tmp_path), \
+             patch("operator_console.observer._git_remote_url", return_value=None):
             ctx = observe([])
         assert ctx["goal"] == "Refactor the routing layer."
         assert ctx["source"] == "mission"
 
     def test_placeholder_objective_ignored(self, tmp_path):
-        fob_dir = tmp_path / ".fob"
-        fob_dir.mkdir()
-        (fob_dir / "active-mission.md").write_text(
+        console_dir = tmp_path / ".console"
+        console_dir.mkdir()
+        (console_dir / "active-task.md").write_text(
             "## Objective\n\n[Describe what you're working on]\n"
         )
-        with patch("fob.observer._find_repo_root", return_value=tmp_path), \
-             patch("fob.observer._git_remote_url", return_value=None):
+        with patch("operator_console.observer._find_repo_root", return_value=tmp_path), \
+             patch("operator_console.observer._git_remote_url", return_value=None):
             ctx = observe([])
         assert ctx["goal"] == _DEFAULT_GOAL
         assert ctx["source"] == "default"
 
     def test_missing_mission_file_uses_default(self, tmp_path):
-        with patch("fob.observer._find_repo_root", return_value=tmp_path), \
-             patch("fob.observer._git_remote_url", return_value=None):
+        with patch("operator_console.observer._find_repo_root", return_value=tmp_path), \
+             patch("operator_console.observer._git_remote_url", return_value=None):
             ctx = observe([])
         assert ctx["goal"] == _DEFAULT_GOAL
 
     def test_flag_overrides_mission_file(self, tmp_path):
-        fob_dir = tmp_path / ".fob"
-        fob_dir.mkdir()
-        (fob_dir / "active-mission.md").write_text(
+        console_dir = tmp_path / ".console"
+        console_dir.mkdir()
+        (console_dir / "active-task.md").write_text(
             "## Objective\n\nMission goal.\n"
         )
-        with patch("fob.observer._find_repo_root", return_value=tmp_path), \
-             patch("fob.observer._git_remote_url", return_value=None):
+        with patch("operator_console.observer._find_repo_root", return_value=tmp_path), \
+             patch("operator_console.observer._git_remote_url", return_value=None):
             ctx = observe(["--goal", "Override goal"])
         assert ctx["goal"] == "Override goal"
         assert ctx["source"] == "arg"
@@ -128,8 +128,8 @@ class TestObserveRepoKey:
         assert _repo_key_from_url("https://github.com/acme/repo") == "repo"
 
     def test_repo_key_derived_from_remote(self):
-        with patch("fob.observer._find_repo_root", return_value=Path("/tmp")), \
-             patch("fob.observer._git_remote_url", return_value="https://github.com/acme/widget.git"):
+        with patch("operator_console.observer._find_repo_root", return_value=Path("/tmp")), \
+             patch("operator_console.observer._git_remote_url", return_value="https://github.com/acme/widget.git"):
             ctx = observe(["--goal", "g"])
         assert ctx["repo_key"] == "widget"
         assert ctx["clone_url"] == "https://github.com/acme/widget.git"
@@ -142,20 +142,20 @@ class TestReadMissionGoal:
         assert _read_mission_goal(tmp_path) is None
 
     def test_returns_none_when_no_objective_section(self, tmp_path):
-        (tmp_path / ".fob").mkdir()
-        (tmp_path / ".fob" / "active-mission.md").write_text("## Context\n\nSome context.\n")
+        (tmp_path / ".console").mkdir()
+        (tmp_path / ".console" / "active-task.md").write_text("## Context\n\nSome context.\n")
         assert _read_mission_goal(tmp_path) is None
 
     def test_returns_objective_content(self, tmp_path):
-        (tmp_path / ".fob").mkdir()
-        (tmp_path / ".fob" / "active-mission.md").write_text(
+        (tmp_path / ".console").mkdir()
+        (tmp_path / ".console" / "active-task.md").write_text(
             "## Objective\n\nImprove test coverage.\n"
         )
         assert _read_mission_goal(tmp_path) == "Improve test coverage."
 
     def test_multiline_objective(self, tmp_path):
-        (tmp_path / ".fob").mkdir()
-        (tmp_path / ".fob" / "active-mission.md").write_text(
+        (tmp_path / ".console").mkdir()
+        (tmp_path / ".console" / "active-task.md").write_text(
             "## Objective\n\nLine one.\nLine two.\n\n## Context\n\nOther.\n"
         )
         result = _read_mission_goal(tmp_path)
@@ -170,10 +170,10 @@ class TestReadMissionGoal:
 
 class TestAutoOnce:
     def _run(self, extra_args: list[str] = (), delegate_return: int = 0):
-        with patch("fob.delegate.run_delegate", return_value=delegate_return) as mock_del, \
-             patch("fob.observer._find_repo_root", return_value=Path("/tmp")), \
-             patch("fob.observer._git_remote_url", return_value=None):
-            from fob.auto_once import run_auto_once
+        with patch("operator_console.delegate.run_delegate", return_value=delegate_return) as mock_del, \
+             patch("operator_console.observer._find_repo_root", return_value=Path("/tmp")), \
+             patch("operator_console.observer._git_remote_url", return_value=None):
+            from operator_console.auto_once import run_auto_once
             code = run_auto_once(["--goal", "Test goal", *extra_args])
         return code, mock_del
 
@@ -210,26 +210,26 @@ class TestAutoOnce:
         assert delegate_args[idx + 1] == "lint_fix"
 
     def test_uses_mission_goal_when_no_flag(self, tmp_path):
-        fob_dir = tmp_path / ".fob"
-        fob_dir.mkdir()
-        (fob_dir / "active-mission.md").write_text(
+        console_dir = tmp_path / ".console"
+        console_dir.mkdir()
+        (console_dir / "active-task.md").write_text(
             "## Objective\n\nMission-driven goal.\n"
         )
-        with patch("fob.delegate.run_delegate", return_value=0) as mock_del, \
-             patch("fob.observer._find_repo_root", return_value=tmp_path), \
-             patch("fob.observer._git_remote_url", return_value=None):
-            from fob.auto_once import run_auto_once
+        with patch("operator_console.delegate.run_delegate", return_value=0) as mock_del, \
+             patch("operator_console.observer._find_repo_root", return_value=tmp_path), \
+             patch("operator_console.observer._git_remote_url", return_value=None):
+            from operator_console.auto_once import run_auto_once
             run_auto_once([])
         delegate_args = mock_del.call_args[0][0]
         idx = delegate_args.index("--goal")
         assert delegate_args[idx + 1] == "Mission-driven goal."
 
     def test_uses_default_goal_when_no_flag_no_mission(self):
-        from fob.observer import _DEFAULT_GOAL
-        with patch("fob.delegate.run_delegate", return_value=0) as mock_del, \
-             patch("fob.observer._find_repo_root", return_value=Path("/tmp")), \
-             patch("fob.observer._git_remote_url", return_value=None):
-            from fob.auto_once import run_auto_once
+        from operator_console.observer import _DEFAULT_GOAL
+        with patch("operator_console.delegate.run_delegate", return_value=0) as mock_del, \
+             patch("operator_console.observer._find_repo_root", return_value=Path("/tmp")), \
+             patch("operator_console.observer._git_remote_url", return_value=None):
+            from operator_console.auto_once import run_auto_once
             run_auto_once([])
         delegate_args = mock_del.call_args[0][0]
         idx = delegate_args.index("--goal")

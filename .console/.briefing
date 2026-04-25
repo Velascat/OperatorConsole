@@ -1,0 +1,283 @@
+# FOB Briefing — FOB
+
+_Generated 2026-04-24 16:22 · Branch: main · Profile: FOB_
+
+This is your compiled startup context. Read it before acting.
+The source files in `.fob/` are the editable truth — this file is generated.
+
+---
+
+## Standing Orders
+
+# Guardrails
+
+Operating rules for Claude in this repo.
+
+## Branch Policy
+
+- Do not commit directly to `main` or `master`.
+- Before making any changes, confirm you are on a feature branch.
+- If on a protected branch, stop and ask the operator to create a working branch.
+
+## Before Acting
+
+1. Read `.fob/current-focus.md` — understand the active objective.
+2. Read `.fob/todo.md` — check what's in progress and what's next.
+3. Read `.fob/session.md` — review recent decisions and context.
+4. Summarize your plan before making edits.
+
+## During Work
+
+- Run `./dev test` before and after changes, not broad validation suites.
+- Use `./dev audit` for linting and static checks.
+- Prefer `./dev status` over raw git commands to check workspace state.
+- Prefer small, targeted edits over large rewrites.
+
+## After Meaningful Progress
+
+- Update `.fob/todo.md` to reflect completed and remaining work.
+- Update `.fob/session.md` with decisions made and rationale.
+- Summarize what changed and what's next.
+
+## What Not to Do
+
+- Do not run destructive commands (`rm -rf`, `git reset --hard`) without explicit operator confirmation.
+- Do not push to remote branches without the operator's explicit request.
+- Do not modify files outside the repo root without explicit justification.
+
+---
+
+## Active Mission
+
+# Current Focus
+
+_Update this file when the active objective changes._
+
+## Objective
+
+[Describe what you're working on right now — one or two sentences.]
+
+## Context
+
+[Any background that makes the objective clearer — constraints, dependencies, recent decisions.]
+
+## Definition of Done
+
+[What does success look like for this objective?]
+
+---
+
+## Objectives
+
+# Todo
+
+Active work list. Update after each meaningful chunk of progress.
+
+## In Progress
+
+- [ ] [Task description] — [brief context]
+
+## Up Next
+
+- [ ] [Task description]
+- [ ] [Task description]
+
+## Done
+
+- [x] [Completed task]
+
+---
+
+_Keep this list short and focused. Completed items can be archived to session.md._
+
+---
+
+## Mission Log
+
+# Session Notes
+
+Scratch pad for continuity across sessions. Recent decisions, blockers, and context.
+
+## Recent Decisions
+
+_Log significant choices here so they survive context resets._
+
+| Decision | Rationale | Date |
+|----------|-----------|------|
+| [what was decided] | [why] | [date] |
+
+## Active Blockers
+
+_Things waiting on external input or a deferred decision._
+
+- [blocker description]
+
+## Notes
+
+_Free-form scratch space. Clear periodically._
+
+---
+
+---
+
+## Peer: ControlPlane — Active Mission
+
+# Active Mission
+
+_The current live assignment. One objective at a time._
+_Replace contents when the objective changes. Do not accumulate history here — that belongs in mission-log.md._
+
+## Objective
+
+[One or two sentences. What are you building or fixing right now?]
+
+## Context
+
+[Background that makes the objective clearer — constraints, dependencies, recent decisions.]
+
+## Definition of Done
+
+[What does success look like? How will you know this is complete?]
+
+---
+
+## Peer: ControlPlane — Objectives
+
+# Objectives
+
+_Durable work inventory — broader than the active mission, narrower than a full backlog._
+_Update after each meaningful chunk of progress. Keep it short and actionable._
+
+## In Progress
+
+_(none)_
+
+## Up Next
+
+- [ ] Phase 14 — first lane runner consuming ProposalDecisionBundle → PolicyDecision → ExecutionRequest → backend adapter → observe()
+
+## Done
+
+- [x] Phase 3 — Canonical cross-repo contracts (enums, common, proposal, routing, execution) — 87 tests
+- [x] Phase 4 — SwitchBoard LaneSelector (policy, engine, explain, defaults) — 59 tests
+- [x] Phase 5 — kodo BackendAdapter (adapter, mapper, invoke, normalize, errors) — 81 tests
+- [x] Phase 6 — ControlPlane planning/routing integration (PlanningContext, ProposalBuilder, LaneRoutingClient, PlanningService, ProposalDecisionBundle) — 52 tests
+- [x] Phase 7 — Execution observability and artifact normalization (ExecutionRecord, ExecutionTrace, ArtifactIndex, ChangedFilesEvidence, ValidationEvidence, BackendDetailRef, ExecutionObservabilityService) — 122 tests; 342 total
+- [x] Phase 8 — Archon backend adapter (models, errors, mapper, invoke, normalize, adapter) — 105 tests; 447 total
+- [x] Phase 9 — SwitchBoard fallback and escalation policy (AlternativeRoute, FallbackPolicyEngine, EscalationPolicyEngine, DecisionPlanner, RoutingPlan, RouteCandidate) — SwitchBoard test suite passing
+- [x] Phase 10 — OpenClaw optional outer shell (OperatorContext, ShellRunHandle, ShellStatusSummary, ShellInspectionResult, OpenClawShellService, OpenClawBridge) — 121 new tests; 568 ControlPlane unit tests total
+- [x] Phase 11 — OpenClaw backend adapter (OpenClawBackendAdapter, OpenClawRunner, OpenClawRunCapture, changed-file evidence: git_diff/event_stream/unknown) — 119 new tests; 687 ControlPlane unit tests total
+- [x] Phase 12 — Policy and guardrails (PolicyEngine, PolicyDecision, ALLOW/ALLOW_WITH_WARNINGS/REQUIRE_REVIEW/BLOCK, path/branch/tool/validation/review checks, validate_config, explain, DEFAULT_POLICY_CONFIG) — 177 new tests; 2062 ControlPlane unit tests total
+- [x] Phase 13 — Evidence-driven routing strategy tuning (StrategyTuningService, BackendComparisonSummary, StrategyFinding, RoutingTuningProposal, StrategyAnalysisReport; EvidenceStrength/ReliabilityClass/ChangeEvidenceClass/LatencyClass) — 131 new tests; 2193 ControlPlane unit tests total
+
+---
+
+_Completed items can be archived to mission-log.md. This is not the primary task tracker — keep it focused._
+
+---
+
+## Peer: SwitchBoard — Active Mission
+
+# Active Mission
+
+_The current live assignment. One objective at a time._
+_Replace contents when the objective changes. Do not accumulate history here — that belongs in mission-log.md._
+
+## Objective
+
+[One or two sentences. What are you building or fixing right now?]
+
+## Context
+
+[Background that makes the objective clearer — constraints, dependencies, recent decisions.]
+
+## Definition of Done
+
+[What does success look like? How will you know this is complete?]
+
+---
+
+## Peer: SwitchBoard — Objectives
+
+# Objectives
+
+_Durable work inventory — broader than the active mission, narrower than a full backlog._
+_Update after each meaningful chunk of progress. Keep it short and actionable._
+
+## In Progress
+
+_(none)_
+
+## Up Next
+
+- [ ] Phase 10 — lane runner: consume RoutingPlan from SwitchBoard, execute primary route, act on fallback/escalation intent
+
+## Done
+
+- [x] Phase 4 — LaneSelector: TaskProposal → LaneDecision (LaneRule, LaneRoutingPolicy, DecisionExplanation, DEFAULT_POLICY) — 59 tests
+- [x] Phase 9 — Fallback and escalation policy (AlternativeRoute, FallbackPolicyEngine, EscalationPolicyEngine, DecisionPlanner, RoutingPlan, CostClass, CapabilityClass, EligibilityStatus) — 138 new tests; 462 total
+
+---
+
+_Completed items can be archived to mission-log.md. This is not the primary task tracker — keep it focused._
+
+---
+
+## Peer: WorkStation — Active Mission
+
+# Active Mission
+
+_The current live assignment. One objective at a time._
+_Replace contents when the objective changes. Do not accumulate history here — that belongs in mission-log.md._
+
+## Objective
+
+Phase 1: Make WorkStation the single, reliable entrypoint for the full platform stack. One command (`./scripts/up.sh`) starts everything and confirms it's healthy before returning.
+
+## Context
+
+`up.sh` previously started docker compose and exited immediately with no health verification. Phase 1 adds: per-component structured logging, SwitchBoard health wait (hard fail if unreachable), optional Plane startup controlled by `PLANE_ENABLED` env var, and `aider` binary check for the local lane (soft warn).
+
+## Definition of Done
+
+- `./scripts/up.sh` starts SwitchBoard, waits for `/health`, and fails hard if it doesn't come up
+- Plane is started if `PLANE_ENABLED=true`, skipped otherwise (non-blocking in either case)
+- Local lane readiness (aider) is checked and reported, non-blocking
+- Per-component `[OK]` / `[WARN]` / `[SKIP]` / `[FAIL]` output
+- Running the script twice is safe (docker compose up --detach is idempotent)
+- `startup-flow.md` updated to match new behaviour
+- `.env.example` documents `PLANE_ENABLED`
+
+---
+
+## Peer: WorkStation — Objectives
+
+# Objectives
+
+_Durable work inventory — broader than the active mission, narrower than a full backlog._
+_Update after each meaningful chunk of progress. Keep it short and actionable._
+
+## In Progress
+
+- [ ] Operator review and merge of `phase1/unified-startup`
+
+## Up Next
+
+- [ ] Phase 2 work (to be defined)
+
+## Done
+
+- [x] Phase 1 — unified startup: `scripts/up.sh` rewritten with health wait, Plane opt-in, aider check, structured logging
+
+---
+
+_Completed items can be archived to mission-log.md. This is not the primary task tracker — keep it focused._
+
+---
+
+## Runtime Context
+
+- **Repo**: FOB
+- **Repo root**: `/home/dev/Documents/GitHub/FOB`
+- **Branch**: `main`
+- **Generated**: 2026-04-24 16:22 · Profile: FOB

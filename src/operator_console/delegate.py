@@ -1,14 +1,14 @@
-"""fob delegate — trigger a full execution through the ControlPlane pipeline.
+"""console delegate — trigger a full execution through the OperationsCenter pipeline.
 
-Wraps the two ControlPlane entrypoints without duplicating their logic:
+Wraps the two OperationsCenter entrypoints without duplicating their logic:
 
-    1. control_plane.entrypoints.worker.main   → planning (proposal + lane decision)
-    2. control_plane.entrypoints.execute.main  → execution (adapter run + artifacts)
+    1. operations_center.entrypoints.worker.main   → planning (proposal + lane decision)
+    2. operations_center.entrypoints.execute.main  → execution (adapter run + artifacts)
 
 Usage:
-    fob delegate --goal "Refresh README summary"
-    fob delegate --goal "Fix lint errors" --repo-key myrepo --clone-url https://...
-    fob delegate --goal "..." --task-type lint_fix --dry-run
+    console run --goal "Refresh README summary"
+    console run --goal "Fix lint errors" --repo-key myrepo --clone-url https://...
+    console run --goal "..." --task-type lint_fix --dry-run
 """
 from __future__ import annotations
 
@@ -130,19 +130,19 @@ def run_delegate(args: list[str]) -> int:
             _fail("--goal is required")
             return 1
 
-    cp_repo = _repo_root("ControlPlane")
+    cp_repo = _repo_root("OperationsCenter")
     if not cp_repo.exists():
-        _fail(f"ControlPlane not found at {cp_repo}")
+        _fail(f"OperationsCenter not found at {cp_repo}")
         return 1
 
-    task_id = opts["task_id"] or f"fob-{uuid.uuid4().hex[:8]}"
-    project_id = opts["project_id"] or "fob-delegate"
+    task_id = opts["task_id"] or f"console-{uuid.uuid4().hex[:8]}"
+    project_id = opts["project_id"] or "console-run"
     task_branch = opts["task_branch"] or f"auto/{task_id}"
 
     if not opts["json"]:
-        print(_c("\n  fob delegate", "B", "CYN") + _c(" — delegating task to ControlPlane", "DIM"))
+        print(_c("\n  console run", "B", "CYN") + _c(" — delegating task to OperationsCenter", "DIM"))
         print()
-        _tag("FOB", f"goal={opts['goal']!r}  type={opts['task_type']}  repo={opts['repo_key']}")
+        _tag("OperatorConsole", f"goal={opts['goal']!r}  type={opts['task_type']}  repo={opts['repo_key']}")
 
     if opts["dry_run"]:
         if not opts["json"]:
@@ -152,7 +152,7 @@ def run_delegate(args: list[str]) -> int:
 
     python = _cp_python(cp_repo)
     plan_cmd = [
-        python, "-m", "control_plane.entrypoints.worker.main",
+        python, "-m", "operations_center.entrypoints.worker.main",
         "--goal", opts["goal"],
         "--task-type", opts["task_type"],
         "--repo-key", opts["repo_key"],
@@ -195,7 +195,7 @@ def run_delegate(args: list[str]) -> int:
             _fail(f"Planning failed — {error_type}")
             _info(message)
             if partial_run_id:
-                from fob.runs import runs_root
+                from operator_console.runs import runs_root
                 _info(f"partial artifacts: {runs_root() / partial_run_id}")
         return 1
 
@@ -204,7 +204,7 @@ def run_delegate(args: list[str]) -> int:
     backend = decision.get("selected_backend", "?")
 
     if not opts["json"]:
-        _tag("ControlPlane", f"proposal created — id={bundle.get('proposal', {}).get('proposal_id', '?')[:8]}…")
+        _tag("OperationsCenter", f"proposal created — id={bundle.get('proposal', {}).get('proposal_id', '?')[:8]}…")
         _tag("SwitchBoard", f"selected lane={lane}  backend={backend}")
 
     if opts["dry_run"]:
@@ -216,18 +216,18 @@ def run_delegate(args: list[str]) -> int:
 
     # ── Step 2: Execution ─────────────────────────────────────────────────────
 
-    with tempfile.TemporaryDirectory(prefix="fob-delegate-") as tmpdir:
+    with tempfile.TemporaryDirectory(prefix="console-delegate-") as tmpdir:
         tmp = Path(tmpdir)
         bundle_file = tmp / "bundle.json"
         bundle_file.write_text(json.dumps(bundle), encoding="utf-8")
-        config_file = tmp / "control_plane.yaml"
+        config_file = tmp / "operations_center.yaml"
         config_file.write_text(_DEMO_CP_CONFIG, encoding="utf-8")
         workspace = tmp / "workspace"
         workspace.mkdir()
         result_file = tmp / "result.json"
 
         exec_cmd = [
-            python, "-m", "control_plane.entrypoints.execute.main",
+            python, "-m", "operations_center.entrypoints.execute.main",
             "--config", str(config_file),
             "--bundle", str(bundle_file),
             "--workspace-path", str(workspace),
@@ -267,7 +267,7 @@ def run_delegate(args: list[str]) -> int:
                 _fail(f"Execution failed — {error_type}")
                 _info(message)
                 if partial_run_id:
-                    from fob.runs import runs_root
+                    from operator_console.runs import runs_root
                     _info(f"partial artifacts: {runs_root() / partial_run_id}")
             return 1
 
@@ -278,7 +278,7 @@ def run_delegate(args: list[str]) -> int:
     executed = outcome.get("executed", False)
     failure_category = exec_result.get("failure_category")
 
-    from fob.runs import runs_root
+    from operator_console.runs import runs_root
     artifacts_dir = runs_root() / run_id
 
     if opts["json"]:

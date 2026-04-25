@@ -1,6 +1,6 @@
-"""runs.py — read Phase 7 canonical run artifacts from ~/.fob/control_plane/runs/.
+"""runs.py — read Phase 7 canonical run artifacts from ~/.console/operations_center/runs/.
 
-Provides lightweight accessors so cockpit commands (fob last, fob status, etc.)
+Provides lightweight accessors so cockpit commands (console last, console status, etc.)
 never need to navigate artifact directories directly.
 """
 from __future__ import annotations
@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-_RUNS_ROOT = Path.home() / ".fob" / "control_plane" / "runs"
+_RUNS_ROOT = Path.home() / ".console" / "operations_center" / "runs"
 
 
 def runs_root() -> Path:

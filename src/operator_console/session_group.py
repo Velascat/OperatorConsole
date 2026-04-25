@@ -4,12 +4,12 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-_STATE_DIR  = Path.home() / ".local" / "share" / "fob"
+_STATE_DIR  = Path.home() / ".local" / "share" / "operator_console"
 _LAST_GROUP = "last-session.json"
 
 
 def save(profile_names: list[str], session_name: str) -> Path:
-    """Persist the current repo group so fob restore can reopen it."""
+    """Persist the current repo group so console context can reopen it."""
     _STATE_DIR.mkdir(parents=True, exist_ok=True)
     data = {
         "session":  session_name,

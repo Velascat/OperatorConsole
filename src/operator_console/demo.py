@@ -1,4 +1,4 @@
-"""fob demo — validate the full end-to-end architecture path.
+"""console demo — validate the full end-to-end architecture path.
 
 Runs the full stack in order:
 
@@ -6,11 +6,11 @@ Runs the full stack in order:
   2. Stack           — WorkStation stack healthy
   3. Health          — SwitchBoard reachable
   4. Route           — SwitchBoard returns a real LaneDecision
-  5. Planning        — ControlPlane builds TaskProposal + routes through SwitchBoard
-  6. Execution       — ControlPlane runs the selected adapter, returns ExecutionResult
+  5. Planning        — OperationsCenter builds TaskProposal + routes through SwitchBoard
+  6. Execution       — OperationsCenter runs the selected adapter, returns ExecutionResult
 
-Canonical run artifacts are written to ~/.fob/control_plane/runs/<run_id>/ by the
-execute entrypoint (Phase 7 RunArtifactWriter). Use `fob last` to inspect them.
+Canonical run artifacts are written to ~/.console/operations_center/runs/<run_id>/ by the
+execute entrypoint (Phase 7 RunArtifactWriter). Use `console last` to inspect them.
 """
 from __future__ import annotations
 
@@ -57,7 +57,7 @@ def _section(title: str) -> None:
     print(_c(f"── {title} ", "B", "CYN") + _c("─" * max(0, 48 - len(title)), "DIM"))
 
 
-# Minimal ControlPlane config sufficient for the demo execute entrypoint.
+# Minimal OperationsCenter config sufficient for the demo execute entrypoint.
 # Only kodo/aider settings matter for adapter construction; plane/repos
 # are required fields but unused during single-task execution.
 _DEMO_CP_CONFIG = """\
@@ -134,7 +134,7 @@ def _find_workstation() -> Path | None:
 
 
 def _cp_python(cp_repo: Path) -> str:
-    """Return path to ControlPlane's venv Python, falling back to python3."""
+    """Return path to OperationsCenter's venv Python, falling back to python3."""
     venv_python = cp_repo / ".venv" / "bin" / "python"
     return str(venv_python) if venv_python.exists() else "python3"
 
@@ -153,7 +153,7 @@ def step_preflight(workstation_root: Path | None) -> StepResult:
     expected = {
         "WorkStation": workstation_root,
         "SwitchBoard": _repo_root("SwitchBoard"),
-        "ControlPlane": _repo_root("ControlPlane"),
+        "OperationsCenter": _repo_root("OperationsCenter"),
     }
     missing: list[str] = []
     for name, path in expected.items():
@@ -211,8 +211,8 @@ def step_route() -> StepResult:
     _section("4 · Route Selection")
     port = os.environ.get("PORT_SWITCHBOARD", "20401")
     payload = {
-        "task_id": "fob-demo-route",
-        "project_id": "fob-demo",
+        "task_id": "console-demo-route",
+        "project_id": "console-demo",
         "task_type": "documentation",
         "execution_mode": "goal",
         "goal_text": "Refresh the architecture summary wording",
@@ -252,27 +252,27 @@ def step_route() -> StepResult:
 
 
 def step_planning(cp_repo: Path) -> tuple[StepResult, dict | None]:
-    """Call ControlPlane worker to build TaskProposal and get LaneDecision.
+    """Call OperationsCenter worker to build TaskProposal and get LaneDecision.
 
     Returns (StepResult, bundle_dict) — bundle_dict contains proposal + decision.
     """
     _section("5 · Planning")
     python = _cp_python(cp_repo)
     cmd = [
-        python, "-m", "control_plane.entrypoints.worker.main",
+        python, "-m", "operations_center.entrypoints.worker.main",
         "--goal", "Refresh architecture wording",
         "--task-type", "documentation",
         "--repo-key", "docs",
         "--clone-url", "https://example.invalid/docs.git",
-        "--project-id", "fob-demo",
-        "--task-id", "fob-demo-worker",
+        "--project-id", "console-demo",
+        "--task-id", "console-demo-worker",
     ]
     env = dict(os.environ)
     env["PYTHONPATH"] = str(cp_repo / "src")
 
     result = subprocess.run(cmd, cwd=cp_repo, env=env, capture_output=True, text=True)
     if result.returncode != 0:
-        _fail("ControlPlane planning failed")
+        _fail("OperationsCenter planning failed")
         _info(result.stderr.strip() or result.stdout.strip())
         return StepResult("planning", False, f"exit {result.returncode}"), None
 
@@ -295,12 +295,12 @@ def step_execution(
 
     Intermediate files (bundle, config, workspace) are written to a temp dir
     that is cleaned up after the subprocess exits. Canonical run artifacts are
-    written to ~/.fob/control_plane/runs/<run_id>/ by the execute entrypoint's
-    RunArtifactWriter — use `fob last` to inspect them.
+    written to ~/.console/operations_center/runs/<run_id>/ by the execute entrypoint's
+    RunArtifactWriter — use `console last` to inspect them.
     """
     _section("6 · Execution")
 
-    with tempfile.TemporaryDirectory(prefix="fob-demo-") as tmpdir:
+    with tempfile.TemporaryDirectory(prefix="console-demo-") as tmpdir:
         tmp = Path(tmpdir)
         workspace = tmp / "workspace"
         workspace.mkdir()
@@ -308,18 +308,18 @@ def step_execution(
         bundle_file = tmp / "bundle.json"
         bundle_file.write_text(json.dumps(bundle_data), encoding="utf-8")
 
-        config_file = tmp / "control_plane.yaml"
+        config_file = tmp / "operations_center.yaml"
         config_file.write_text(_DEMO_CP_CONFIG, encoding="utf-8")
 
         result_file = tmp / "execution_result.json"
 
         python = _cp_python(cp_repo)
         cmd = [
-            python, "-m", "control_plane.entrypoints.execute.main",
+            python, "-m", "operations_center.entrypoints.execute.main",
             "--config", str(config_file),
             "--bundle", str(bundle_file),
             "--workspace-path", str(workspace),
-            "--task-branch", "auto/fob-demo",
+            "--task-branch", "auto/console-demo",
             "--output", str(result_file),
         ]
         env = dict(os.environ)
@@ -327,7 +327,7 @@ def step_execution(
 
         proc = subprocess.run(cmd, cwd=cp_repo, env=env, capture_output=True, text=True)
         if proc.returncode != 0:
-            _fail("ControlPlane execute entrypoint crashed")
+            _fail("OperationsCenter execute entrypoint crashed")
             _info(proc.stderr.strip() or proc.stdout.strip())
             return StepResult("execution", False, f"exit {proc.returncode}"), None
 
@@ -360,7 +360,7 @@ def step_execution(
             _info(f"policy: {policy_notes}")
 
     if run_id:
-        from fob.runs import runs_root
+        from operator_console.runs import runs_root
         canonical_dir = runs_root() / run_id
         _info(f"artifacts: {canonical_dir}")
 
@@ -385,9 +385,9 @@ def _print_summary(result: DemoResult, run_id: str = "") -> None:
     if result.passed:
         _ok("Full end-to-end path verified")
         if run_id:
-            from fob.runs import runs_root
+            from operator_console.runs import runs_root
             _info(f"artifacts: {runs_root() / run_id}")
-            _info("run `fob last` to inspect")
+            _info("run `console last` to inspect")
     else:
         _fail("Demo failed — see step above")
 
@@ -396,10 +396,10 @@ def run_demo(args: list[str]) -> int:
     no_start = "--no-start" in args
     use_json = "--json" in args
 
-    print(_c("\n  fob demo", "B", "CYN") + _c(" — end-to-end architecture validation", "DIM"))
+    print(_c("\n  console demo", "B", "CYN") + _c(" — end-to-end architecture validation", "DIM"))
 
     workstation_root = _find_workstation()
-    cp_repo = _repo_root("ControlPlane")
+    cp_repo = _repo_root("OperationsCenter")
 
     result = DemoResult()
 
@@ -444,7 +444,7 @@ def run_demo(args: list[str]) -> int:
     run_id = (outcome or {}).get("result", {}).get("run_id", "") if outcome else ""
 
     if use_json:
-        from fob.runs import runs_root
+        from operator_console.runs import runs_root
         summary = {
             "passed": result.passed,
             "steps": [{"name": s.name, "passed": s.passed, "detail": s.detail} for s in result.steps],

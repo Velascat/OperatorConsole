@@ -41,5 +41,5 @@ def check_branch(repo_root: Path, force: bool = False) -> None:
     if branch in PROTECTED_BRANCHES:
         print(_c(f"⚠  Launching from protected branch: {branch}", "yellow", "bold"))
         print(_c("   Claude's guardrails.md will enforce branch discipline.", "dim"))
-        print(_c("   To override: fob brief <profile> --force-branch", "dim"))
+        print(_c("   To override: console open <profile> --force-branch", "dim"))
         print()

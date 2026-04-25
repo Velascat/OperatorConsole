@@ -1,4 +1,4 @@
-"""Layout persistence — save, load, show, reset FOB workspace layouts."""
+"""Layout persistence — save, load, show, reset OperatorConsole workspace layouts."""
 from __future__ import annotations
 import json
 from datetime import datetime
@@ -10,24 +10,24 @@ BACKEND     = "zellij"
 
 
 def _json_path(repo_root: Path) -> Path:
-    return repo_root / ".fob" / LAYOUT_JSON
+    return repo_root / ".console" / LAYOUT_JSON
 
 
 def _kdl_path(repo_root: Path) -> Path:
-    return repo_root / ".fob" / LAYOUT_KDL
+    return repo_root / ".console" / LAYOUT_KDL
 
 
 def save(repo_root: Path, profile_name: str, kdl_content: str) -> dict:
     """Write layout KDL + metadata. Returns the metadata dict."""
-    fob_dir = repo_root / ".fob"
-    fob_dir.mkdir(exist_ok=True)
+    console_dir = repo_root / ".console"
+    console_dir.mkdir(exist_ok=True)
     _kdl_path(repo_root).write_text(kdl_content)
     meta = {
         "backend":      BACKEND,
         "repo_root":    str(repo_root.resolve()),
         "profile_name": profile_name,
         "saved_at":     datetime.now().strftime("%Y-%m-%d %H:%M"),
-        "kdl_file":     f".fob/{LAYOUT_KDL}",
+        "kdl_file":     f".console/{LAYOUT_KDL}",
     }
     _json_path(repo_root).write_text(json.dumps(meta, indent=2) + "\n")
     return meta

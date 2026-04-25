@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cheat.sh — FOB quick reference, runs in a floating pane
+# cheat.sh — OperatorConsole quick reference, runs in a floating pane
 
 R='\033[0m'; B='\033[1m'; DIM='\033[2m'
 BCYN='\033[96m'; BYLW='\033[93m'; BGRN='\033[92m'; WHT='\033[97m'
@@ -22,28 +22,28 @@ cat << 'BANNER'
 BANNER
 echo -e "${R}"
 
-sec "FOB WORKSPACE"
-CMD "fob [brief] [repo]"       "launch — auto-selects current repo"
-CMD "fob multi"                "multi-select picker — open several repos"
-CMD "fob restore [--show]"     "re-open last saved session group"
-CMD "fob rewatch [profiles…]"  "restart git watcher for this tab's profile"
-CMD "fob attach"               "re-attach to running fob session"
-CMD "fob kill"                 "terminate session + all panes"
+sec "OperatorConsole WORKSPACE"
+CMD "console [brief] [repo]"       "launch — auto-selects current repo"
+CMD "console multi"                "multi-select picker — open several repos"
+CMD "console restore [--show]"     "re-open last saved session group"
+CMD "console rewatch [profiles…]"  "restart git watcher for this tab's profile"
+CMD "console attach"               "re-attach to running console session"
+CMD "console kill"                 "terminate session + all panes"
 echo
-CMD "fob status [--all]"       "session, layout, branch, .fob/ state"
-CMD "fob resume"               "print Claude mission brief"
-CMD "fob init [repo]"          "initialize .fob/ mission files"
-CMD "fob test / fob audit"     "run project tests / audit"
-CMD "fob doctor"               "check all dependencies"
-CMD "fob loadout"              "install / update dev tools"
+CMD "console status [--all]"       "session, layout, branch, .console/ state"
+CMD "console resume"               "print Claude mission brief"
+CMD "console init [repo]"          "initialize .console/ mission files"
+CMD "console test / console audit"     "run project tests / audit"
+CMD "console doctor"               "check all dependencies"
+CMD "console loadout"              "install / update dev tools"
 echo
 
 sec "RESET & LAYOUT"
-CMD "fob reset"                "full reset — session + layout + state"
-CMD "fob reset --session"      "kill session only"
-CMD "fob reset --layout"       "clear saved layout only"
-CMD "fob reset --state"        "delete .fob/ mission files only"
-CMD "fob layout save/load"     "save or restore workspace layout"
+CMD "console reset"                "full reset — session + layout + state"
+CMD "console reset --session"      "kill session only"
+CMD "console reset --layout"       "clear saved layout only"
+CMD "console reset --state"        "delete .console/ mission files only"
+CMD "console layout save/load"     "save or restore workspace layout"
 echo
 
 sec "ZELLIJ"

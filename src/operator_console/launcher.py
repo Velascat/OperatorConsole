@@ -6,21 +6,21 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from fob.session import session_exists
-from fob.guardrails import check_branch
-from fob.bootstrap import get_claude_command, get_codex_command
+from operator_console.session import session_exists
+from operator_console.guardrails import check_branch
+from operator_console.bootstrap import get_claude_command, get_codex_command
 
 
-FOB_SESSION = "fob"
+CONSOLE_SESSION = "operator_console"
 _GITHUB_DIR = Path.home() / "Documents" / "GitHub"
-_CP_STATUS  = _GITHUB_DIR / "ControlPlane" / "scripts" / "control-plane.sh"
+_CP_STATUS  = _GITHUB_DIR / "OperationsCenter" / "scripts" / "operations-center.sh"
 
 _C = {"R": "\033[0m", "DIM": "\033[2m", "GRN": "\033[32m", "YLW": "\033[33m"}
 
 def _status_viewer_cmd(cp_status_raw: str, status_arg: str, key: str = "default") -> str:
     """Write a restart-loop launch script for the status viewer and return the bash command.
 
-    Uses fob.status_viewer (mirrors git_watcher): clears screen, runs status,
+    Uses operator_console.status_viewer (mirrors git_watcher): clears screen, runs status,
     disables mouse modes Rich may have enabled, waits for r/q.  The while-loop
     in the script restarts the viewer if the user presses q (keeps pane alive).
     """
@@ -31,11 +31,11 @@ def _status_viewer_cmd(cp_status_raw: str, status_arg: str, key: str = "default"
     safe_arg = status_arg.replace("'", '"').strip()
     viewer_extra = f" {safe_arg}" if safe_arg else ""
 
-    script_path = Path(tempfile.gettempdir()) / f"fob-status-{key}.sh"
+    script_path = Path(tempfile.gettempdir()) / f"console-status-{key}.sh"
     script_path.write_text(
         "#!/usr/bin/env bash\n"
         f"while true; do\n"
-        f"    python3 -m fob.status_viewer '{cp_status_raw}'{viewer_extra}\n"
+        f"    python3 -m operator_console.status_viewer '{cp_status_raw}'{viewer_extra}\n"
         f"    sleep 1\n"
         f"done\n"
     )
@@ -57,7 +57,7 @@ def _c(text: str, *keys: str) -> str:
 
 def _single_pane_block(
     profile: dict,
-    fob_dir: Path,
+    console_dir: Path,
     indent: str = "        ",
     claude_cwd: Path | None = None,
 ) -> str:
@@ -70,8 +70,8 @@ def _single_pane_block(
     status_arg   = f" --repo '{status_repos}'" if status_repos else ""
     i = indent
 
-    claude_cmd   = get_claude_command(profile, Path(repo), fob_dir=fob_dir, claude_cwd=claude_cwd)
-    codex_cmd    = get_codex_command(profile, Path(repo), fob_dir=fob_dir)
+    claude_cmd   = get_claude_command(profile, Path(repo), console_dir=console_dir, claude_cwd=claude_cwd)
+    codex_cmd    = get_codex_command(profile, Path(repo), console_dir=console_dir)
     status_cmd   = _status_viewer_cmd(str(_CP_STATUS), status_arg, key=profile.get("name", "single"))
 
     return (
@@ -114,7 +114,7 @@ def _single_pane_block(
 
 def _multi_pane_block(
     profiles: list[dict],
-    fob_dir: Path,
+    console_dir: Path,
     indent: str = "        ",
     tab_name: str | None = None,
 ) -> str:
@@ -124,11 +124,11 @@ def _multi_pane_block(
 
     claude_cmd = get_claude_command(
         profiles[0], Path(profiles[0]["repo_root"]),
-        fob_dir=fob_dir, session_key=session_key, claude_cwd=_GITHUB_DIR,
+        console_dir=console_dir, session_key=session_key, claude_cwd=_GITHUB_DIR,
     )
     codex_cmd = get_codex_command(
         profiles[0], _GITHUB_DIR,
-        fob_dir=fob_dir, session_key=session_key,
+        console_dir=console_dir, session_key=session_key,
     )
 
     # Left column: single interactive git-dirty watcher (replaces N lazygit instances).
@@ -136,7 +136,7 @@ def _multi_pane_block(
     repo_args = " ".join(f"'{p['repo_root']}'" for p in profiles)
     watcher_cmd = (
         f"while true; do "
-        f"python3 -m fob.git_watcher {repo_args}; "
+        f"python3 -m operator_console.git_watcher {repo_args}; "
         f"sleep 1; "
         f"done"
     )
@@ -227,12 +227,12 @@ def _tab_chrome_wrap(panes_kdl: str) -> str:
 
 # ── public generators ─────────────────────────────────────────────────────────
 
-def _saved_panes_kdl(profile: dict, fob_dir: Path) -> str | None:
+def _saved_panes_kdl(profile: dict, console_dir: Path) -> str | None:
     """Return saved KDL panes for a profile if one exists, else None."""
     name = profile.get("name", "")
     if not name:
         return None
-    kdl_path = fob_dir / "config" / "profiles" / f"{name.lower()}.kdl"
+    kdl_path = console_dir / "config" / "profiles" / f"{name.lower()}.kdl"
     if kdl_path.exists():
         try:
             return kdl_path.read_text()
@@ -241,14 +241,14 @@ def _saved_panes_kdl(profile: dict, fob_dir: Path) -> str | None:
     return None
 
 
-def generate_session_kdl(profiles: list[dict], fob_dir: Path, tab_name: str | None = None) -> str:
+def generate_session_kdl(profiles: list[dict], console_dir: Path, tab_name: str | None = None) -> str:
     """Return session layout KDL string (no side effects)."""
     if len(profiles) == 1:
         name  = tab_name or profiles[0]["name"]
-        panes = _saved_panes_kdl(profiles[0], fob_dir) or _single_pane_block(profiles[0], fob_dir, indent="        ")
+        panes = _saved_panes_kdl(profiles[0], console_dir) or _single_pane_block(profiles[0], console_dir, indent="        ")
     else:
         name  = tab_name or _multi_tab_name(profiles)
-        panes = _multi_pane_block(profiles, fob_dir, indent="        ", tab_name=name)
+        panes = _multi_pane_block(profiles, console_dir, indent="        ", tab_name=name)
 
     return (
         'layout {\n'
@@ -260,23 +260,23 @@ def generate_session_kdl(profiles: list[dict], fob_dir: Path, tab_name: str | No
     )
 
 
-def generate_session_layout(profiles: list[dict], fob_dir: Path, tab_name: str | None = None) -> Path:
+def generate_session_layout(profiles: list[dict], console_dir: Path, tab_name: str | None = None) -> Path:
     """Write session layout to /tmp, return path."""
-    tmp = Path(tempfile.gettempdir()) / "fob-session.kdl"
-    tmp.write_text(generate_session_kdl(profiles, fob_dir, tab_name=tab_name))
+    tmp = Path(tempfile.gettempdir()) / "console-session.kdl"
+    tmp.write_text(generate_session_kdl(profiles, console_dir, tab_name=tab_name))
     return tmp
 
 
-def generate_tab_layout(profiles: list[dict], fob_dir: Path, tab_name: str | None = None) -> tuple[Path, str]:
+def generate_tab_layout(profiles: list[dict], console_dir: Path, tab_name: str | None = None) -> tuple[Path, str]:
     """Write a standalone tab layout (for adding to running session) to /tmp."""
     if len(profiles) == 1:
         name  = tab_name or profiles[0]["name"]
-        panes = _saved_panes_kdl(profiles[0], fob_dir) or _single_pane_block(profiles[0], fob_dir, indent="    ")
+        panes = _saved_panes_kdl(profiles[0], console_dir) or _single_pane_block(profiles[0], console_dir, indent="    ")
     else:
         name  = tab_name or _multi_tab_name(profiles)
-        panes = _multi_pane_block(profiles, fob_dir, indent="    ", tab_name=name)
+        panes = _multi_pane_block(profiles, console_dir, indent="    ", tab_name=name)
 
-    tmp = Path(tempfile.gettempdir()) / f"fob-tab-{name}.kdl"
+    tmp = Path(tempfile.gettempdir()) / f"console-tab-{name}.kdl"
     tmp.write_text(_tab_chrome_wrap(panes))
     return tmp, name
 
@@ -320,7 +320,7 @@ def _list_tabs(session_name: str) -> set[str]:
     return set()
 
 
-def attach(session_name: str = FOB_SESSION) -> None:
+def attach(session_name: str = CONSOLE_SESSION) -> None:
     os.execvp("zellij", ["zellij", "attach", session_name])
 
 
@@ -328,24 +328,24 @@ def attach(session_name: str = FOB_SESSION) -> None:
 
 def launch(
     profiles: list[dict],
-    fob_dir: Path,
+    console_dir: Path,
     saved_layout_path: Path | None = None,
     tab_name: str | None = None,
 ) -> None:
     for profile in profiles:
         check_branch(Path(profile["repo_root"]))
 
-    _delete_dead_session(FOB_SESSION)
+    _delete_dead_session(CONSOLE_SESSION)
 
-    already_in_session = os.environ.get("ZELLIJ_SESSION_NAME") == FOB_SESSION
-    if already_in_session or session_exists(FOB_SESSION):
-        existing_tabs = _list_tabs(FOB_SESSION)
-        layout_path, tab_name = generate_tab_layout(profiles, fob_dir, tab_name=tab_name)
+    already_in_session = os.environ.get("ZELLIJ_SESSION_NAME") == CONSOLE_SESSION
+    if already_in_session or session_exists(CONSOLE_SESSION):
+        existing_tabs = _list_tabs(CONSOLE_SESSION)
+        layout_path, tab_name = generate_tab_layout(profiles, console_dir, tab_name=tab_name)
         if tab_name in existing_tabs:
             print(f"  {_c('tab', 'DIM')}  {_c(tab_name, 'DIM')}  {_c('already open', 'DIM')}")
         else:
             r = subprocess.run([
-                "zellij", "--session", FOB_SESSION,
+                "zellij", "--session", CONSOLE_SESSION,
                 "action", "new-tab",
                 "--name", tab_name,
                 "--layout", str(layout_path),
@@ -356,14 +356,14 @@ def launch(
                 print(f"  {_c('tab', 'DIM')}  {_c(tab_name, 'YLW')}  {_c('failed', 'YLW')}")
                 print(f"  {_c(r.stderr.strip(), 'DIM')}")
         if not os.environ.get("ZELLIJ"):
-            _clear_resurrection_cache(FOB_SESSION)
-            attach(FOB_SESSION)
+            _clear_resurrection_cache(CONSOLE_SESSION)
+            attach(CONSOLE_SESSION)
     else:
         if saved_layout_path is not None:
             layout_path = saved_layout_path
         else:
-            layout_path = generate_session_layout(profiles, fob_dir, tab_name=tab_name)
+            layout_path = generate_session_layout(profiles, console_dir, tab_name=tab_name)
         os.execvp(
             "zellij",
-            ["zellij", "--session", FOB_SESSION, "--new-session-with-layout", str(layout_path)],
+            ["zellij", "--session", CONSOLE_SESSION, "--new-session-with-layout", str(layout_path)],
         )
