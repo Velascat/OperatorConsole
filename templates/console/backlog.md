@@ -18,4 +18,4 @@ _Update after each meaningful chunk of progress. Keep it short and actionable._
 
 ---
 
-_Completed items can be archived to mission-log.md. This is not the primary task tracker — keep it focused._
+_Completed items can be archived to log.md. This is not the primary task tracker — keep it focused._

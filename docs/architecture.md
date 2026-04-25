@@ -161,7 +161,7 @@ OperatorConsole uses a two-layer model for Claude context:
 |------|------|
 | `.context` | Compiled startup context — all four files + runtime context, regenerated each launch |
 
-`console init` creates the source files from `templates/mission/` if missing. `console` auto-inits on first launch.
+`console init` creates the source files from `templates/console/` if missing. `console` auto-inits on first launch.
 
 `CLAUDE.md` in the repo root tells Claude to read `.console/.context` as the primary startup context.
 
@@ -169,7 +169,7 @@ OperatorConsole uses a two-layer model for Claude context:
 
 `bootstrap.py` reads the four source files and compiles `.console/.context` at launch time. The briefing includes:
 
-- Active Mission, Standing Orders, Objectives, Mission Log (from source files)
+- Task, Guidelines, Backlog, Log (from source files)
 - Runtime context: repo name, repo root, current branch, timestamp, profile name
 - Peer sections if `claude.peers` is configured
 

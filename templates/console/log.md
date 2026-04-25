@@ -1,7 +1,7 @@
-# Mission Log
+# Log
 
 _Chronological continuity log. Decisions, stop points, what changed and why._
-_Not a task tracker — that's objectives.md. Keep entries concise and dated._
+_Not a task tracker — that's backlog.md. Keep entries concise and dated._
 
 ## Recent Decisions
 

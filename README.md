@@ -64,7 +64,7 @@ Use `console multi` to explicitly open multiple repos at once.
 
 ## Why It Exists
 
-`claude --continue` resumes the most recent conversation globally — wrong when you have multiple groups running. OperatorConsole tracks a session ID per profile/group in `config/profiles/<name>.session` (gitignored) and uses `claude --resume <id>` so each workspace always resumes its own conversation. `.console/` mission files give Claude structured context: standing orders, active mission, objectives, and a mission log.
+`claude --continue` resumes the most recent conversation globally — wrong when you have multiple groups running. OperatorConsole tracks a session ID per profile/group in `config/profiles/<name>.session` (gitignored) and uses `claude --resume <id>` so each workspace always resumes its own conversation. `.console/` context files give Claude structured context: guidelines, current task, backlog, and a log.
 
 ## Installation
 
@@ -124,16 +124,16 @@ OperatorConsole state lives in four distinct layers:
 
 | File | Role |
 |------|------|
-| `active-task.md` | Current objective — singular, replace when focus changes |
-| `directives.md` | Stable repo policy — branch rules, operating constraints |
-| `objectives.md` | Work inventory — in-progress, up-next, done |
-| `mission-log.md` | Chronological log — decisions, stop points, what changed |
+| `task.md` | Current objective — singular, replace when focus changes |
+| `guidelines.md` | Stable repo policy — branch rules, operating constraints |
+| `backlog.md` | Work inventory — in-progress, up-next, done |
+| `log.md` | Chronological log — decisions, stop points, what changed |
 
 **Compiled artifact** — generated at launch, do not edit:
 
 | File | Role |
 |------|------|
-| `.briefing` | All four files + runtime context compiled into one startup document |
+| `.context` | All four files + runtime context compiled into one startup document |
 
 `console context` prints the current briefing so you can inspect exactly what Claude will see.
 
@@ -240,7 +240,7 @@ $ console
   layout   fresh
   mission  implement feature X…
 
-[Zellij opens — Claude pane starts, reads .console/.briefing, begins fresh session]
+[Zellij opens — Claude pane starts, reads .console/.context, begins fresh session]
 ```
 
 Returning to an existing session:
@@ -263,7 +263,7 @@ OperatorConsole handles multiple repos in two complementary ways:
 
 **Multi-tab** — run `console multi` from anywhere to get the multi-select picker. Tab to select multiple repos; each opens as a named tab in the same `console` session. In multi-repo mode, Claude's working directory starts at `~/Documents/GitHub/` so it can navigate across repos freely.
 
-**Peer context** — when multiple repos are opened together in a single `console open`, each repo's `.console/.briefing` automatically includes the active mission and objectives of the other selected repos. Claude in each tab sees what the others are working on without any profile config required.
+**Peer context** — when multiple repos are opened together in a single `console open`, each repo's `.console/.context` automatically includes the task and backlog of the other selected repos. Claude in each tab sees what the others are working on without any profile config required.
 
 For persistent cross-repo awareness (across separate `console open` invocations), configure peers in a profile:
 

@@ -1,4 +1,4 @@
-# Standing Orders
+# Guidelines
 
 _Stable repo policy for Claude. Low-churn. Not a scratchpad or task list._
 _Edit when project rules change — not during normal work sessions._
@@ -11,7 +11,7 @@ _Edit when project rules change — not during normal work sessions._
 
 ## Session Start
 
-1. Read `.console/.briefing` — your compiled startup context for this session.
+1. Read `.console/.context` — your compiled startup context for this session.
 2. Summarize your plan before making any edits.
 3. Confirm you are on the correct branch.
 
@@ -24,8 +24,8 @@ _Edit when project rules change — not during normal work sessions._
 
 ## After Meaningful Progress
 
-- Update `.console/objectives.md` to reflect completed and remaining work.
-- Update `.console/mission-log.md` with decisions made and rationale.
+- Update `.console/backlog.md` to reflect completed and remaining work.
+- Update `.console/log.md` with decisions made and rationale.
 - Summarize what changed and what's next.
 
 ## What Not to Do
@@ -33,4 +33,4 @@ _Edit when project rules change — not during normal work sessions._
 - Do not run destructive commands (`rm -rf`, `git reset --hard`) without explicit operator confirmation.
 - Do not push to remote branches without the operator's explicit request.
 - Do not modify files outside the repo root without explicit justification.
-- Do not edit `.console/.briefing` directly — it is generated at each launch.
+- Do not edit `.console/.context` directly — it is generated at each launch.

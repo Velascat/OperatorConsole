@@ -1,7 +1,7 @@
-# Active Mission
+# Task
 
 _The current live assignment. One objective at a time._
-_Replace contents when the objective changes. Do not accumulate history here — that belongs in mission-log.md._
+_Replace contents when the objective changes. Do not accumulate history here — that belongs in log.md._
 
 ## Objective
 
