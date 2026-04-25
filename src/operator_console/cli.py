@@ -594,7 +594,7 @@ def main() -> None:
         case "reset":
             commands.cmd_reset(args, _profile_for_cwd(), CONSOLE_DIR)
 
-        case "overview" | "map":
+        case "overview":
             all_repos = _discover_repos() if "--all" in args else None
             commands.cmd_map(args, _profile_for_cwd(), CONSOLE_DIR, all_repos)
 
@@ -613,14 +613,14 @@ def main() -> None:
         case "init":
             commands.cmd_init(args, CONSOLE_DIR)
 
-        case "context" | "resume":
+        case "context":
             commands.cmd_resume(args, _profile_for_cwd())
 
-        case "run" | "delegate":
+        case "run":
             from operator_console.delegate import run_delegate
             sys.exit(run_delegate(args))
 
-        case "cycle" | "auto-once":
+        case "cycle":
             from operator_console.auto_once import run_auto_once
             sys.exit(run_auto_once(args))
 
@@ -667,7 +667,7 @@ def main() -> None:
         case "update":
             commands.cmd_update(args)
 
-        case "install" | "loadout":
+        case "install":
             commands.cmd_loadout(args, SCRIPTS_DIR)
 
         case "rewatch":

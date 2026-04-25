@@ -31,11 +31,11 @@ CMD "console attach"               "re-attach to running console session"
 CMD "console kill"                 "terminate session + all panes"
 echo
 CMD "console status [--all]"       "session, layout, branch, .console/ state"
-CMD "console resume"               "print Claude startup context"
+CMD "console context"               "print Claude startup context"
 CMD "console init [repo]"          "initialize .console/ context files"
 CMD "console test / console audit"     "run project tests / audit"
 CMD "console doctor"               "check all dependencies"
-CMD "console loadout"              "install / update dev tools"
+CMD "console install"              "install / update dev tools"
 echo
 
 sec "RESET & LAYOUT"

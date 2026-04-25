@@ -1,6 +1,6 @@
 # OperatorConsole Cockpit Commands
 
-OperatorConsole is the primary operator interface to the system. After Phase 8, all common
+OperatorConsole is the primary operator interface to the system. All common
 operations are available without touching OperationsCenter internals or artifact
 directories directly.
 
@@ -8,16 +8,16 @@ directories directly.
 
 ## Commands
 
-### `console delegate` — run a task
+### `console run` — run a task
 
 Triggers a full execution: planning → SwitchBoard routing → adapter → result.
 
 ```bash
-console delegate --goal "Refresh the README summary"
-console delegate --goal "Fix lint errors" --repo-key myrepo --clone-url https://github.com/org/repo.git
-console delegate --goal "Update docs" --task-type documentation
-console delegate --goal "..." --dry-run    # planning only, no execution
-console delegate --goal "..." --json       # machine-readable output
+console run --goal "Refresh the README summary"
+console run --goal "Fix lint errors" --repo-key myrepo --clone-url https://github.com/org/repo.git
+console run --goal "Update docs" --task-type documentation
+console run --goal "..." --dry-run    # planning only, no execution
+console run --goal "..." --json       # machine-readable output
 ```
 
 **Flags:**
@@ -35,7 +35,7 @@ console delegate --goal "..." --json       # machine-readable output
 **Example output:**
 
 ```
-  console delegate — delegating task to OperationsCenter
+  console run — delegating task to OperationsCenter
 
   [OperatorConsole] goal='Refresh README summary'  type=documentation  repo=default
   ── planning
@@ -56,7 +56,7 @@ console delegate --goal "..." --json       # machine-readable output
 
 ### `console last` — inspect the most recent run
 
-Shows a concise summary of the most recent execution run from Phase 7 artifacts.
+Shows a concise summary of the most recent execution run from artifacts.
 
 ```bash
 console last               # most recent run summary
@@ -84,7 +84,7 @@ console last --json        # machine-readable JSON
 ```
 
 **No runs found:** If no runs exist, `console last` returns exit code 1 and suggests
-running `console delegate` or `console demo`.
+running `console run` or `console demo`.
 
 ---
 
@@ -146,19 +146,19 @@ See `docs/operator/run-artifacts.md` (OperationsCenter repo) for full field refe
 ## Quick reference
 
 ```bash
-console delegate --goal "..."    # trigger execution
-console last                     # inspect last run
-console last --all               # inspect + history
-console status                   # system health + last run
-console demo                     # full 7-step architecture validation
-console providers                # lane readiness detail
+console run --goal "..."     # trigger execution
+console last                 # inspect last run
+console last --all           # inspect + history
+console status               # system health + last run
+console demo                 # full architecture validation
+console providers            # lane readiness detail
 ```
 
 ---
 
 ## Known limitations
 
-- `console delegate` uses placeholder `clone-url` and `repo-key` by default — the
+- `console run` uses placeholder `clone-url` and `repo-key` by default — the
   execution boundary is real but the adapter won't find a real repo to clone
   unless you provide `--clone-url`.
 - Lane binary failures (e.g. `kodo` or `aider` not installed) produce a canonical

@@ -100,7 +100,7 @@ See [profiles.md](profiles.md) for format reference.
 3. Overlays configured YAML profiles: any profile whose `repo_root` matches a discovered repo replaces the auto-generated entry
 4. Group profiles (no `repo_root:`) are registered under their own key and never replace repo entries
 
-`_profile_for_cwd()` uses the same discovery to find which profile's `repo_root` contains the current directory — used by `console status`, `console resume`, `console test`, and `console audit`.
+`_profile_for_cwd()` uses the same discovery to find which profile's `repo_root` contains the current directory — used by `console status`, `console context`, `console test`, and `console audit`.
 
 ## Claude Session Tracking
 
@@ -199,7 +199,7 @@ These layers are independent. Resetting one does not affect the others. `console
 
 `console status` — shows session (running/stopped, attached/detached), layout (saved/none, metadata), branch, profile, and `.console/` file presence. Active task snippet is shown if the file exists.
 
-`console map` — structured full-state snapshot. Includes repo info, session state, layout metadata, and context file presence. `--json` flag emits machine-readable JSON for tooling/piping.
+`console overview` — structured full-state snapshot. Includes repo info, session state, layout metadata, and context file presence. `--json` flag emits machine-readable JSON for tooling/piping.
 
 ## Platform Validation Commands
 
@@ -214,6 +214,6 @@ These are operator UX commands. They do not move infrastructure ownership out of
 
 ## Dev Toolchain
 
-`console loadout` runs `tools/loadout.sh` — an interactive installer for the recommended dev toolchain (fzf, bat, eza, ripgrep, fd, zoxide, delta, lazygit, starship, fastfetch). Tools not available in Ubuntu's standard apt repos (eza, git-delta, fastfetch) use custom GitHub release installers.
+`console install` runs `tools/loadout.sh` — an interactive installer for the recommended dev toolchain (fzf, bat, eza, ripgrep, fd, zoxide, delta, lazygit, starship, fastfetch). Tools not available in Ubuntu's standard apt repos (eza, git-delta, fastfetch) use custom GitHub release installers.
 
 `console doctor` checks both core OperatorConsole dependencies and all loadout tools, with install status for each.

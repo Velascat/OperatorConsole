@@ -35,7 +35,6 @@ Expected: SwitchBoard OK, OperationsCenter OK, at least one lane binary availabl
 console run --goal "Refresh the README summary"
 ```
 
-(`console delegate` is an alias for `console run`.)
 
 **With task type:**
 
@@ -55,7 +54,6 @@ console run --goal "..." --dry-run
 console cycle
 ```
 
-(`console auto-once` is an alias for `console cycle`.)
 
 ---
 

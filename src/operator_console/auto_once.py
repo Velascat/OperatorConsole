@@ -1,4 +1,4 @@
-"""console auto-once — execute exactly one autonomous cycle.
+"""console cycle — execute exactly one autonomous cycle.
 
 Observe → Propose → Decide → Execute → Record
 

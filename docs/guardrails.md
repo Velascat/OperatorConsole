@@ -37,8 +37,8 @@ Prefer wrapper commands over raw shell sequences:
 | `console test` | `pytest -x -v` / `npm test` / etc. |
 | `console audit` | `ruff check` / `tsc --noEmit` / custom lint |
 | `console status` | `git status` + session / layout / branch info |
-| `console map` | full structured state snapshot |
-| `console resume` | reading `.console/` files manually |
+| `console overview` | full structured state snapshot |
+| `console context` | reading `.console/` files manually |
 | `console reset` | manually killing sessions and deleting state files |
 | `console clear` | deleting `.console/layout.json` + `.console/layout.kdl` manually |
 | `console cheat` | looking up keybindings |

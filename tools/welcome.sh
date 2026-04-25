@@ -26,24 +26,24 @@ echo
 hr
 echo -e "  ${B}TOOL STATUS${R}"
 hr
-chk lazygit  && ok lazygit  "git TUI"            || miss lazygit  "run: console loadout"
-chk fzf      && ok fzf      "fuzzy finder"       || miss fzf      "run: console loadout"
+chk lazygit  && ok lazygit  "git TUI"            || miss lazygit  "run: console install"
+chk fzf      && ok fzf      "fuzzy finder"       || miss fzf      "run: console install"
 (chk bat || command -v batcat &>/dev/null) \
-             && ok bat      "syntax cat"         || miss bat      "run: console loadout"
-chk eza      && ok eza      "modern ls"          || miss eza      "run: console loadout"
-chk rg       && ok rg       "fast grep"          || miss rg       "run: console loadout"
-chk zoxide   && ok zoxide   "smart cd"           || miss zoxide   "run: console loadout"
-chk delta    && ok delta    "git diffs"          || miss delta    "run: console loadout"
-chk starship && ok starship "shell prompt"       || miss starship "run: console loadout"
+             && ok bat      "syntax cat"         || miss bat      "run: console install"
+chk eza      && ok eza      "modern ls"          || miss eza      "run: console install"
+chk rg       && ok rg       "fast grep"          || miss rg       "run: console install"
+chk zoxide   && ok zoxide   "smart cd"           || miss zoxide   "run: console install"
+chk delta    && ok delta    "git diffs"          || miss delta    "run: console install"
+chk starship && ok starship "shell prompt"       || miss starship "run: console install"
 echo
 
 hr
 echo -e "  ${B}QUICK REFERENCE${R}"
 hr
 printf "  ${CYN}%-18s${R} ${DIM}%s${R}\n" "console status"    "situation report"
-printf "  ${CYN}%-18s${R} ${DIM}%s${R}\n" "console resume"    "claude startup context"
+printf "  ${CYN}%-18s${R} ${DIM}%s${R}\n" "console context"    "claude startup context"
 printf "  ${CYN}%-18s${R} ${DIM}%s${R}\n" "console test"      "run project tests"
-printf "  ${CYN}%-18s${R} ${DIM}%s${R}\n" "console loadout"   "install / update dev tools"
+printf "  ${CYN}%-18s${R} ${DIM}%s${R}\n" "console install"   "install / update dev tools"
 printf "  ${CYN}%-18s${R} ${DIM}%s${R}\n" "console cheat"     "open full cheatsheet"
 echo
 

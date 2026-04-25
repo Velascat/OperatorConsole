@@ -1,4 +1,4 @@
-"""console delegate — trigger a full execution through the OperationsCenter pipeline.
+"""console run — trigger a full execution through the OperationsCenter pipeline.
 
 Wraps the two OperationsCenter entrypoints without duplicating their logic:
 
@@ -249,7 +249,7 @@ def run_delegate(args: list[str]) -> int:
 
     # ── Step 2: Execution ─────────────────────────────────────────────────────
 
-    with tempfile.TemporaryDirectory(prefix="console-delegate-") as tmpdir:
+    with tempfile.TemporaryDirectory(prefix="console-run-") as tmpdir:
         tmp = Path(tmpdir)
         bundle_file = tmp / "bundle.json"
         bundle_file.write_text(json.dumps(bundle), encoding="utf-8")
