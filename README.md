@@ -1,4 +1,4 @@
-# OperatorConsole — Operator Console
+# Operator Console
 
 Operator console for Claude-driven development. Persistent Zellij workspaces with mission-file continuity, plus a full execution pipeline that delegates tasks to OperationsCenter, routes them through SwitchBoard, and records canonical run artifacts.
 
