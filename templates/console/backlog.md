@@ -1,6 +1,6 @@
-# Objectives
+# Backlog
 
-_Durable work inventory — broader than the active mission, narrower than a full backlog._
+_Durable work inventory — broader than the current task, narrower than a full backlog._
 _Update after each meaningful chunk of progress. Keep it short and actionable._
 
 ## In Progress

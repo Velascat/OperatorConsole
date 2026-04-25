@@ -14,7 +14,7 @@ console (shell wrapper)
     ├── session_group.py        ← session group persistence (save/load last group for console restore)
     ├── session.py              ← Zellij session state queries
     ├── guardrails.py           ← branch detection + warnings
-    ├── bootstrap.py            ← Claude mission brief generation + session wrapper scripts
+    ├── bootstrap.py            ← Claude context generation + session wrapper scripts
     └── commands.py             ← all helper command implementations
 ```
 
@@ -39,15 +39,15 @@ Running `console` (no subcommand) is equivalent to `console open`. The shell wra
 5. If cwd is outside all known repos (e.g. `~/Documents/GitHub/`) → single-select picker (fzf or numbered fallback)
 6. `console multi` → explicit multi-select picker (Tab to toggle); each selected repo opens as a named tab
 7. Group selection is expanded to constituent profiles via `_expand_selection()`
-8. For each selected repo: initialize `.console/` if missing; if multiple repos selected, inject siblings as implicit peers in each briefing; write `.console/.context`, ensure `CLAUDE.md`
+8. For each selected repo: initialize `.console/` if missing; if multiple repos selected, inject siblings as implicit peers in each context file; write `.console/.context`, ensure `CLAUDE.md`
 9. Multi-repo layout: Claude pane starts at `~/Documents/GitHub/` instead of the individual repo root
 10. Auto-save group to `~/.local/share/console/last-session.json` (for `console restore`)
-11. Print structured summary block: `session attaching/creating (operator_console)`, `layout fresh/saved` (new sessions only), active mission snippet
+11. Print structured summary block: `session attaching/creating (operator_console)`, `layout fresh/saved` (new sessions only), active task snippet
 12. Check branch via `guardrails.py` — warn if on main/master
 13. If session `console` exists → add each repo as a new named tab (skip if tab already open)
 14. Otherwise → generate fresh KDL layout (or use saved layout if `--layout` flag passed), launch `zellij --session operator_console --new-session-with-layout <kdl>`
 
-`console restore`: loads `last-session.json`, resolves repo names against `_discover_repos()`, injects siblings as implicit peers (same logic as multi-select open), regenerates briefings, then calls `launch()`.
+`console restore`: loads `last-session.json`, resolves repo names against `_discover_repos()`, injects siblings as implicit peers (same logic as multi-select open), regenerates context files, then calls `launch()`.
 
 ## Python Environment
 
@@ -165,17 +165,17 @@ OperatorConsole uses a two-layer model for Claude context:
 
 `CLAUDE.md` in the repo root tells Claude to read `.console/.context` as the primary startup context.
 
-## Briefing Generation
+## Context Generation
 
-`bootstrap.py` reads the four source files and compiles `.console/.context` at launch time. The briefing includes:
+`bootstrap.py` reads the four source files and compiles `.console/.context` at launch time. The context includes:
 
 - Task, Guidelines, Backlog, Log (from source files)
 - Runtime context: repo name, repo root, current branch, timestamp, profile name
 - Peer sections if `claude.peers` is configured
 
-The briefing is regenerated fresh on every `console open` run — it is always current.
+The context is regenerated fresh on every `console open` run — it is always current.
 
-`console context` prints the compiled briefing to stdout so the operator can inspect what Claude will see.
+`console context` prints the compiled context to stdout so the operator can inspect what Claude will see.
 
 ## State Boundaries
 
@@ -184,7 +184,7 @@ OperatorConsole state is distributed across five distinct layers:
 | Layer | What persists | Location |
 |-------|--------------|----------|
 | Zellij | Session name, tabs, live pane processes | Zellij session manager |
-| `.console/` | Mission files, layout files, compiled briefing | `<repo>/.console/` (gitignored) |
+| `.console/` | Context files, layout files, compiled context | `<repo>/.console/` (gitignored) |
 | CLI config | Profile YAML (platform group tracked) | `config/profiles/*.yaml` |
 | Private config | Saved live layouts, Claude session IDs | `config/profiles/*.kdl`, `*.session` (gitignored) |
 | Global state | Last session group (for `console restore`) | `~/.local/share/console/last-session.json` |
@@ -192,14 +192,14 @@ OperatorConsole state is distributed across five distinct layers:
 These layers are independent. Resetting one does not affect the others. `console reset` scopes resets explicitly:
 - `--session` → kills Zellij session only
 - `--layout` → deletes `.console/layout.json` + `.console/layout.kdl` only
-- `--state` → deletes the four mission source files only
+- `--state` → deletes the four context source files only
 - bare `console reset` → all three (with confirmation)
 
 ## Visibility Commands
 
-`console status` — shows session (running/stopped, attached/detached), layout (saved/none, metadata), branch, profile, and `.console/` file presence. Active mission snippet is shown if the file exists.
+`console status` — shows session (running/stopped, attached/detached), layout (saved/none, metadata), branch, profile, and `.console/` file presence. Active task snippet is shown if the file exists.
 
-`console map` — structured full-state snapshot. Includes repo info, session state, layout metadata, and mission file presence. `--json` flag emits machine-readable JSON for tooling/piping.
+`console map` — structured full-state snapshot. Includes repo info, session state, layout metadata, and context file presence. `--json` flag emits machine-readable JSON for tooling/piping.
 
 ## Platform Validation Commands
 

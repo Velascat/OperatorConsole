@@ -1,13 +1,13 @@
 # Operator Console
 
-Operator console for Claude-driven development. Persistent Zellij workspaces with mission-file continuity, plus a full execution pipeline that delegates tasks to OperationsCenter, routes them through SwitchBoard, and records canonical run artifacts.
+Operator console for Claude-driven development. Persistent Zellij workspaces with context-file continuity, plus a full execution pipeline that delegates tasks to OperationsCenter, routes them through SwitchBoard, and records canonical run artifacts.
 
 ## What OperatorConsole Is
 
 OperatorConsole maintains a persistent workspace that you can leave and return to without losing context.
 
 - **Session persistence** — a single named Zellij session (`console`) stays alive across terminal closes and reconnects; `console open` attaches to it or creates it
-- **Context persistence** — `.console/` mission files give Claude structured, explicit context that survives across sessions
+- **Context persistence** — `.console/` context files give Claude structured, explicit context that survives across sessions
 - **Layout persistence** — `console save` captures the live Zellij tab layout per profile; `console layout save/load` for explicit KDL-based restore
 - **Auto-discovery** — every git repo under `~/Documents/GitHub/` appears in the picker automatically; no YAML required
 - **Group profiles** — define named groups (e.g. `platform`) to open multiple repos as a single tab with one command
@@ -113,7 +113,7 @@ OperatorConsole state lives in four distinct layers:
 | Layer | What persists | Location |
 |-------|--------------|----------|
 | Zellij | Session, tabs, pane arrangement | Zellij session manager |
-| `.console/` | Mission files, layout, compiled briefing | `<repo>/.console/` (gitignored) |
+| `.console/` | Context files, layout, compiled context | `<repo>/.console/` (gitignored) |
 | CLI config | Profile YAML (tracked for platform group) | `config/profiles/*.yaml` |
 | Private config | Saved layouts, session IDs | `config/profiles/*.kdl`, `*.session` (gitignored) |
 | Global | Last session group (for `console restore`) | `~/.local/share/console/last-session.json` |
@@ -135,7 +135,7 @@ OperatorConsole state lives in four distinct layers:
 |------|------|
 | `.context` | All four files + runtime context compiled into one startup document |
 
-`console context` prints the current briefing so you can inspect exactly what Claude will see.
+`console context` prints the compiled context so you can inspect exactly what Claude will see.
 
 ## Commands
 
@@ -149,8 +149,8 @@ OperatorConsole state lives in four distinct layers:
 | `console restore` | Re-open last saved session group (`--show` to preview without launching) |
 | `console attach` | Re-attach to running `console` session |
 | `console kill` | Terminate the `console` session and all panes (warns first) |
-| `console init [repo]` | Initialize `.console/` mission files in a repo |
-| `console context` | Print current mission brief from `.console/` |
+| `console init [repo]` | Initialize `.console/` context files in a repo |
+| `console context` | Print compiled context from `.console/` |
 | `console test` | Run project tests |
 | `console audit` | Run project audit |
 | `console doctor` | Check and install dependencies |
@@ -171,10 +171,10 @@ OperatorConsole is a persistent system. Every persistent system needs a clear es
 
 | Command | Description |
 |---------|-------------|
-| `console reset` | Full reset — kills session, clears layout, deletes mission files (confirms first) |
+| `console reset` | Full reset — kills session, clears layout, deletes context files (confirms first) |
 | `console reset --session` | Kill session only |
 | `console reset --layout` | Clear saved layout only |
-| `console reset --state` | Delete `.console/` mission files only |
+| `console reset --state` | Delete `.console/` context files only |
 | `console clear [--all]` | Delete saved layout (current repo or all) |
 
 **Layout:**
@@ -238,7 +238,7 @@ $ console
   Brief: YourRepo
   session  creating   (console)
   layout   fresh
-  mission  implement feature X…
+  task     implement feature X…
 
 [Zellij opens — Claude pane starts, reads .console/.context, begins fresh session]
 ```
@@ -250,7 +250,7 @@ $ console
 
   Brief: YourRepo
   session  attaching  (console)
-  mission  implement feature X…
+  task     implement feature X…
 
 [Zellij attaches — Claude resumes saved session ID for this profile]
 ```
@@ -270,20 +270,20 @@ For persistent cross-repo awareness (across separate `console open` invocations)
 ```yaml
 claude:
   peers:
-    - operations_center   # always pulls OperationsCenter's mission + objectives into this briefing
+    - operations_center   # always pulls OperationsCenter's task + backlog into this context
 ```
 
 **Session groups** — every `console open` auto-saves the selected repos as the "last group". Re-open the exact same set with:
 
 ```bash
-console restore             # re-open last saved group (briefings regenerated fresh)
+console restore             # re-open last saved group (context files regenerated fresh)
 console restore --show      # preview what would be restored without launching
 ```
 
 **Cross-repo visibility:**
 
 ```bash
-console status --all        # one-line summary of every repo: tab, layout, branch, mission
+console status --all        # one-line summary of every repo: tab, layout, branch, task
 console overview --all           # detailed snapshot of every repo
 console overview --all --json    # machine-readable — useful for OperationsCenter delegation
 ```
@@ -300,7 +300,7 @@ See [docs/profiles.md](docs/profiles.md).
 
 ## Ownership boundary
 
-OperatorConsole owns the operator experience: session management, workspace layout, mission files, and execution pipeline commands (`console run`, `console cycle`, `console last`, `console runs`, `console demo`). OperatorConsole delegates platform lifecycle actions (stack up/down/health) to WorkStation and delegates all planning, routing, and execution to OperationsCenter and SwitchBoard via subprocess.
+OperatorConsole owns the operator experience: session management, workspace layout, context files, and execution pipeline commands (`console run`, `console cycle`, `console last`, `console runs`, `console demo`). OperatorConsole delegates platform lifecycle actions (stack up/down/health) to WorkStation and delegates all planning, routing, and execution to OperationsCenter and SwitchBoard via subprocess.
 
 OperatorConsole does **not** own service Dockerfiles, compose manifests, routing policy, adapter logic, or contract definitions. Those belong to WorkStation, SwitchBoard, and OperationsCenter respectively. OperatorConsole has no direct imports from any of those repos at runtime.
 

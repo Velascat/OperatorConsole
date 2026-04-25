@@ -117,7 +117,7 @@ claude:
 
 ### Automatic (multi-select open)
 
-When multiple repos are selected in a single `console open` run, each repo's `.console/.context` automatically includes the active mission and objectives of the other selected repos. No profile config needed — it's implicit when repos are opened together.
+When multiple repos are selected in a single `console open` run, each repo's `.console/.context` automatically includes the active task and backlog of the other selected repos. No profile config needed — it's implicit when repos are opened together.
 
 ### Configured (persistent across sessions)
 
