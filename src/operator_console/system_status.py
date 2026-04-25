@@ -36,6 +36,30 @@ def _repo_root(name: str) -> Path:
     return Path.home() / "Documents" / "GitHub" / name
 
 
+_WATCH_DIR = Path.home() / "Documents" / "GitHub" / "OperationsCenter" / "logs" / "local" / "watch-all"
+_ROLES = ("intake", "goal", "test", "improve", "propose", "review", "spec")
+
+
+def _watcher_status() -> dict[str, str]:
+    """Return running/stopped status for each watcher role."""
+    import subprocess
+    statuses: dict[str, str] = {}
+    for role in _ROLES:
+        pid_file = _WATCH_DIR / f"{role}.pid"
+        if pid_file.exists():
+            try:
+                pid = pid_file.read_text().strip()
+                alive = subprocess.run(
+                    ["kill", "-0", pid], capture_output=True
+                ).returncode == 0
+                statuses[role] = "running" if alive else "stopped"
+            except Exception:
+                statuses[role] = "stopped"
+        else:
+            statuses[role] = "stopped"
+    return statuses
+
+
 def _row(label: str, ok: bool, detail: str = "") -> None:
     mark = _c("OK", "GRN") if ok else _c("--", "DIM")
     suffix = f"  {_c(detail, 'DIM')}" if detail else ""
@@ -54,6 +78,7 @@ def run_status(args: list[str]) -> int:
 
     binaries = ["claude", "codex", "kodo", "aider"]
     binary_status = {b: _which(b) for b in binaries}
+    watcher_statuses = _watcher_status()
 
     from operator_console.runs import latest_run, run_summary
     last_run_dir = latest_run()
@@ -65,6 +90,7 @@ def run_status(args: list[str]) -> int:
             "switchboard": {"ok": sb_ok, "url": sb_health_url},
             "operations_center": {"ok": cp_ok, "path": str(cp_repo)},
             "binaries": binary_status,
+            "watchers": watcher_statuses,
             "last_run": last,
         }
         print(json.dumps(payload, indent=2, default=str))
@@ -93,6 +119,15 @@ def run_status(args: list[str]) -> int:
         ok = binary_status[binary]
         mark = _c("available", "GRN") if ok else _c("unavailable", "DIM")
         print(f"    {_c(lane, 'DIM'):<22}{mark}  {_c(f'({binary})', 'DIM')}")
+
+    print()
+
+    # Watchers
+    print(_c("  Watchers", "B"))
+    for role, status in watcher_statuses.items():
+        ok = status == "running"
+        mark = _c("running", "GRN") if ok else _c("stopped", "DIM")
+        print(f"    {_c(role, 'DIM'):<22}{mark}")
 
     print()
 

@@ -13,6 +13,9 @@ cd ~/Documents/GitHub/WorkStation
 ./scripts/up.sh
 ```
 
+`up.sh` starts SwitchBoard, optionally Plane, and all OperationsCenter watcher
+roles (including intake). No manual worker start needed.
+
 Confirm readiness:
 
 ```bash
@@ -20,100 +23,67 @@ console status
 console providers
 ```
 
-`console status` checks SwitchBoard health and OperationsCenter reachability.
+`console status` checks SwitchBoard health, OperationsCenter reachability,
+watcher role status, and the most recent run.
 `console providers` shows which backend binaries are installed and available.
 
-Expected: SwitchBoard OK, OperationsCenter OK, at least one lane binary available.
+Expected: SwitchBoard OK, OperationsCenter OK, intake running, at least one lane binary available.
 
 ---
 
-## Running a Task
+## Submitting a Task
 
-**Manual goal:**
-
-```bash
-console run --goal "Refresh the README summary"
-```
-
-
-**With task type:**
+**Interactive wizard (recommended):**
 
 ```bash
-console run --goal "Fix lint errors in src/" --task-type lint_fix
+console run
 ```
 
-**Planning only (no execution):**
+Prompts for repo → task type → goal, then writes to `~/.console/queue/`.
+OperationsCenter's intake role picks it up, elaborates it using `.console/`
+context and recent commits, and drives execution.
+
+**Non-interactive fast path:**
 
 ```bash
-console run --goal "..." --dry-run
+console run --goal "Fix the login bug" --task-type bug --repo MyRepo
 ```
 
-**One-shot autonomous cycle (reads goal from `.console/task.md`):**
+**Check what's queued:**
 
 ```bash
-console cycle
+console queue
 ```
-
 
 ---
 
-## What Success Looks Like
+## What Happens After Submission
 
-A successful run prints:
-
-```
-  [OperationsCenter] proposal created — id=abcd1234…
-  [SwitchBoard]      selected lane=claude_cli  backend=kodo
-  [Adapter]          executing  lane=claude_cli  backend=kodo
-  ✓ status=SUCCESS
-
-  Run ID     f3a9c2d1-…
-  Artifacts  ~/.console/operations_center/runs/f3a9c2d1-…
-```
-
-`console run` exits with code `0`.
-
-If the backend binary is not installed, you will see:
-
-```
-  ⚠ Backend ran but failed — status=BACKEND_ERROR  category=backend_error
-  · This is expected when the backend binary is not installed on this machine.
-```
-
-`console run` exits with code `4` (`backend_error`). The pipeline ran correctly — only the final binary invocation failed.
+1. `console run` writes `~/.console/queue/<uuid>.json`
+2. **intake** role detects the file (inotifywait or 10s poll)
+3. intake loads `.console/task.md`, `.console/backlog.md`, recent commits from the target repo
+4. intake elaborates the raw goal into a scoped `PlanningContext`
+5. planning → SwitchBoard routing → adapter execution
+6. Result written to `~/.console/operations_center/runs/<run_id>/`
+7. Queue file deleted on success (left on disk if intake fails)
 
 ---
 
-## Exit Codes
+## Watcher Roles
 
-`console run` returns a specific exit code to allow scripting:
+OperationsCenter runs several background watcher roles. `up.sh` starts them all;
+`down.sh` stops them.
 
-| Code | Meaning |
-|------|---------|
-| 0 | Execution succeeded |
-| 1 | General / unknown failure (crash, missing args) |
-| 2 | Routing failure — SwitchBoard unreachable or returned an error |
-| 3 | Policy blocked / review required |
-| 4 | Backend execution failure (`backend_error`, `validation_failed`, etc.) |
-| 5 | Timeout during execution |
-| 6 | Malformed / unparseable output from a subprocess |
+```bash
+console workers status     # check all roles
+console workers start      # start (if not already running)
+console workers stop       # stop all roles
+console workers restart    # restart
+```
 
----
-
-## Autonomy Surfaces
-
-There are two separate autonomy surfaces. They are not interchangeable.
-
-| | `console cycle` | OperationsCenter autonomy cycle |
-|---|---|---|
-| **What it does** | Observes the repo, proposes one task, delegates it for execution | Runs the OperationsCenter planning loop — creates Plane board tasks |
-| **Executes code?** | Yes — goes through the full pipeline to an adapter | No direct execution; produces Plane task proposals |
-| **Creates Plane tasks?** | No | Yes |
-| **Stops automatically?** | Yes — one cycle, then exits | Yes — one cycle per invocation |
-| **When to use** | You want one self-driven code change executed now | You want the planner to queue work on the board |
-
-Run `console cycle` for immediate local execution.
-Run `python -m operations_center.entrypoints.autonomy_cycle.main` (from the OperationsCenter repo) for board-driven planning.
+The `intake` role is the one that processes your queue submissions. The other
+roles (`goal`, `test`, `improve`, `propose`, `review`, `spec`) are the
+autonomous planning loop.
 
 ---
 
@@ -169,6 +139,36 @@ run_metadata.json      run id, lane, status, timestamp
 
 ---
 
+## Exit Codes
+
+`console run` returns a specific exit code to allow scripting:
+
+| Code | Meaning |
+|------|---------|
+| 0 | Task queued successfully |
+| 1 | Cancelled, missing input, or unknown repo/type |
+
+Execution outcomes are recorded in run artifacts — `console last` shows the result.
+
+---
+
+## Autonomy Surfaces
+
+There are two separate autonomy surfaces. They are not interchangeable.
+
+| | `console cycle` | OperationsCenter autonomy cycle |
+|---|---|---|
+| **What it does** | Observes the repo, proposes one task, delegates it for execution | Runs the OperationsCenter planning loop — creates Plane board tasks |
+| **Executes code?** | Yes — goes through the full pipeline to an adapter | No direct execution; produces Plane task proposals |
+| **Creates Plane tasks?** | No | Yes |
+| **Stops automatically?** | Yes — one cycle, then exits | Yes — one cycle per invocation |
+| **When to use** | You want one self-driven code change executed now | You want the planner to queue work on the board |
+
+Run `console cycle` for immediate local execution.
+Run `python -m operations_center.entrypoints.autonomy_cycle.main` (from the OperationsCenter repo) for board-driven planning.
+
+---
+
 ## Artifact Behavior
 
 Each run gets a unique UUID-based run ID. Directories never overwrite each other.
@@ -195,22 +195,34 @@ ls -lt ~/.console/operations_center/runs/     # newest first
 rm -rf ~/.console/operations_center/runs/<run_id>
 ```
 
+Queue files that failed intake are left at `~/.console/queue/` — inspect and
+delete manually:
+
+```bash
+console queue
+rm ~/.console/queue/<id>.json
+```
+
 ---
 
 ## Failure Recovery
 
-If a run fails (backend not installed, SwitchBoard unreachable), the failure is recorded as a partial or failed artifact. The next run gets a fresh run ID and is unaffected.
-
-Check what went wrong:
-
+**Intake not picking up tasks:**
 ```bash
-console last
-cat ~/.console/operations_center/runs/<run_id>/result.json
+console workers status     # check if intake is running
+console workers restart    # restart all roles
 ```
 
-`failure_category=backend_error` with `success=False` is **expected** when a backend binary (`kodo`, `aider`, etc.) is not installed. The execution boundary was still exercised. `console run` exits with code `4` in this case.
+**SwitchBoard unreachable:**
+```bash
+console status             # confirm
+cd ~/Documents/GitHub/WorkStation && ./scripts/up.sh
+```
 
-If SwitchBoard is unreachable, `console run` exits with code `2`. Run `./scripts/up.sh` from WorkStation to restart the stack.
+**Run failed (backend not installed):**
+`failure_category=backend_error` is expected when a backend binary (`kodo`,
+`aider`, etc.) is not installed. The intake and planning pipeline ran correctly —
+only the final adapter invocation failed.
 
 ---
 
@@ -219,13 +231,14 @@ If SwitchBoard is unreachable, `console run` exits with code `2`. Run `./scripts
 Run these in order to confirm the system is working:
 
 ```bash
-console status                              # stack + OperationsCenter + binaries
-console providers                           # backend binary readiness
-console run --goal "smoke test" --dry-run   # planning only, no adapter needed
-console last                                # confirm a run was recorded
+console status                        # stack + OperationsCenter + watchers + binaries
+console providers                     # backend binary readiness
+console run --goal "smoke test" \
+            --task-type chore \
+            --repo OperatorConsole    # submit to queue
+console queue                         # confirm it's queued
+console last                          # confirm a run was recorded (after intake picks it up)
 ```
-
-All four should complete without errors. If `console status` shows SwitchBoard unreachable, run `./scripts/up.sh` from WorkStation first.
 
 ---
 
@@ -244,8 +257,9 @@ Runs all six steps: preflight → stack → health → route → planning → ex
 | Limit | Detail |
 |---|---|
 | Single machine only | No distributed or multi-user support |
-| No scheduling | `console cycle` must be triggered manually each cycle |
-| Backend binary required for success | Execution without `kodo`/`aider` records `backend_error` (exit 4) — not a pipeline bug |
-| SwitchBoard must be running | All routing calls fail (exit 2) if WorkStation stack is down |
+| intake requires inotify-tools | Install with `sudo apt install inotify-tools`; falls back to 10s polling without it |
+| Backend binary required for execution | Execution without `kodo`/`aider` records `backend_error` — not a pipeline bug |
+| SwitchBoard must be running | All routing calls fail if WorkStation stack is down |
 | No run search | `console runs` shows recent runs by time; no filtering by status or goal |
 | Partial runs counted | `console runs` shows partial artifacts alongside complete runs |
+| Queue files persist on intake failure | Inspect `~/.console/queue/` and remove manually |

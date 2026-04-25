@@ -57,7 +57,8 @@ def show_menu(_: list[str]) -> None:
         ("context", "print context from .console/"),
         ("rewatch", "restart git watcher for this tab's profile"),
         ("status",  "repo, branch, session state"),
-        ("run",        "run a task through the full execution pipeline"),
+        ("run",        "submit a task to the queue"),
+        ("queue",      "inspect pending tasks in the queue"),
         ("cycle",      "single autonomous cycle: observe → propose → execute"),
         ("runs",       "list recent execution runs"),
         ("clean",      "remove old run artifacts, keep latest N"),
@@ -152,8 +153,10 @@ def show_help(_: list[str]) -> None:
             ("layout reset",      "Delete saved layout state for current repo"),
         ]),
         ("OPS", [
-            ("run --goal TEXT",        "Run a task through the full OperationsCenter pipeline"),
-            ("run --dry-run",          "Planning only — print lane decision without executing"),
+            ("run",                    "Submit a task to the queue (interactive wizard)"),
+            ("run --goal TEXT",        "Submit non-interactively"),
+            ("queue",                  "Inspect pending tasks in ~/.console/queue/"),
+            ("queue --json",           "Machine-readable queue contents"),
             ("cycle",                  "Single autonomous cycle: observe → propose → execute"),
             ("cycle --dry-run",        "Observe + plan only — print lane decision without executing"),
             ("cycle --json",           "Machine-readable cycle output"),
@@ -624,6 +627,10 @@ def main() -> None:
         case "run":
             from operator_console.delegate import run_delegate
             sys.exit(run_delegate(args))
+
+        case "queue":
+            from operator_console.queue_status import run_queue
+            sys.exit(run_queue(args))
 
         case "cycle":
             from operator_console.auto_once import run_auto_once
