@@ -311,7 +311,7 @@ For the full platform ownership model see `WorkStation/docs/architecture/ownersh
 ## Further Reading
 
 - [docs/architecture.md](docs/architecture.md) — launcher flow, session model, layout persistence internals
-- [docs/cockpit.md](docs/cockpit.md) — execution pipeline commands: run, last, status, runs
+- [docs/pipeline.md](docs/pipeline.md) — execution pipeline commands: run, last, status, runs
 - [docs/daily-use.md](docs/daily-use.md) — startup, run, inspect, cleanup, and known limits
 - [docs/demo.md](docs/demo.md) — end-to-end architecture validation walkthrough
 - [docs/profiles.md](docs/profiles.md) — profile format and optional configuration

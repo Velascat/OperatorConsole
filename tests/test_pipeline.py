@@ -1,4 +1,4 @@
-"""Tests for Phase 8 cockpit commands: runs.py, last.py, delegate.py, system_status.py."""
+"""Tests for pipeline commands: runs.py, last.py, delegate.py, system_status.py."""
 from __future__ import annotations
 
 import json

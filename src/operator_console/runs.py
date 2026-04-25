@@ -1,6 +1,6 @@
 """runs.py — read Phase 7 canonical run artifacts from ~/.console/operations_center/runs/.
 
-Provides lightweight accessors so cockpit commands (console last, console status, etc.)
+Provides lightweight accessors so pipeline commands (console last, console status, etc.)
 never need to navigate artifact directories directly.
 """
 from __future__ import annotations
