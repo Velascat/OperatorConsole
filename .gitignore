@@ -2,14 +2,14 @@ __pycache__/
 *.pyc
 *.pyo
 .venv/
-.fob/
-!.fob/*.example*
+.console/
+!.console/*.example*
 
 # Profiles are private by default; only platform-group members are tracked.
 config/profiles/*.yaml
 !config/profiles/platform.yaml
 !config/profiles/controlplane.yaml
-!config/profiles/fob.yaml
+!config/profiles/operator_console.yaml
 !config/profiles/switchboard.yaml
 !config/profiles/workstation.yaml
 
