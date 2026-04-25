@@ -919,3 +919,33 @@ def cmd_install(args: list[str], console_dir: Path) -> None:
         print(c("  Run: source ~/.bashrc  (or open a new shell)", "DIM"))
     else:
         print(c("  Available in all shells immediately", "GRN"))
+
+
+# ── workers ───────────────────────────────────────────────────────────────────
+
+_WORKSTATION_ROOT = Path.home() / "Documents" / "GitHub" / "WorkStation"
+_WORKERS_SHIM = _WORKSTATION_ROOT / "scripts" / "workers.sh"
+
+
+def cmd_workers(args: list[str]) -> int:
+    """Start, stop, restart, or check status of OperationsCenter watchers via WorkStation shim."""
+    subcmd = args[0] if args else "status"
+    if subcmd not in ("start", "stop", "restart", "status"):
+        print(c("  Usage: console workers [start|stop|restart|status]", "YLW"))
+        return 1
+
+    if not _WORKERS_SHIM.exists():
+        print(c(f"  WorkStation not found at {_WORKSTATION_ROOT}", "RED"))
+        print(c("  Set OPERATIONS_CENTER_ROOT or check WorkStation is installed", "DIM"))
+        return 1
+
+    label = {
+        "start":   "Starting OperationsCenter watchers",
+        "stop":    "Stopping OperationsCenter watchers",
+        "restart": "Restarting OperationsCenter watchers",
+        "status":  "OperationsCenter watcher status",
+    }[subcmd]
+
+    print(c(f"\n  {label}…\n", "DIM"))
+    result = subprocess.run(["bash", str(_WORKERS_SHIM), subcmd], text=True)
+    return result.returncode

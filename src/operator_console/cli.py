@@ -62,6 +62,7 @@ def show_menu(_: list[str]) -> None:
         ("runs",       "list recent execution runs"),
         ("clean",      "remove old run artifacts, keep latest N"),
         ("last",       "inspect the most recent execution run"),
+        ("workers",   "start / stop / status OperationsCenter watchers"),
         ("demo",      "validate selector + planning handoff architecture"),
         ("providers", "show selector and lane readiness"),
         ("doctor",    "full dependency check + install"),
@@ -166,6 +167,10 @@ def show_help(_: list[str]) -> None:
             ("last --json",            "Machine-readable last run summary"),
             ("status",                 "System readiness: SwitchBoard, OperationsCenter, lanes"),
             ("status --json",          "Machine-readable system readiness"),
+            ("workers start",     "Start OperationsCenter watcher roles (via WorkStation)"),
+            ("workers stop",      "Stop all watcher roles"),
+            ("workers restart",   "Restart all watcher roles"),
+            ("workers status",    "Show watcher role status"),
             ("demo",              "Validate stack → SwitchBoard route → OperationsCenter handoff"),
             ("demo --no-start",   "Run the same validation without starting the stack"),
             ("demo --json",       "Machine-readable summary"),
@@ -643,6 +648,9 @@ def main() -> None:
             else:
                 from operator_console.system_status import run_status
                 sys.exit(run_status(args))
+
+        case "workers":
+            sys.exit(commands.cmd_workers(args))
 
         case "demo":
             from operator_console.demo import run_demo
