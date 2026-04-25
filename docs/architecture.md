@@ -20,17 +20,17 @@ console (shell wrapper)
 
 ## Entry Point
 
-Running `console` (no subcommand) is equivalent to `console brief`. The shell wrapper (`console`) runs first:
+Running `console` (no subcommand) is equivalent to `console open`. The shell wrapper (`console`) runs first:
 
 1. Check for `.venv/bin/python3` — if absent, run `bootstrap.sh` automatically (first run only)
 2. Set `PYTHONPATH` to `src/`
 3. Exec `python3 -m operator_console.cli` with any arguments
 
-`console brief` is preserved as an explicit alias; both paths are identical.
+`console open` is preserved as an explicit alias; both paths are identical.
 
 ## Launcher Flow
 
-`console` / `console brief`:
+`console` / `console open`:
 
 1. Scan `~/Documents/GitHub/` for git repos; overlay any YAML profiles from `config/profiles/`
 2. Group profiles (those with `group:` and no `repo_root:`) are registered separately and never shadow repo entries
@@ -42,12 +42,12 @@ Running `console` (no subcommand) is equivalent to `console brief`. The shell wr
 8. For each selected repo: initialize `.console/` if missing; if multiple repos selected, inject siblings as implicit peers in each briefing; write `.console/.briefing`, ensure `CLAUDE.md`
 9. Multi-repo layout: Claude pane starts at `~/Documents/GitHub/` instead of the individual repo root
 10. Auto-save group to `~/.local/share/console/last-session.json` (for `console restore`)
-11. Print structured brief block: `session attaching/creating (console)`, `layout fresh/saved` (new sessions only), active mission snippet
+11. Print structured summary block: `session attaching/creating (operator_console)`, `layout fresh/saved` (new sessions only), active mission snippet
 12. Check branch via `guardrails.py` — warn if on main/master
 13. If session `console` exists → add each repo as a new named tab (skip if tab already open)
-14. Otherwise → generate fresh KDL layout (or use saved layout if `--layout` flag passed), launch `zellij --session console --new-session-with-layout <kdl>`
+14. Otherwise → generate fresh KDL layout (or use saved layout if `--layout` flag passed), launch `zellij --session operator_console --new-session-with-layout <kdl>`
 
-`console restore`: loads `last-session.json`, resolves repo names against `_discover_repos()`, injects siblings as implicit peers (same logic as multi-select brief), regenerates briefings, then calls `launch()`.
+`console restore`: loads `last-session.json`, resolves repo names against `_discover_repos()`, injects siblings as implicit peers (same logic as multi-select open), regenerates briefings, then calls `launch()`.
 
 ## Python Environment
 
@@ -55,7 +55,7 @@ OperatorConsole uses an isolated venv at `.venv/` inside the OperatorConsole rep
 
 ## Zellij Session Model
 
-OperatorConsole uses a **single named session**: `console`. Each project opens as a **named tab** within that session.
+OperatorConsole uses a **single named session**: `operator_console`. Each project opens as a **named tab** within that session.
 
 - Tab bar and status bar are present in every tab via explicit chrome panes in each layout
 - Running `console` from inside the session adds tabs without re-attaching
@@ -124,7 +124,7 @@ Session files (`config/profiles/*.session`) are always gitignored.
 - `extract_panes_kdl(kdl, tab_name)` — extracts the inner content panes from a named tab, stripping chrome plugins (tab-bar, status-bar) and the tab wrapper; returns raw KDL ready to embed in a session or tab layout
 - `focused_tab_name(kdl)` — returns the name of the focused tab from a dump
 
-`console save [name]` (in `commands.py`) calls these to capture the live layout and write it to `config/profiles/<name>.kdl`. On the next `console brief`, `_saved_panes_kdl()` in `launcher.py` checks for this file and uses it instead of generating from YAML.
+`console save [name]` (in `commands.py`) calls these to capture the live layout and write it to `config/profiles/<name>.kdl`. On the next `console open`, `_saved_panes_kdl()` in `launcher.py` checks for this file and uses it instead of generating from YAML.
 
 ## Layout Persistence
 
@@ -133,13 +133,13 @@ Two separate systems:
 **Live capture** (`config/profiles/<name>.kdl`):
 - Captures actual live pane arrangement via `zellij action dump-layout`
 - Gitignored; profile-scoped
-- Used automatically on next `console brief`
+- Used automatically on next `console open`
 - `console save` / `console save --reset`
 
 **KDL-based restore** (`.console/layout.kdl` + `.console/layout.json`):
 - Saves the YAML-generated layout for session-level restore
 - `layout.py` provides `save`, `load`, `load_any`, `reset`
-- `console brief` always generates fresh layout; `console brief --layout` is the explicit opt-in
+- `console open` always generates fresh layout; `console open --layout` is the explicit opt-in
 - `console layout load` starts Zellij directly with the saved KDL
 
 ## Two-Layer Continuity Model
@@ -173,9 +173,9 @@ OperatorConsole uses a two-layer model for Claude context:
 - Runtime context: repo name, repo root, current branch, timestamp, profile name
 - Peer sections if `claude.peers` is configured
 
-The briefing is regenerated fresh on every `console brief` run — it is always current.
+The briefing is regenerated fresh on every `console open` run — it is always current.
 
-`console resume` prints the compiled briefing to stdout so the operator can inspect what Claude will see.
+`console context` prints the compiled briefing to stdout so the operator can inspect what Claude will see.
 
 ## State Boundaries
 

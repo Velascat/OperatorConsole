@@ -1,6 +1,6 @@
 // brief.kdl — reference layout (do not use directly)
 // The launcher generates a runtime version of this at launch time.
-// See: src/console/launcher.py  generate_session_layout()
+// See: src/operator_console/launcher.py  generate_session_layout()
 //
 // Session layout: default_tab_template injects chrome (tab-bar + status-bar)
 // into every tab. Tab content is the four-pane split below.

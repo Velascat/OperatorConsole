@@ -71,9 +71,9 @@ console attach        # re-attach to the running console session
 console               # from inside a known repo: adds/re-opens that repo's tab
 ```
 
-**Key point:** Even if Claude is killed, `claude --continue` on the next `console brief` resumes the conversation from where it left off. Conversation history is preserved by Claude Code; only work that was mid-execution is lost.
+**Key point:** Even if Claude is killed, `claude --continue` on the next `console open` resumes the conversation from where it left off. Conversation history is preserved by Claude Code; only work that was mid-execution is lost.
 
-Recovery path after an accidental kill: `console brief` restores everything.
+Recovery path after an accidental kill: `console open` restores everything.
 
 ### Letting Claude Work Autonomously
 
@@ -86,7 +86,7 @@ To kick off a task and walk away:
 Claude continues working. When you re-attach, the pane shows exactly what happened.
 
 For cross-repo autonomous work (e.g. Claude on OperationsCenter monitoring OperatorConsole state), the pattern is:
-- Run `console brief controlplane console` to open both repos in tabs
+- Run `console open controlplane console` to open both repos in tabs
 - Give Claude in the OperationsCenter tab explicit instructions and a clear stopping condition
 - Detach — both Claude instances keep running independently
 

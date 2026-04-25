@@ -64,13 +64,13 @@ group:
   - workstation
 ```
 
-Groups appear in the picker with `▸` prefix and their member list. `console brief platform` opens all four repos as a single multi-pane tab.
+Groups appear in the picker with `▸` prefix and their member list. `console open platform` opens all four repos as a single multi-pane tab.
 
 ## Adding a Profile
 
 1. Create `config/profiles/<name>.yaml` — minimum required fields are `name` and `repo_root`
 2. Run `console init <repo_root>` if `.console/` doesn't exist in the target repo yet
-3. Launch: `console brief <name>` or just run `console` from inside the repo
+3. Launch: `console open <name>` or just run `console` from inside the repo
 
 ## Profile Constraints
 
@@ -94,7 +94,7 @@ OperatorConsole tracks a Claude session ID per profile in `config/profiles/<name
 
 The session ID is captured when Claude exits — no manual step needed. Each profile and group maintains its own session independently.
 
-To discard a saved session and start fresh next brief:
+To discard a saved session and start fresh next open:
 ```bash
 rm config/profiles/<name>.session
 ```
@@ -115,13 +115,13 @@ claude:
 
 ## Claude Context: peers
 
-### Automatic (multi-select brief)
+### Automatic (multi-select open)
 
-When multiple repos are selected in a single `console brief` run, each repo's `.console/.briefing` automatically includes the active mission and objectives of the other selected repos. No profile config needed — it's implicit when repos are opened together.
+When multiple repos are selected in a single `console open` run, each repo's `.console/.briefing` automatically includes the active mission and objectives of the other selected repos. No profile config needed — it's implicit when repos are opened together.
 
 ### Configured (persistent across sessions)
 
-`peers` lists other profile names. At launch, `active-task.md` and `objectives.md` from each peer repo are appended to the brief as `PEER: <name>` sections. Use this when repos are tightly coupled and Claude needs cross-repo awareness on every session, not just when opened together:
+`peers` lists other profile names. At launch, `active-task.md` and `objectives.md` from each peer repo are appended to the context as `PEER: <name>` sections. Use this when repos are tightly coupled and Claude needs cross-repo awareness on every session, not just when opened together:
 
 ```yaml
 claude:
@@ -133,7 +133,7 @@ claude:
 
 ### Live Layout Capture (console save)
 
-`console save [profile]` captures the current Zellij tab layout — pane sizes, commands, everything — and saves it to `config/profiles/<name>.kdl` (gitignored). The next `console brief` uses it automatically instead of regenerating from YAML.
+`console save [profile]` captures the current Zellij tab layout — pane sizes, commands, everything — and saves it to `config/profiles/<name>.kdl` (gitignored). The next `console open` uses it automatically instead of regenerating from YAML.
 
 The default generated layouts now assume:
 
@@ -153,7 +153,7 @@ console save --reset myrepo       # delete saved layout, revert to YAML-generate
 ```bash
 console layout save         # save generated layout to .console/layout.json + .console/layout.kdl
 console layout load         # restore saved layout (starts Zellij session)
-console brief --layout      # full brief flow + restore saved layout
+console open --layout      # full open flow + restore saved layout
 console layout show         # inspect what is saved (backend, profile, saved_at, path)
 console layout reset        # delete saved layout for current repo
 console clear               # same as layout reset

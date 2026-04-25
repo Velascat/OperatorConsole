@@ -53,10 +53,10 @@ def show_menu(_: list[str]) -> None:
 
     options = [
         ("open",    "pick and launch a workspace"),
-        ("context", "re-open last session group"),
+        ("restore", "re-open last session group"),
+        ("context", "print mission brief"),
         ("rewatch", "restart git watcher for this tab's profile"),
         ("status",  "repo, branch, session state"),
-        ("context", "print mission brief"),
         ("run",        "run a task through the full execution pipeline"),
         ("cycle",      "single autonomous cycle: observe → propose → execute"),
         ("runs",       "list recent execution runs"),
@@ -121,10 +121,10 @@ def show_help(_: list[str]) -> None:
             ("open [profile]",    "Auto-select current repo and launch"),
             ("open --layout",     "Launch using saved layout (explicit restore)"),
             ("multi [--all]",     "Multi-select picker — open several repos; --all skips picker"),
-            ("context [--show]",  "Re-open last saved session group (--show to preview)"),
+            ("restore [--show]",  "Re-open last saved session group (--show to preview)"),
+            ("context",           "Print Claude resume context from .console/"),
             ("attach",            "Re-attach to running console session"),
             ("kill",              "Terminate console session and all panes (with warning)"),
-            ("context",           "Print Claude resume context from .console/"),
             ("init    [repo]",    "Initialize .console/ state files in repo"),
             ("doctor",            "Check dependencies (Zellij, Claude, lazygit…)"),
         ]),
@@ -343,7 +343,7 @@ def _run_picker(all_profiles: dict, multi: bool) -> tuple[list[dict], str | None
 
     if has_fzf:
         fzf_lines = "\n".join(_display_line(k) for k in ordered_keys)
-        prompt = "  multi > " if multi else "  brief > "
+        prompt = "  multi > " if multi else "  open > "
         if multi:
             header = (
                 "\033[93mTab\033[0m mark/unmark  ·  "
@@ -504,7 +504,7 @@ def _run_brief(profiles: list[dict], use_saved_layout: bool = False, tab_name: s
 
 def main() -> None:
     argv = sys.argv[1:]
-    cmd = argv[0] if argv else "brief"
+    cmd = argv[0] if argv else "open"
     args = argv[1:]
 
     if cmd in ("-h", "--help"):
@@ -556,7 +556,7 @@ def main() -> None:
         case "kill":
             commands.cmd_kill(args)
 
-        case "context" | "restore":
+        case "restore":
             from operator_console.session_group import load as _sg_load
             data = _sg_load()
             if not data:
