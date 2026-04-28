@@ -63,15 +63,32 @@ def _plane_config() -> dict | None:
         return None
 
 
-def _plane_fetch(cfg: dict) -> list[dict]:
-    """Fetch all work items from Plane. Returns [] on any error."""
-    token = os.environ.get(cfg["token_env"], "")
-    if not token or not cfg["workspace_slug"] or not cfg["project_id"]:
-        return []
-    url = (
-        f"{cfg['base_url']}/api/v1/workspaces/{cfg['workspace_slug']}"
-        f"/projects/{cfg['project_id']}/work-items/?expand=state"
-    )
+def _read_token_from_env_file(token_env: str) -> str:
+    """Read the Plane token from OperationsCenter's .env file.
+
+    The status pane often outlives a token rotation; reading from the env file
+    each fetch keeps it in sync without requiring a pane restart.
+    """
+    env_file = _OC_ROOT / ".env.operations-center.local"
+    if not env_file.exists():
+        return ""
+    try:
+        for raw in env_file.read_text().splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            if line.startswith("export "):
+                line = line[len("export "):]
+            k, _, v = line.partition("=")
+            if k.strip() == token_env:
+                return v.strip().strip('"').strip("'")
+    except Exception:
+        pass
+    return ""
+
+
+def _plane_get(cfg: dict, token: str, path: str) -> list[dict]:
+    url = f"{cfg['base_url']}/api/v1/workspaces/{cfg['workspace_slug']}/projects/{cfg['project_id']}/{path}"
     req = urllib.request.Request(url, headers={"X-API-Key": token})
     try:
         with urllib.request.urlopen(req, timeout=4) as r:
@@ -81,8 +98,26 @@ def _plane_fetch(cfg: dict) -> list[dict]:
             if isinstance(payload, dict):
                 return payload.get("results", [])
     except Exception:
-        pass
+        return []
     return []
+
+
+def _plane_fetch(cfg: dict) -> list[dict]:
+    """Fetch all work items from Plane with label IDs hydrated to names. [] on error."""
+    token = _read_token_from_env_file(cfg["token_env"]) or os.environ.get(cfg["token_env"], "")
+    if not token or not cfg["workspace_slug"] or not cfg["project_id"]:
+        return []
+    issues = _plane_get(cfg, token, "work-items/?expand=state")
+    if not issues:
+        return []
+    # Plane returns label refs as UUIDs; resolve to names so _repo_from_labels works.
+    labels = _plane_get(cfg, token, "labels/")
+    by_id = {str(lab.get("id")): lab for lab in labels if isinstance(lab, dict) and lab.get("id")}
+    for issue in issues:
+        raw = issue.get("labels") or []
+        if raw and not all(isinstance(r, dict) for r in raw):
+            issue["labels"] = [by_id.get(str(r), {"name": ""}) if not isinstance(r, dict) else r for r in raw]
+    return issues
 
 
 def _repo_from_labels(labels: list) -> str:
