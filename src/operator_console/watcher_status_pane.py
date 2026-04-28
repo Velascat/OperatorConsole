@@ -47,20 +47,51 @@ _ACTIVE_STATES = {"running"}
 # ── Plane data collection ────────────────────────────────────────────────────
 
 def _plane_config() -> dict | None:
-    """Parse OC config for Plane connection details. Returns None if not configured."""
+    """Parse OC config for Plane connection details. Returns None if not configured.
+
+    Avoids depending on PyYAML — the pane's Python may be a bare interpreter
+    (e.g. pyenv system Python without site-packages). The `plane:` block is
+    simple key-value pairs, so a manual parse is sufficient and robust.
+    """
+    if not _OC_CONFIG.exists():
+        return None
+    out = {
+        "base_url":       "http://localhost:8080",
+        "workspace_slug": "",
+        "project_id":     "",
+        "token_env":      "PLANE_API_TOKEN",
+    }
+    in_plane = False
     try:
-        import yaml  # type: ignore[import]
-        text = _OC_CONFIG.read_text()
-        cfg = yaml.safe_load(text)
-        p = cfg.get("plane", {})
-        return {
-            "base_url":       p.get("base_url", "http://localhost:8080").rstrip("/"),
-            "workspace_slug": p.get("workspace_slug", ""),
-            "project_id":     p.get("project_id", ""),
-            "token_env":      p.get("api_token_env", "PLANE_API_TOKEN"),
-        }
+        for raw in _OC_CONFIG.read_text().splitlines():
+            stripped = raw.rstrip()
+            if not stripped or stripped.lstrip().startswith("#"):
+                continue
+            if not stripped.startswith(" ") and not stripped.startswith("\t"):
+                in_plane = stripped.startswith("plane:")
+                continue
+            if not in_plane:
+                continue
+            line = stripped.strip()
+            if ":" not in line:
+                continue
+            k, _, v = line.partition(":")
+            v = v.strip().strip('"').strip("'")
+            if not v:
+                continue
+            if k.strip() == "base_url":
+                out["base_url"] = v.rstrip("/")
+            elif k.strip() == "workspace_slug":
+                out["workspace_slug"] = v
+            elif k.strip() == "project_id":
+                out["project_id"] = v
+            elif k.strip() == "api_token_env":
+                out["token_env"] = v
     except Exception:
         return None
+    if not out["workspace_slug"] or not out["project_id"]:
+        return None
+    return out
 
 
 def _read_token_from_env_file(token_env: str) -> str:
