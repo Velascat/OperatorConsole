@@ -196,6 +196,31 @@ def _pid_alive(pid: str) -> bool:
         return False
 
 
+_STALE_HEARTBEAT_S = 600  # 10 minutes — alert threshold
+
+
+def _stale_heartbeat_roles() -> list[str]:
+    """Return role names whose heartbeat file is older than _STALE_HEARTBEAT_S.
+
+    A heartbeat that hasn't ticked in 10+ minutes means the worker is
+    either crashed (and the supervisor isn't reviving it) or hung. Either
+    way, operator should know immediately.
+    """
+    if not _WATCH_DIR.exists():
+        return []
+    now = time.time()
+    stale: list[str] = []
+    for hb in _WATCH_DIR.glob("heartbeat_*.json"):
+        try:
+            age = now - hb.stat().st_mtime
+        except OSError:
+            continue
+        if age > _STALE_HEARTBEAT_S:
+            role = hb.stem.removeprefix("heartbeat_")
+            stale.append(role)
+    return sorted(stale)
+
+
 def _role_info(role: str) -> dict:
     pid_file = _WATCH_DIR / f"{role}.pid"
     if not pid_file.exists():
@@ -601,8 +626,23 @@ def _draw_main(stdscr, data: dict, sel: int, refreshing: bool, flash: str, C: di
 
     spin = " ⟳" if refreshing else "  "
     ts   = time.strftime("%H:%M:%S")
-    put(0, f" Operations Center{spin}  {ts}", C["HEAD"] | curses.A_BOLD)
-    _sep(stdscr, 1, h, w, C["DIM"])
+
+    # D4 stall alert: scan heartbeat files; any role whose heartbeat hasn't
+    # been touched in > _STALE_HEARTBEAT_S seconds means the worker is
+    # silent (crashed, hung, or its supervisor died). Render a red banner
+    # at the very top so it's the first thing the operator sees.
+    stale_roles = _stale_heartbeat_roles()
+    if stale_roles:
+        banner = (
+            f" ⚠  STALL ALERT — {len(stale_roles)} role(s) silent > "
+            f"{_STALE_HEARTBEAT_S // 60}min: {', '.join(stale_roles)}"
+        )
+        put(0, banner.ljust(w - 1), C["ERR"] | curses.A_BOLD | curses.A_REVERSE)
+        put(1, f" Operations Center{spin}  {ts}", C["HEAD"] | curses.A_BOLD)
+        _sep(stdscr, 2, h, w, C["DIM"])
+    else:
+        put(0, f" Operations Center{spin}  {ts}", C["HEAD"] | curses.A_BOLD)
+        _sep(stdscr, 1, h, w, C["DIM"])
 
     # Build content blocks
     middle_lines, sel_row = _build_main_lines(data, sel, w, C)
@@ -610,9 +650,9 @@ def _draw_main(stdscr, data: dict, sel: int, refreshing: bool, flash: str, C: di
 
     # Reserve rows for the bottom-anchored resources block + footer + flash
     bottom_h = len(bottom_lines)
-    footer_h = 2 if flash else 1            # flash on h-2, help on h-1
-    middle_top    = 2                       # header + separator
-    middle_bottom = h - bottom_h - footer_h # exclusive
+    footer_h = 2 if flash else 1                       # flash on h-2, help on h-1
+    middle_top    = 3 if stale_roles else 2            # banner pushes content down by 1
+    middle_bottom = h - bottom_h - footer_h            # exclusive
     middle_h      = max(0, middle_bottom - middle_top)
 
     # Clamp scroll into [0, max_scroll] and auto-scroll to keep selection visible
