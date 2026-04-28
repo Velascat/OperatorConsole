@@ -180,9 +180,17 @@ def _sb_ok() -> bool:
 
 def _sys_resources() -> dict:
     load = "?"
+    load_pct = "?"
+    num_cores = 0
     try:
         parts = Path("/proc/loadavg").read_text().split()
         load = f"{parts[0]}/{parts[1]}/{parts[2]}"
+        with open("/proc/cpuinfo") as f:
+            num_cores = f.read().count("processor")
+        if num_cores > 0:
+            l1, l5, l15 = float(parts[0]), float(parts[1]), float(parts[2])
+            p1, p5, p15 = int(100 * l1 / num_cores), int(100 * l5 / num_cores), int(100 * l15 / num_cores)
+            load_pct = f"{p1}%/{p5}%/{p15}%"
     except Exception:
         pass
 
@@ -211,6 +219,8 @@ def _sys_resources() -> dict:
 
     return {
         "load": load,
+        "load_pct": load_pct,
+        "num_cores": num_cores,
         "mem_pct": mem_pct, "mem_used_gb": mem_used_gb, "mem_total_gb": mem_total_gb,
         "swap_pct": swap_pct, "swap_used_gb": swap_used_gb, "swap_total_gb": swap_total_gb,
     }
@@ -422,7 +432,13 @@ def _draw_main(stdscr, data: dict, sel: int, refreshing: bool, flash: str, C: di
     if row < h - 2:
         put(row, " System Resources", C["HEAD"] | curses.A_BOLD); row += 1
     if row < h - 2:
-        put(row, f"  CPU load avg  {res.get('load', '?')}  (1m/5m/15m)", C["DIM"]); row += 1
+        load_str = res.get('load', '?')
+        put(row, f"  Process Load Average  {load_str}  (1m/5m/15m)", C["DIM"]); row += 1
+    if row < h - 2:
+        load_pct_str = res.get('load_pct', '?')
+        num_cores = res.get('num_cores', 0)
+        cores_str = f"{num_cores} Cores" if num_cores > 0 else ""
+        put(row, f"  CPU Utilization       {load_pct_str}  {cores_str}", C["DIM"]); row += 1
     if row < h - 2:
         mp  = res.get("mem_pct", 0)
         mug = res.get("mem_used_gb", 0)
