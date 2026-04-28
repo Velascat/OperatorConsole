@@ -449,13 +449,15 @@ def _draw_main(stdscr, data: dict, sel: int, refreshing: bool, flash: str, C: di
         mp  = res.get("mem_pct", 0)
         mug = res.get("mem_used_gb", 0)
         mtg = res.get("mem_total_gb", 0)
-        put(row, f"  RAM  {_bar(mp)} {mp:3d}%  {mug:.1f}/{mtg:.1f}G",
+        bar_str = _bar(mp)
+        put(row, f"  RAM  {bar_str}  {mp:>3d}%  {mug:.1f}/{mtg:.1f}G",
             C["YLW"] if mp > 80 else C["DIM"]); row += 1
     if row < h - 2 and res.get("swap_total_gb", 0) > 0:
         sp  = res.get("swap_pct", 0)
         sug = res.get("swap_used_gb", 0)
         stg = res.get("swap_total_gb", 0)
-        put(row, f"  Swap {_bar(sp)} {sp:3d}%  {sug:.1f}/{stg:.1f}G",
+        bar_str = _bar(sp)
+        put(row, f"  Swap {bar_str}  {sp:>3d}%  {sug:.1f}/{stg:.1f}G",
             C["YLW"] if sp > 50 else C["DIM"]); row += 1
 
     if flash:
