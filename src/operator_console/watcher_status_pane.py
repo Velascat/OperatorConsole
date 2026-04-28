@@ -16,6 +16,7 @@ from __future__ import annotations
 import curses
 import json
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -341,6 +342,7 @@ def _collect(repo_filter: set[str] | None) -> dict:
         "queue":     _queue_items(repo_filter),
         "resources": _sys_resources(),
         "plane":     {"active": _plane_cache["active"], "board": _plane_cache["board"]},
+        "recent":    _recent_activity(),
         "at":        now,
     }
 
@@ -376,6 +378,62 @@ def _uptime(start: float) -> str:
 def _latest_log(role: str) -> Path | None:
     logs = sorted(_WATCH_DIR.glob(f"*_{role}.log"))
     return logs[-1] if logs else None
+
+
+_RECENT_WINDOW_S = 300  # 5 minutes
+_RECENT_PAT = re.compile(
+    r"^(\d{2}:\d{2}:\d{2}) \[(\w+)\] (?:INFO|WARNING) board_worker\[\w+\]: "
+    r"(?:task_id=\S+\s+)?"
+    r"(claimed|completed|blocked|processing|failed)"
+    r"(?:.*?status=(\S+))?"
+    r"(?:.*?title=[\"\']([^\"\']{0,60}))?"
+)
+
+
+def _recent_activity() -> list[dict]:
+    """Mine worker logs for claim/complete/block events in the last _RECENT_WINDOW_S seconds.
+
+    Returns events newest-first as {role, action, status, title, ts} dicts.
+    """
+    cutoff = time.time() - _RECENT_WINDOW_S
+    events: list[dict] = []
+    for role in ("goal", "test", "improve"):
+        log = _latest_log(role)
+        if not log:
+            continue
+        try:
+            mtime = log.stat().st_mtime
+        except OSError:
+            continue
+        if mtime < cutoff:
+            continue
+        try:
+            text = log.read_text(errors="replace")
+        except OSError:
+            continue
+        # Walk lines newest-first; stop after a few hits per role
+        lines = text.splitlines()
+        per_role = 0
+        for raw in reversed(lines):
+            if "board_worker[" not in raw:
+                continue
+            if not any(k in raw for k in (" claimed ", " completed ", " blocked ", " processing ", " failed ")):
+                continue
+            m = _RECENT_PAT.match(raw)
+            if not m:
+                continue
+            ts_str, lrole, action, status, title = m.groups()
+            events.append({
+                "role":   lrole,
+                "action": action,
+                "status": status or "",
+                "title":  (title or "").strip("`* "),
+                "ts":     ts_str,
+            })
+            per_role += 1
+            if per_role >= 5:
+                break
+    return events
 
 
 # ── main view ─────────────────────────────────────────────────────────────────
@@ -437,6 +495,30 @@ def _draw_main(stdscr, data: dict, sel: int, refreshing: bool, flash: str, C: di
             repo  = item.get("repo", "?")[:10]
             title = item.get("title", "?")[:max(w - 16, 8)]
             put(row, f"  ▶  {repo:<11} {title}", C["RUN"]); row += 1
+
+    # ── recent activity (worker logs, last 5 min) ──
+    recent = data.get("recent", [])
+    if recent and row < h - 2:
+        row = _sep(stdscr, row, h, w, C["DIM"])
+        put(row, f" Recent ({len(recent)} events, last 5m)", C["HEAD"] | curses.A_BOLD); row += 1
+        for ev in recent[:8]:
+            if row >= h - 2:
+                break
+            action = ev.get("action", "")
+            status = ev.get("status", "")
+            title  = ev.get("title", "")[:max(w - 32, 8)]
+            role   = ev.get("role", "")
+            ts     = ev.get("ts", "")
+            if action == "blocked":
+                icon, attr = "✗", C["ERR"]
+            elif action == "completed":
+                icon, attr = "✓", C["RUN"]
+            elif action == "claimed":
+                icon, attr = "→", C["YLW"]
+            else:
+                icon, attr = "·", C["DIM"]
+            tag = f"{action}({status})" if status else action
+            put(row, f"  {icon}  {ts} {role:<8} {tag:<22} {title}", attr); row += 1
 
     # ── board (Plane: Ready for AI / Backlog) ──
     board_items = plane.get("board", [])
