@@ -328,8 +328,13 @@ def _draw_main(stdscr, data: dict, sel: int, refreshing: bool, flash: str, C: di
     roles    = data.get("roles", {})
     restarts = data.get("restarts", {})
     n_up = sum(1 for r in _ROLES if roles.get(r, {}).get("alive", False))
-    hdr_attr = C["HEAD"] | curses.A_BOLD if n_up == len(_ROLES) else C["YLW"] | curses.A_BOLD
-    put(row, f" Workers ({n_up}/{len(_ROLES)} running)", hdr_attr); row += 1
+    total_rc = sum(restarts.get(r, 0) for r in _ROLES)
+    if n_up < len(_ROLES) or total_rc > 0:
+        hdr_attr = C["YLW"] | curses.A_BOLD
+    else:
+        hdr_attr = C["HEAD"] | curses.A_BOLD
+    rc_tag = f"{total_rc} restarts" if total_rc else "clean"
+    put(row, f" Workers ({n_up}/{len(_ROLES)} running, {rc_tag})", hdr_attr); row += 1
     for i, role in enumerate(_ROLES):
         if row >= h - 2:
             break
