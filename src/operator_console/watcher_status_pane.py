@@ -32,9 +32,92 @@ _PROFILES_DIR = Path(__file__).resolve().parent.parent.parent / "config" / "prof
 _ROLES   = ("intake", "goal", "test", "improve", "propose", "review", "spec", "watchdog")
 _ACTIONS = ("tail logs", "board", "circuit breaker", "memory")
 
-REFRESH_INTERVAL = 3
-LOG_TAIL_LINES   = 60
-BAR_W            = 10   # width of █ progress bars
+REFRESH_INTERVAL       = 3
+PLANE_REFRESH_INTERVAL = 30
+LOG_TAIL_LINES         = 60
+BAR_W                  = 10   # width of █ progress bars
+
+_OC_CONFIG = _OC_ROOT / "config" / "operations_center.local.yaml"
+
+# States shown in each section
+_BOARD_STATES  = {"ready for ai", "backlog"}
+_ACTIVE_STATES = {"running"}
+
+
+# ── Plane data collection ────────────────────────────────────────────────────
+
+def _plane_config() -> dict | None:
+    """Parse OC config for Plane connection details. Returns None if not configured."""
+    try:
+        import yaml  # type: ignore[import]
+        text = _OC_CONFIG.read_text()
+        cfg = yaml.safe_load(text)
+        p = cfg.get("plane", {})
+        return {
+            "base_url":       p.get("base_url", "http://localhost:8080").rstrip("/"),
+            "workspace_slug": p.get("workspace_slug", ""),
+            "project_id":     p.get("project_id", ""),
+            "token_env":      p.get("api_token_env", "PLANE_API_TOKEN"),
+        }
+    except Exception:
+        return None
+
+
+def _plane_fetch(cfg: dict) -> list[dict]:
+    """Fetch all work items from Plane. Returns [] on any error."""
+    token = os.environ.get(cfg["token_env"], "")
+    if not token or not cfg["workspace_slug"] or not cfg["project_id"]:
+        return []
+    url = (
+        f"{cfg['base_url']}/api/v1/workspaces/{cfg['workspace_slug']}"
+        f"/projects/{cfg['project_id']}/work-items/?expand=state"
+    )
+    req = urllib.request.Request(url, headers={"X-API-Key": token})
+    try:
+        with urllib.request.urlopen(req, timeout=4) as r:
+            payload = json.loads(r.read())
+            if isinstance(payload, list):
+                return payload
+            if isinstance(payload, dict):
+                return payload.get("results", [])
+    except Exception:
+        pass
+    return []
+
+
+def _repo_from_labels(labels: list) -> str:
+    for lab in labels:
+        name = (lab.get("name", "") if isinstance(lab, dict) else str(lab)).strip()
+        if name.lower().startswith("repo:"):
+            return name.split(":", 1)[1].strip()
+    return ""
+
+
+def _plane_issues(repo_filter: set[str] | None) -> dict[str, list[dict]]:
+    """Return {"active": [...], "board": [...]} filtered by repo_filter."""
+    cfg = _plane_config()
+    if not cfg:
+        return {"active": [], "board": []}
+    issues = _plane_fetch(cfg)
+    active, board = [], []
+    for issue in issues:
+        state_obj = issue.get("state")
+        state_name = (state_obj.get("name", "") if isinstance(state_obj, dict) else str(state_obj or "")).strip()
+        state_lower = state_name.lower()
+        labels = issue.get("labels", [])
+        repo = _repo_from_labels(labels)
+        if repo_filter and repo not in repo_filter:
+            continue
+        item = {
+            "title": issue.get("name", "Untitled"),
+            "state": state_name,
+            "repo":  repo or "?",
+        }
+        if state_lower in _ACTIVE_STATES:
+            active.append(item)
+        elif state_lower in _BOARD_STATES:
+            board.append(item)
+    return {"active": active, "board": board}
 
 
 # ── data collection ───────────────────────────────────────────────────────────
@@ -165,7 +248,15 @@ def _queue_items(repo_filter: set[str] | None) -> list[dict]:
     return items
 
 
+_plane_cache: dict = {"active": [], "board": [], "fetched_at": 0.0}
+
+
 def _collect(repo_filter: set[str] | None) -> dict:
+    global _plane_cache
+    now = time.time()
+    if now - _plane_cache["fetched_at"] >= PLANE_REFRESH_INTERVAL:
+        fresh = _plane_issues(repo_filter)
+        _plane_cache = {**fresh, "fetched_at": now}
     return {
         "roles":     {r: _role_info(r) for r in _ROLES},
         "restarts":  _restart_counts(),
@@ -173,7 +264,8 @@ def _collect(repo_filter: set[str] | None) -> dict:
         "sb":        _sb_ok(),
         "queue":     _queue_items(repo_filter),
         "resources": _sys_resources(),
-        "at":        time.time(),
+        "plane":     {"active": _plane_cache["active"], "board": _plane_cache["board"]},
+        "at":        now,
     }
 
 
@@ -225,49 +317,84 @@ def _draw_main(stdscr, data: dict, sel: int, refreshing: bool, flash: str, C: di
     # ── roles ──
     roles    = data.get("roles", {})
     restarts = data.get("restarts", {})
+    n_up = sum(1 for r in _ROLES if roles.get(r, {}).get("alive", False))
+    hdr_attr = C["HEAD"] | curses.A_BOLD if n_up == len(_ROLES) else C["YLW"] | curses.A_BOLD
+    put(row, f" Workers ({n_up}/{len(_ROLES)} running)", hdr_attr); row += 1
     for i, role in enumerate(_ROLES):
         if row >= h - 2:
             break
         info  = roles.get(role, {})
         alive = info.get("alive", False)
         rc    = restarts.get(role, 0)
-        rb    = f" ⚡{rc}" if rc else ""
+        rb    = f" ↺{rc}" if rc else ""
 
         if alive:
             up   = _uptime(info["mtime"]) if info.get("mtime") else "?"
-            line = f"  ✓  {role:<11} {info['pid']:<6} {up}{rb}"
+            line = f"  ✓  {role:<11} up {up}{rb}"
             attr = C["RUN"]
         else:
-            line = f"  ✗  {role:<11} stopped{rb}"
-            attr = C["DIM"]
+            line = f"  ✗  {role:<11} STOPPED{rb}"
+            attr = C["ERR"]
 
         if i == sel:
-            hint = " [↵]"
+            hint = " [enter]"
             full = ("▶" + line[1:] + hint)[:w - 1]
             put(row, full, C["SEL"] | curses.A_BOLD)
         else:
             put(row, line, attr)
         row += 1
 
+    # ── active tasks (Plane: Running) ──
+    plane     = data.get("plane", {})
+    active_tasks = plane.get("active", [])
+    if active_tasks and row < h - 2:
+        row = _sep(stdscr, row, h, w, C["DIM"])
+        put(row, f" Active ({len(active_tasks)} running)", C["HEAD"] | curses.A_BOLD); row += 1
+        for item in active_tasks:
+            if row >= h - 2:
+                break
+            repo  = item.get("repo", "?")[:10]
+            title = item.get("title", "?")[:max(w - 16, 8)]
+            put(row, f"  ▶  {repo:<11} {title}", C["RUN"]); row += 1
+
+    # ── board (Plane: Ready for AI / Backlog) ──
+    board_items = plane.get("board", [])
+    if board_items and row < h - 2:
+        row = _sep(stdscr, row, h, w, C["DIM"])
+        put(row, f" Board ({len(board_items)} queued)", C["HEAD"] | curses.A_BOLD); row += 1
+        for item in board_items:
+            if row >= h - 2:
+                break
+            repo  = item.get("repo", "?")[:10]
+            state = item.get("state", "")
+            icon  = "·" if "backlog" in state.lower() else "→"
+            title = item.get("title", "?")[:max(w - 16, 8)]
+            put(row, f"  {icon}  {repo:<11} {title}", C["DIM"]); row += 1
+
     # ── campaigns ──
     campaigns = data.get("campaigns", [])
     if campaigns and row < h - 2:
         row = _sep(stdscr, row, h, w, C["DIM"])
-        put(row, f" Campaigns ({len(campaigns)})", C["HEAD"] | curses.A_BOLD); row += 1
+        put(row, f" Campaigns ({len(campaigns)} active)", C["HEAD"] | curses.A_BOLD); row += 1
         for c in campaigns:
             if row >= h - 2:
                 break
             slug   = c.get("slug", c.get("campaign_id", "?"))[:w - 6]
             status = c.get("status", "")
-            icon   = "✓" if status == "done" else ("✗" if status == "failed" else "·")
-            put(row, f"  {icon}  {slug}", C["RUN"] if status == "done" else C["DIM"])
+            if status == "done":
+                icon, attr = "✓", C["RUN"]
+            elif status == "failed":
+                icon, attr = "✗", C["ERR"]
+            else:
+                icon, attr = "▶", C["YLW"]
+            put(row, f"  {icon}  {slug}", attr)
             row += 1
 
     # ── queue ──
     queue = data.get("queue", [])
     if queue and row < h - 2:
         row = _sep(stdscr, row, h, w, C["DIM"])
-        put(row, f" Queue ({len(queue)})", C["HEAD"] | curses.A_BOLD); row += 1
+        put(row, f" Queue ({len(queue)} pending)", C["HEAD"] | curses.A_BOLD); row += 1
         for item in queue:
             if row >= h - 2:
                 break
@@ -277,15 +404,25 @@ def _draw_main(stdscr, data: dict, sel: int, refreshing: bool, flash: str, C: di
             put(row, f"  {typ:<5} {repo:<11} {goal}", C["DIM"])
             row += 1
 
-    # ── switchboard + resources ──
+    # ── services ──
+    if row < h - 2:
+        row = _sep(stdscr, row, h, w, C["DIM"])
+    sb = data.get("sb", False)
+    if row < h - 2:
+        put(row, " Services", C["HEAD"] | curses.A_BOLD); row += 1
+    if row < h - 2:
+        sb_icon = "✓" if sb else "✗"
+        sb_attr = C["RUN"] if sb else C["ERR"]
+        put(row, f"  {sb_icon} SwitchBoard", sb_attr); row += 1
+
+    # ── system resources ──
     if row < h - 2:
         row = _sep(stdscr, row, h, w, C["DIM"])
     res = data.get("resources", {})
-    sb  = data.get("sb", False)
     if row < h - 2:
-        sb_str   = ("✓ SB" if sb else "✗ SB")
-        load_str = f"  load {res.get('load', '?')}"
-        put(row, f"  {sb_str}{load_str}", C["RUN"] if sb else C["DIM"]); row += 1
+        put(row, " System Resources", C["HEAD"] | curses.A_BOLD); row += 1
+    if row < h - 2:
+        put(row, f"  CPU load avg  {res.get('load', '?')}  (1m/5m/15m)", C["DIM"]); row += 1
     if row < h - 2:
         mp  = res.get("mem_pct", 0)
         mug = res.get("mem_used_gb", 0)
@@ -301,7 +438,7 @@ def _draw_main(stdscr, data: dict, sel: int, refreshing: bool, flash: str, C: di
 
     if flash:
         put(h - 2, f" {flash}", C["HEAD"])
-    put(h - 1, " ↑↓ ↵ actions   r refresh   q quit", C["DIM"])
+    put(h - 1, " ↑↓ navigate   enter = actions   r = refresh   q = quit", C["DIM"])
     stdscr.refresh()
 
 
@@ -313,8 +450,9 @@ def _draw_submenu(stdscr, role: str, info: dict, sel: int, C: dict) -> None:
     stdscr.erase()
 
     alive  = info.get("alive", False)
-    status = f"running  pid {info['pid']}" if alive else "stopped"
-    put(0, f" {role}  [ {status} ]", C["HEAD"] | curses.A_BOLD)
+    status = f"running  pid {info['pid']}" if alive else "STOPPED"
+    status_attr = (C["HEAD"] | curses.A_BOLD) if alive else (C["ERR"] | curses.A_BOLD)
+    put(0, f" {role}  [ {status} ]", status_attr)
     _sep(stdscr, 1, h, w, C["DIM"])
 
     for i, action in enumerate(_ACTIONS):
@@ -397,6 +535,7 @@ def _pane(stdscr, profile_name: str) -> None:
     curses.init_pair(3, curses.COLOR_CYAN,   -1)
     curses.init_pair(4, curses.COLOR_BLACK, curses.COLOR_WHITE)
     curses.init_pair(5, curses.COLOR_YELLOW, -1)
+    curses.init_pair(6, curses.COLOR_RED,    -1)
 
     C = {
         "RUN":  curses.color_pair(1),
@@ -404,6 +543,7 @@ def _pane(stdscr, profile_name: str) -> None:
         "HEAD": curses.color_pair(3),
         "SEL":  curses.color_pair(4),
         "YLW":  curses.color_pair(5),
+        "ERR":  curses.color_pair(6),
     }
 
     repo_filter = _profile_repos(profile_name) if profile_name else None
