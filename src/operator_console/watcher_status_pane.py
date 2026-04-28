@@ -438,35 +438,31 @@ def _recent_activity() -> list[dict]:
 
 # ── main view ─────────────────────────────────────────────────────────────────
 
-def _draw_main(stdscr, data: dict, sel: int, refreshing: bool, flash: str, C: dict) -> None:
-    stdscr.erase()
-    h, w = stdscr.getmaxyx()
-    put = lambda r, t, a=0: _put(stdscr, r, h, w, t, a)
+_SEP_MARKER = "\x00SEP\x00"   # synthetic line that renders as a separator
 
-    spin = " ⟳" if refreshing else "  "
-    ts   = time.strftime("%H:%M:%S")
-    put(0, f" Operations Center{spin}  {ts}", C["HEAD"] | curses.A_BOLD)
-    row = _sep(stdscr, 1, h, w, C["DIM"])
+
+def _build_main_lines(data: dict, sel: int, w: int, C: dict) -> tuple[list[tuple[str, int]], int]:
+    """Build all middle-section lines as (text, attr) tuples plus the row index
+    of the currently-selected role (so the caller can keep it on screen).
+
+    Lines whose text equals _SEP_MARKER render as a horizontal separator.
+    """
+    lines: list[tuple[str, int]] = []
+    sel_row = -1
 
     # ── roles ──
     roles    = data.get("roles", {})
     restarts = data.get("restarts", {})
     n_up = sum(1 for r in _ROLES if roles.get(r, {}).get("alive", False))
     total_rc = sum(restarts.get(r, 0) for r in _ROLES)
-    if n_up < len(_ROLES) or total_rc > 0:
-        hdr_attr = C["YLW"] | curses.A_BOLD
-    else:
-        hdr_attr = C["HEAD"] | curses.A_BOLD
+    hdr_attr = (C["YLW"] | curses.A_BOLD) if (n_up < len(_ROLES) or total_rc > 0) else (C["HEAD"] | curses.A_BOLD)
     rc_tag = f"{total_rc} restarts" if total_rc else "clean"
-    put(row, f" Workers ({n_up}/{len(_ROLES)} running, {rc_tag})", hdr_attr); row += 1
+    lines.append((f" Workers ({n_up}/{len(_ROLES)} running, {rc_tag})", hdr_attr))
     for i, role in enumerate(_ROLES):
-        if row >= h - 2:
-            break
         info  = roles.get(role, {})
         alive = info.get("alive", False)
         rc    = restarts.get(role, 0)
         rb    = f" ↺{rc}" if rc else ""
-
         if alive:
             up   = _uptime(info["mtime"]) if info.get("mtime") else "?"
             line = f"  ✓  {role:<11} up {up}{rb}"
@@ -474,36 +470,30 @@ def _draw_main(stdscr, data: dict, sel: int, refreshing: bool, flash: str, C: di
         else:
             line = f"  ✗  {role:<11} STOPPED{rb}"
             attr = C["ERR"]
-
         if i == sel:
-            hint = " [enter]"
-            full = ("▶" + line[1:] + hint)[:w - 1]
-            put(row, full, C["SEL"] | curses.A_BOLD)
+            sel_row = len(lines)
+            full = ("▶" + line[1:] + " [enter]")[:w - 1]
+            lines.append((full, C["SEL"] | curses.A_BOLD))
         else:
-            put(row, line, attr)
-        row += 1
+            lines.append((line, attr))
 
     # ── active tasks (Plane: Running) ──
-    plane     = data.get("plane", {})
+    plane = data.get("plane", {})
     active_tasks = plane.get("active", [])
-    if active_tasks and row < h - 2:
-        row = _sep(stdscr, row, h, w, C["DIM"])
-        put(row, f" Active ({len(active_tasks)} running)", C["HEAD"] | curses.A_BOLD); row += 1
+    if active_tasks:
+        lines.append((_SEP_MARKER, C["DIM"]))
+        lines.append((f" Active ({len(active_tasks)} running)", C["HEAD"] | curses.A_BOLD))
         for item in active_tasks:
-            if row >= h - 2:
-                break
             repo  = item.get("repo", "?")[:10]
             title = item.get("title", "?")[:max(w - 16, 8)]
-            put(row, f"  ▶  {repo:<11} {title}", C["RUN"]); row += 1
+            lines.append((f"  ▶  {repo:<11} {title}", C["RUN"]))
 
-    # ── recent activity (worker logs, last 5 min) ──
+    # ── recent activity (worker logs) ──
     recent = data.get("recent", [])
-    if recent and row < h - 2:
-        row = _sep(stdscr, row, h, w, C["DIM"])
-        put(row, f" Recent ({len(recent)} events, last 5m)", C["HEAD"] | curses.A_BOLD); row += 1
+    if recent:
+        lines.append((_SEP_MARKER, C["DIM"]))
+        lines.append((f" Recent ({len(recent)} events, last 5m)", C["HEAD"] | curses.A_BOLD))
         for ev in recent[:8]:
-            if row >= h - 2:
-                break
             action = ev.get("action", "")
             status = ev.get("status", "")
             title  = ev.get("title", "")[:max(w - 32, 8)]
@@ -518,30 +508,26 @@ def _draw_main(stdscr, data: dict, sel: int, refreshing: bool, flash: str, C: di
             else:
                 icon, attr = "·", C["DIM"]
             tag = f"{action}({status})" if status else action
-            put(row, f"  {icon}  {ts} {role:<8} {tag:<22} {title}", attr); row += 1
+            lines.append((f"  {icon}  {ts} {role:<8} {tag:<22} {title}", attr))
 
-    # ── board (Plane: Ready for AI / Backlog) ──
+    # ── board ──
     board_items = plane.get("board", [])
-    if board_items and row < h - 2:
-        row = _sep(stdscr, row, h, w, C["DIM"])
-        put(row, f" Board ({len(board_items)} queued)", C["HEAD"] | curses.A_BOLD); row += 1
+    if board_items:
+        lines.append((_SEP_MARKER, C["DIM"]))
+        lines.append((f" Board ({len(board_items)} queued)", C["HEAD"] | curses.A_BOLD))
         for item in board_items:
-            if row >= h - 2:
-                break
             repo  = item.get("repo", "?")[:10]
             state = item.get("state", "")
             icon  = "·" if "backlog" in state.lower() else "→"
             title = item.get("title", "?")[:max(w - 16, 8)]
-            put(row, f"  {icon}  {repo:<11} {title}", C["DIM"]); row += 1
+            lines.append((f"  {icon}  {repo:<11} {title}", C["DIM"]))
 
     # ── campaigns ──
     campaigns = data.get("campaigns", [])
-    if campaigns and row < h - 2:
-        row = _sep(stdscr, row, h, w, C["DIM"])
-        put(row, f" Campaigns ({len(campaigns)} active)", C["HEAD"] | curses.A_BOLD); row += 1
+    if campaigns:
+        lines.append((_SEP_MARKER, C["DIM"]))
+        lines.append((f" Campaigns ({len(campaigns)} active)", C["HEAD"] | curses.A_BOLD))
         for c in campaigns:
-            if row >= h - 2:
-                break
             slug   = c.get("slug", c.get("campaign_id", "?"))[:w - 6]
             status = c.get("status", "")
             if status == "done":
@@ -550,73 +536,124 @@ def _draw_main(stdscr, data: dict, sel: int, refreshing: bool, flash: str, C: di
                 icon, attr = "✗", C["ERR"]
             else:
                 icon, attr = "▶", C["YLW"]
-            put(row, f"  {icon}  {slug}", attr)
-            row += 1
+            lines.append((f"  {icon}  {slug}", attr))
 
     # ── queue ──
     queue = data.get("queue", [])
-    if queue and row < h - 2:
-        row = _sep(stdscr, row, h, w, C["DIM"])
-        put(row, f" Queue ({len(queue)} pending)", C["HEAD"] | curses.A_BOLD); row += 1
+    if queue:
+        lines.append((_SEP_MARKER, C["DIM"]))
+        lines.append((f" Queue ({len(queue)} pending)", C["HEAD"] | curses.A_BOLD))
         for item in queue:
-            if row >= h - 2:
-                break
             typ  = (item.get("task_type") or "?")[:4]
             repo = (item.get("repo_name") or "?")[:10]
             goal = (item.get("goal") or "")[:max(w - 20, 8)]
-            put(row, f"  {typ:<5} {repo:<11} {goal}", C["DIM"])
-            row += 1
+            lines.append((f"  {typ:<5} {repo:<11} {goal}", C["DIM"]))
 
     # ── services ──
-    if row < h - 2:
-        row = _sep(stdscr, row, h, w, C["DIM"])
     sb = data.get("sb", False)
-    if row < h - 2:
-        put(row, " Services", C["HEAD"] | curses.A_BOLD); row += 1
-    if row < h - 2:
-        sb_icon = "✓" if sb else "✗"
-        sb_attr = C["RUN"] if sb else C["ERR"]
-        put(row, f"  {sb_icon} SwitchBoard", sb_attr); row += 1
+    lines.append((_SEP_MARKER, C["DIM"]))
+    lines.append((" Services", C["HEAD"] | curses.A_BOLD))
+    sb_icon = "✓" if sb else "✗"
+    sb_attr = C["RUN"] if sb else C["ERR"]
+    lines.append((f"  {sb_icon} SwitchBoard", sb_attr))
 
-    # ── system resources ──
-    if row < h - 2:
-        row = _sep(stdscr, row, h, w, C["DIM"])
+    return lines, sel_row
+
+
+def _resources_lines(data: dict, C: dict) -> list[tuple[str, int]]:
+    """Build the System Resources block as lines. Always anchored to bottom."""
+    out: list[tuple[str, int]] = []
     res = data.get("resources", {})
-    if row < h - 2:
-        put(row, " System Resources", C["HEAD"] | curses.A_BOLD); row += 1
-    if row < h - 2:
-        put(row, f"  {'':15}  {'1m':>7} {'5m':>7} {'15m':>7}", C["DIM"]); row += 1
-    if row < h - 2:
-        load_str = res.get('load', '?')
-        parts = load_str.split('/') if '/' in load_str else ['?', '?', '?']
-        put(row, f"  {'Processes/Queue':15}  {parts[0]:>7} {parts[1]:>7} {parts[2]:>7}", C["DIM"]); row += 1
-    if row < h - 2:
-        load_pct_str = res.get('load_pct', '?')
-        num_cores = res.get('num_cores', 0)
-        cores_str = f"({num_cores} cores)" if num_cores > 0 else ""
-        pct_parts = load_pct_str.split('/') if '/' in load_pct_str else ['?', '?', '?']
-        put(row, f"  {'CPU Utilization':15}  {pct_parts[0]:>7} {pct_parts[1]:>7} {pct_parts[2]:>7}  {cores_str}", C["DIM"]); row += 1
-    if row < h - 2:
-        mp  = res.get("mem_pct", 0)
-        mug = res.get("mem_used_gb", 0)
-        mtg = res.get("mem_total_gb", 0)
-        bar_str = _bar(mp)
-        mem_info = f"{mug:.1f}/{mtg:.1f}G"
-        put(row, f"  {'RAM':15}  {bar_str:>7} {mp:>3d}%  {mem_info}",
-            C["YLW"] if mp > 80 else C["DIM"]); row += 1
-    if row < h - 2 and res.get("swap_total_gb", 0) > 0:
+    out.append((_SEP_MARKER, C["DIM"]))
+    out.append((" System Resources", C["HEAD"] | curses.A_BOLD))
+    out.append((f"  {'':15}  {'1m':>7} {'5m':>7} {'15m':>7}", C["DIM"]))
+
+    load_str = res.get('load', '?')
+    parts = load_str.split('/') if '/' in load_str else ['?', '?', '?']
+    out.append((f"  {'Processes/Queue':15}  {parts[0]:>7} {parts[1]:>7} {parts[2]:>7}", C["DIM"]))
+
+    load_pct_str = res.get('load_pct', '?')
+    num_cores = res.get('num_cores', 0)
+    cores_str = f"({num_cores} cores)" if num_cores > 0 else ""
+    pct_parts = load_pct_str.split('/') if '/' in load_pct_str else ['?', '?', '?']
+    out.append((f"  {'CPU Utilization':15}  {pct_parts[0]:>7} {pct_parts[1]:>7} {pct_parts[2]:>7}  {cores_str}", C["DIM"]))
+
+    mp  = res.get("mem_pct", 0)
+    mug = res.get("mem_used_gb", 0)
+    mtg = res.get("mem_total_gb", 0)
+    out.append((f"  {'RAM':15}  {_bar(mp):>7} {mp:>3d}%  {mug:.1f}/{mtg:.1f}G",
+                C["YLW"] if mp > 80 else C["DIM"]))
+
+    if res.get("swap_total_gb", 0) > 0:
         sp  = res.get("swap_pct", 0)
         sug = res.get("swap_used_gb", 0)
         stg = res.get("swap_total_gb", 0)
-        bar_str = _bar(sp)
-        swap_info = f"{sug:.1f}/{stg:.1f}G"
-        put(row, f"  {'Swap':15}  {bar_str:>7} {sp:>3d}%  {swap_info}",
-            C["YLW"] if sp > 50 else C["DIM"]); row += 1
+        out.append((f"  {'Swap':15}  {_bar(sp):>7} {sp:>3d}%  {sug:.1f}/{stg:.1f}G",
+                    C["YLW"] if sp > 50 else C["DIM"]))
+    return out
+
+
+def _draw_main(stdscr, data: dict, sel: int, refreshing: bool, flash: str, C: dict, scroll: int) -> int:
+    """Render the main view. Returns the (possibly-clamped) scroll offset."""
+    stdscr.erase()
+    h, w = stdscr.getmaxyx()
+    put = lambda r, t, a=0: _put(stdscr, r, h, w, t, a)
+
+    spin = " ⟳" if refreshing else "  "
+    ts   = time.strftime("%H:%M:%S")
+    put(0, f" Operations Center{spin}  {ts}", C["HEAD"] | curses.A_BOLD)
+    _sep(stdscr, 1, h, w, C["DIM"])
+
+    # Build content blocks
+    middle_lines, sel_row = _build_main_lines(data, sel, w, C)
+    bottom_lines          = _resources_lines(data, C)
+
+    # Reserve rows for the bottom-anchored resources block + footer + flash
+    bottom_h = len(bottom_lines)
+    footer_h = 2 if flash else 1            # flash on h-2, help on h-1
+    middle_top    = 2                       # header + separator
+    middle_bottom = h - bottom_h - footer_h # exclusive
+    middle_h      = max(0, middle_bottom - middle_top)
+
+    # Clamp scroll into [0, max_scroll] and auto-scroll to keep selection visible
+    max_scroll = max(0, len(middle_lines) - middle_h)
+    if sel_row >= 0 and middle_h > 0:
+        if sel_row < scroll:
+            scroll = sel_row
+        elif sel_row >= scroll + middle_h:
+            scroll = sel_row - middle_h + 1
+    scroll = max(0, min(scroll, max_scroll))
+
+    # Render middle section (with scroll offset)
+    visible = middle_lines[scroll:scroll + middle_h]
+    for i, (text, attr) in enumerate(visible):
+        r = middle_top + i
+        if text == _SEP_MARKER:
+            _put(stdscr, r, h, w, "─" * (w - 1), attr)
+        else:
+            put(r, text, attr)
+
+    # Scroll indicators
+    if scroll > 0 and middle_h > 0:
+        put(middle_top, "▲" + " " * (w - 2), C["YLW"])
+    if scroll + middle_h < len(middle_lines) and middle_h > 0:
+        put(middle_bottom - 1, "▼" + " " * (w - 2), C["YLW"])
+
+    # Render bottom-anchored resources
+    for i, (text, attr) in enumerate(bottom_lines):
+        r = middle_bottom + i
+        if r >= h - footer_h:
+            break
+        if text == _SEP_MARKER:
+            _put(stdscr, r, h, w, "─" * (w - 1), attr)
+        else:
+            put(r, text, attr)
 
     if flash:
         put(h - 2, f" {flash}", C["HEAD"])
-    put(h - 1, " ↑↓ navigate   enter = actions   r = refresh   q = quit", C["DIM"])
+    put(h - 1, " ↑↓ role  PgUp/PgDn scroll  enter actions  r refresh  q quit", C["DIM"])
     stdscr.refresh()
+    return scroll
 
 
 # ── submenu view ──────────────────────────────────────────────────────────────
@@ -754,6 +791,7 @@ def _pane(stdscr, profile_name: str) -> None:
     log_lines: list[str] = []
     flash      = ""
     flash_at   = 0.0
+    scroll     = 0
 
     while True:
         if flash and time.time() - flash_at > 2:
@@ -769,7 +807,7 @@ def _pane(stdscr, profile_name: str) -> None:
             _draw_submenu(stdscr, _ROLES[role_sel],
                           snap["roles"].get(_ROLES[role_sel], {}), action_sel, C)
         else:
-            _draw_main(stdscr, snap, role_sel, refreshing, flash, C)
+            scroll = _draw_main(stdscr, snap, role_sel, refreshing, flash, C, scroll)
 
         key = stdscr.getch()
 
@@ -803,6 +841,14 @@ def _pane(stdscr, profile_name: str) -> None:
                 role_sel = (role_sel - 1) % len(_ROLES)
             elif key == curses.KEY_DOWN:
                 role_sel = (role_sel + 1) % len(_ROLES)
+            elif key == curses.KEY_PPAGE:
+                scroll = max(0, scroll - 10)
+            elif key == curses.KEY_NPAGE:
+                scroll += 10  # _draw_main clamps to max
+            elif key == curses.KEY_HOME:
+                scroll = 0
+            elif key == curses.KEY_END:
+                scroll = 10_000  # clamped by _draw_main
             elif key in (curses.KEY_ENTER, 10, 13):
                 mode = "action"; action_sel = 0
             elif key == ord("r"):
