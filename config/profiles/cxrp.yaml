@@ -1,5 +1,5 @@
-name: ExecutionContractProtocol
-repo_root: /home/dev/Documents/GitHub/ExecutionContractProtocol
+name: CxRP
+repo_root: /home/dev/Documents/GitHub/CxRP
 
 claude:
   continue: true
