@@ -187,6 +187,7 @@ def main() -> None:
     if not repos:
         print("usage: python3 -m operator_console.git_watcher <repo> [<repo> ...]")
         sys.exit(1)
+    repos = sorted(repos, key=lambda r: Path(r).name.casefold())
     curses.wrapper(_watcher, repos)
 
 
