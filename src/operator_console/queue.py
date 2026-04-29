@@ -37,6 +37,7 @@ def submit(
     repo_path: str | None = None,
     priority: str = "normal",
     source: str = "operator",
+    lane_hint: str | None = None,
 ) -> Path:
     """Write a task to the local queue. Returns the queue file path."""
     task_id = uuid.uuid4().hex
@@ -50,6 +51,8 @@ def submit(
         "source": source,
         "submitted_at": datetime.now(timezone.utc).isoformat(),
     }
+    if lane_hint:
+        payload["lane_hint"] = lane_hint
     path = queue_dir() / f"{task_id}.json"
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return path

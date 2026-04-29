@@ -99,12 +99,16 @@ def _discover_repos() -> dict[str, Path]:
     return repos
 
 
+_VALID_LANES = {"aider_local", "claude_cli", "codex_cli"}
+
+
 def _parse_args(args: list[str]) -> dict:
     parsed: dict = {
         "goal": None,
         "task_type": None,
         "repo": None,
         "priority": "normal",
+        "lane": None,
         "json": False,
     }
     i = 0
@@ -118,6 +122,8 @@ def _parse_args(args: list[str]) -> dict:
             parsed["repo"] = args[i + 1]; i += 2
         elif a == "--priority" and i + 1 < len(args):
             parsed["priority"] = args[i + 1]; i += 2
+        elif a == "--lane" and i + 1 < len(args):
+            parsed["lane"] = args[i + 1]; i += 2
         elif a == "--json":
             parsed["json"] = True; i += 1
         else:
@@ -217,6 +223,13 @@ def run_delegate(args: list[str], profile_repos: dict[str, Path] | None = None) 
             _fail("goal is required")
             return 1
 
+    # ── Lane hint (optional) ─────────────────────────────────────────────────
+
+    lane_hint: str | None = opts["lane"]
+    if lane_hint and lane_hint not in _VALID_LANES:
+        _fail(f"unknown lane: {lane_hint!r}  (valid: {', '.join(sorted(_VALID_LANES))})")
+        return 1
+
     # ── Submit ────────────────────────────────────────────────────────────────
 
     print()
@@ -227,21 +240,29 @@ def run_delegate(args: list[str], profile_repos: dict[str, Path] | None = None) 
         repo_path=repo_path,
         priority=opts["priority"],
         source="operator",
+        lane_hint=lane_hint,
     )
 
     if opts["json"]:
         import json
-        print(json.dumps({
+        payload: dict = {
             "queued": True,
             "file": str(queue_file),
             "repo": repo_name,
             "task_type": task_type,
             "goal": goal,
-        }, indent=2))
+        }
+        if lane_hint:
+            payload["lane_hint"] = lane_hint
+        print(json.dumps(payload, indent=2))
     else:
-        _ok(f"queued  {_c(repo_name, 'B')}  {_c(task_type, 'CYN')}  {_c(repr(goal), 'DIM')}")
+        lane_suffix = _c(f"  lane={lane_hint}", "YLW") if lane_hint else ""
+        _ok(f"queued  {_c(repo_name, 'B')}  {_c(task_type, 'CYN')}  {_c(repr(goal), 'DIM')}{lane_suffix}")
         _info(f"queue: {queue_file}")
-        _info("OperationsCenter intake will pick this up and elaborate it")
+        if lane_hint:
+            _info(f"lane hint: {lane_hint} (SwitchBoard will honour this if the lane is available)")
+        else:
+            _info("OperationsCenter intake will pick this up and elaborate it")
         print()
 
     return 0
