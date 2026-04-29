@@ -5,3 +5,12 @@ tests_root: tests
 # Minimum baseline — runs Custodian's generic C1-C8 only.
 # Add `plugins:` and `detectors:` here when this repo grows its own
 # `_custodian/` overlay layer (see OperationsCenter for a worked example).
+
+audit:
+  # OperatorConsole is a CLI tool: print() is its user-facing output API,
+  # not a debug leftover. C2 ("print statements in source") would otherwise
+  # flag ~400 correct usages. Exempting the whole package is the honest
+  # config — if a subset of files later migrates to logging, narrow the glob.
+  exclude_paths:
+    C2:
+      - "src/operator_console/**/*.py"
