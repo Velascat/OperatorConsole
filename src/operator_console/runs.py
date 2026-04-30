@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: AGPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Velascat
 """runs.py — read Phase 7 canonical run artifacts from ~/.console/operations_center/runs/.
 
