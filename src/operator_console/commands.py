@@ -428,7 +428,7 @@ def cmd_reset(args: list[str], default_profile: dict | None, console_dir: Path) 
     if do_session and _session_exists(CONSOLE_SESSION):
         actions.append(("session", f"kill '{CONSOLE_SESSION}' session"))
     if do_layout and layout_mod.load_any(repo_root):
-        actions.append(("layout", f"delete .console/layout.json + .console/layout.kdl"))
+        actions.append(("layout", "delete .console/layout.json + .console/layout.kdl"))
     if do_state:
         present = [
             n for n in ("task.md", "guidelines.md", "backlog.md", "log.md")
@@ -482,7 +482,7 @@ def cmd_reset(args: list[str], default_profile: dict | None, console_dir: Path) 
                 removed += 1
         if removed:
             print(c(f"  ✓ state    deleted {removed} context file(s)", "GRN"))
-            print(c(f"    Run `console init` or `console open` to reinitialize.", "DIM"))
+            print(c("    Run `console init` or `console open` to reinitialize.", "DIM"))
     print()
 
 
@@ -678,13 +678,13 @@ def cmd_layout(args: list[str], default_profile: dict | None, console_dir: Path)
             if stale:
                 meta, _, _ = stale
                 saved_root = meta.get("repo_root", "?")
-                print(c(f"  ✗ Saved layout references a different repo root:", "YLW"))
+                print(c("  ✗ Saved layout references a different repo root:", "YLW"))
                 print(c(f"    saved:   {saved_root}", "DIM"))
                 print(c(f"    current: {repo_root.resolve()}", "DIM"))
-                print(c(f"  Run `console layout reset` then `console layout save` to update it.", "DIM"))
+                print(c("  Run `console layout reset` then `console layout save` to update it.", "DIM"))
             else:
                 print(c(f"  No saved layout for {repo_root.name}.", "YLW"))
-                print(c(f"  Run `console layout save` to create one.", "DIM"))
+                print(c("  Run `console layout save` to create one.", "DIM"))
             sys.exit(1)
 
         meta, kdl_path = result
@@ -692,7 +692,7 @@ def cmd_layout(args: list[str], default_profile: dict | None, console_dir: Path)
         already_in = os.environ.get("ZELLIJ_SESSION_NAME") == CONSOLE_SESSION
         if already_in or _session_exists(CONSOLE_SESSION):
             print(c(f"  Session '{CONSOLE_SESSION}' is already running.", "YLW"))
-            print(c(f"  Run `console kill` first, then `console layout load`.", "DIM"))
+            print(c("  Run `console kill` first, then `console layout load`.", "DIM"))
             sys.exit(1)
 
         check_branch(repo_root)
@@ -709,7 +709,7 @@ def cmd_layout(args: list[str], default_profile: dict | None, console_dir: Path)
         result = layout_mod.load_any(repo_root)
         if not result:
             print(c(f"  No saved layout for {repo_root.name}.", "DIM"))
-            print(c(f"  Run `console layout save` to create one.", "DIM"))
+            print(c("  Run `console layout save` to create one.", "DIM"))
         else:
             meta, kdl_path, is_current = result
             print(hr())
@@ -794,7 +794,7 @@ def cmd_save(args: list[str], default_profile: dict | None, console_dir: Path) -
         if kdl_path.exists():
             kdl_path.unlink()
             print(c(f"  ✓ removed  {kdl_path.name}", "GRN"))
-            print(c(f"  Layout will be generated from YAML on next open.", "DIM"))
+            print(c("  Layout will be generated from YAML on next open.", "DIM"))
         else:
             print(c(f"  No saved layout for '{profile_name}'.", "DIM"))
         return

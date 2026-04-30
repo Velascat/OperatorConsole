@@ -123,10 +123,10 @@ def _multi_pane_block(
     # Enter on a repo execs lazygit for it; the restart loop brings the watcher back.
     repo_args = " ".join(f"'{p['repo_root']}'" for p in profiles)
     watcher_cmd = (
-        f"while true; do "
+        "while true; do "
         f"python3 -m operator_console.git_watcher {repo_args}; "
-        f"sleep 1; "
-        f"done"
+        "sleep 1; "
+        "done"
     )
     left_block = (
         f'{i}    pane size="28%" name="git" command="bash" {{\n'
