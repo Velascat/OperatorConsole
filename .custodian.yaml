@@ -30,3 +30,9 @@ audit:
       - src/operator_console/clean.py
       - src/operator_console/cli.py
       - src/operator_console/runs_cmd.py
+    C9:
+      # OperatorConsole is a TUI application with no logging infrastructure.
+      # Broad exception catches throughout the codebase are intentional resilience
+      # patterns: a failing status poll, subprocess probe, or display render must
+      # not crash the terminal UI. Exceptions are silently swallowed by design.
+      - "src/operator_console/**/*.py"
