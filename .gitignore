@@ -20,3 +20,6 @@ config/profiles/*.kdl
 config/profiles/*.session
 config/profiles/*.codex-session
 config/profiles/status-rc-*.sh
+
+# Warehouse data (generated artifacts gitignored via .warehouse/yard/*/.gitignore)
+.warehouse/yard/
