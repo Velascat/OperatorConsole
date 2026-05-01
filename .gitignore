@@ -21,5 +21,8 @@ config/profiles/*.session
 config/profiles/*.codex-session
 config/profiles/status-rc-*.sh
 
+# Custodian plugin directory (generated/managed by OpsCenter in managed repos)
+_custodian/
+
 # Warehouse data (generated artifacts gitignored via .warehouse/yard/*/.gitignore)
 .warehouse/yard/
