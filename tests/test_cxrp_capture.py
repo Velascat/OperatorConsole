@@ -17,10 +17,13 @@ from cxrp.contracts import TaskProposal as CxrpTaskProposal
 from cxrp.validation.json_schema import validate_contract
 from jsonschema import ValidationError
 
+from cxrp.contracts import ExecutionResult as CxrpExecutionResult
+from cxrp.vocabulary.status import ExecutionStatus
+
 from operator_console.cxrp_capture import (
     build_task_proposal,
+    parse_execution_result,
     summarize_execution_result,
-    validate_inbound_execution_result,
 )
 
 
@@ -48,7 +51,11 @@ def test_build_task_proposal_validates_against_schema():
         submitter="velascat",
         constraints=["preserve public API"],
     )
-    validate_contract("task_proposal", _serialize_envelope(tp))
+    serialized = _serialize_envelope(tp)
+    validate_contract("task_proposal", serialized)
+    assert serialized["contract_kind"] == "task_proposal"
+    assert serialized["target"]["repo_key"] == "velascat/x"
+    assert "preserve public API" in serialized["constraints"]
 
 
 def test_build_task_proposal_target_uses_well_known_payload_schema():
@@ -68,7 +75,7 @@ def test_build_task_proposal_does_not_infer_task_type_or_risk():
     assert tp.execution_mode is None
 
 
-def test_validate_inbound_execution_result_accepts_valid():
+def test_parse_execution_result_returns_typed_object():
     valid = {
         "schema_version": "0.2",
         "contract_kind": "execution_result",
@@ -80,10 +87,18 @@ def test_validate_inbound_execution_result_accepts_valid():
         "artifacts": [{"kind": "log", "uri": "file:///tmp/run.log"}],
         "diagnostics": {"duration_seconds": 12},
     }
-    validate_inbound_execution_result(valid)
+    result = parse_execution_result(valid)
+    assert isinstance(result, CxrpExecutionResult)
+    assert result.result_id == "ers-1"
+    assert result.request_id == "erq-1"
+    assert result.ok is True
+    assert result.status == ExecutionStatus.SUCCEEDED
+    assert len(result.artifacts) == 1
+    assert result.artifacts[0].kind == "log"
+    assert result.diagnostics["duration_seconds"] == 12
 
 
-def test_validate_inbound_execution_result_rejects_invalid_status():
+def test_parse_execution_result_rejects_invalid_status():
     invalid = {
         "schema_version": "0.2",
         "contract_kind": "execution_result",
@@ -94,7 +109,7 @@ def test_validate_inbound_execution_result_rejects_invalid_status():
         "status": "DEFINITELY_NOT_A_REAL_STATUS",
     }
     with pytest.raises(ValidationError):
-        validate_inbound_execution_result(invalid)
+        parse_execution_result(invalid)
 
 
 def test_summarize_execution_result_renders_one_liner():
@@ -109,7 +124,8 @@ def test_summarize_execution_result_renders_one_liner():
         "artifacts": [{"kind": "diff", "uri": "file:///x.diff"}],
         "diagnostics": {"duration_seconds": 42},
     }
-    line = summarize_execution_result(payload)
+    result = parse_execution_result(payload)
+    line = summarize_execution_result(result)
     assert "status=succeeded" in line
     assert "run=erq-1" in line
     assert "artifacts=1" in line

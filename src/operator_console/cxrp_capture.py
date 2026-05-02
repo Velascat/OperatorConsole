@@ -17,8 +17,11 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Optional
 
+from cxrp.contracts import Artifact as CxrpArtifact
+from cxrp.contracts import ExecutionResult as CxrpExecutionResult
 from cxrp.contracts import TaskProposal as CxrpTaskProposal
 from cxrp.validation.json_schema import validate_contract
+from cxrp.vocabulary.status import ExecutionStatus
 
 
 def build_task_proposal(
@@ -64,23 +67,40 @@ def build_task_proposal(
     )
 
 
-def validate_inbound_execution_result(payload: dict[str, Any]) -> None:
-    """Validate an inbound ExecutionResult payload against CxRP's schema.
+def parse_execution_result(payload: dict[str, Any]) -> CxrpExecutionResult:
+    """Validate and deserialize an inbound ExecutionResult payload into a typed object.
 
     Raises jsonschema.ValidationError on shape mismatch.
     """
     validate_contract("execution_result", payload)
+    artifacts = [
+        CxrpArtifact(
+            kind=a.get("kind", ""),
+            uri=a.get("uri", ""),
+            description=a.get("description", ""),
+            metadata=a.get("metadata") or {},
+        )
+        for a in payload.get("artifacts") or []
+    ]
+    return CxrpExecutionResult(
+        result_id=payload.get("result_id", ""),
+        request_id=payload.get("request_id", ""),
+        ok=bool(payload.get("ok", False)),
+        status=ExecutionStatus(payload.get("status", ExecutionStatus.PENDING)),
+        artifacts=artifacts,
+        diagnostics=payload.get("diagnostics") or {},
+        metadata=payload.get("metadata") or {},
+    )
 
 
-def summarize_execution_result(payload: dict[str, Any]) -> str:
-    """Render a one-line operator-facing summary of an CxRP ExecutionResult."""
-    validate_inbound_execution_result(payload)
-    status = payload.get("status", "?")
-    request_id = payload.get("request_id", "?")
-    artifact_count = len(payload.get("artifacts", []))
-    diagnostics = payload.get("diagnostics") or {}
-    duration = diagnostics.get("duration_seconds")
-    parts = [f"run={request_id}", f"status={status}", f"artifacts={artifact_count}"]
+def summarize_execution_result(result: CxrpExecutionResult) -> str:
+    """Render a one-line operator-facing summary of a parsed ExecutionResult."""
+    duration = result.diagnostics.get("duration_seconds")
+    parts = [
+        f"run={result.request_id or '?'}",
+        f"status={result.status.value}",
+        f"artifacts={len(result.artifacts)}",
+    ]
     if duration is not None:
         parts.append(f"took={duration}s")
     return " | ".join(parts)
