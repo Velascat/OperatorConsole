@@ -4,11 +4,11 @@ Active work list. Update after each meaningful chunk of progress.
 
 ## In Progress
 
-- [ ] [Task description] — [brief context]
+_(none)_
 
 ## Up Next
 
-- [ ] [Task description]
+_(none — awaiting next directive)_
 
 ## Done
 
