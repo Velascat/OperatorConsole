@@ -17,7 +17,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from cxrp.contracts import ExecutionResult as CxrpExecutionResult, TaskProposal as CxrpTaskProposal
+from cxrp.contracts import TaskProposal as CxrpTaskProposal
 from cxrp.validation.json_schema import validate_contract
 
 

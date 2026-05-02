@@ -116,13 +116,11 @@ def run_providers(args: list[str]) -> int:
 
     _section("Backends")
     backend_results = _backend_readiness()
-    any_backend_missing = False
     for backend_name, available, found_path, hint in backend_results:
         if available:
             _ok(f"{backend_name:<14} available   ({found_path})")
         else:
             _fail(f"{backend_name:<14} missing     install: {hint}")
-            any_backend_missing = True
 
     _section("OperationsCenter")
     worker_path = _find_repo("OperationsCenter") / "src" / "operations_center" / "entrypoints" / "worker" / "main.py"

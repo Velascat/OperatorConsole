@@ -61,9 +61,6 @@ def read_proposal(run_dir: Path) -> dict:
     return read_json(run_dir / "proposal.json")
 
 
-def read_decision(run_dir: Path) -> dict:
-    return read_json(run_dir / "decision.json")
-
 
 def run_summary(run_dir: Path) -> dict:
     """Return a flat summary dict for display — merges metadata + result + proposal fields."""

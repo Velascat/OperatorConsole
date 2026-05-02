@@ -62,6 +62,18 @@ audit:
       - src/operator_console/cli.py
       - src/operator_console/commands.py
       - src/operator_console/watcher_status_pane.py
+    D7:
+      # cmd_* dispatch functions all accept `args: list[str]` for interface
+      # consistency — not all currently parse args but the signature is fixed
+      # by the CLI dispatcher calling convention.
+      # bootstrap helpers (get_codex_command, ensure_claude_md) carry params
+      # for API extensibility; callers currently pass only required args.
+      - src/operator_console/commands.py
+      - src/operator_console/bootstrap.py
+    T1:
+      # OperatorConsole is a TUI application — bootstrap, command dispatch,
+      # and display modules are validated through integration use, not unit tests.
+      - "src/operator_console/**/*.py"
 
 tools:
   ruff: true

@@ -890,38 +890,6 @@ def cmd_rewatch(args: list[str], console_dir: Path) -> None:
     os.execvp("bash", ["bash", "-c", watcher_cmd])
 
 
-def cmd_install(args: list[str], console_dir: Path) -> None:
-    local_bin = Path.home() / ".local" / "bin"
-    local_bin.mkdir(parents=True, exist_ok=True)
-
-    src = console_dir / "console"
-    link = local_bin / "console"
-
-    if link.exists() or link.is_symlink():
-        if link.is_symlink() and link.resolve() == src.resolve():
-            print(c("✓ console already installed", "GRN"))
-            print(c(f"  {link} → {src}", "DIM"))
-            return
-        link.unlink()
-
-    link.symlink_to(src)
-    print(c("✓ Installed console", "GRN"))
-    print(c(f"  {link} → {src}", "DIM"))
-
-    # ~/.local/bin must be in PATH — add to .bashrc if missing
-    rc = Path.home() / ".bashrc"
-    local_bin_str = str(local_bin)
-    if local_bin_str not in os.environ.get("PATH", "").split(":"):
-        if rc.exists() and local_bin_str in rc.read_text(encoding="utf-8"):
-            pass  # already in .bashrc, just not sourced yet
-        else:
-            with rc.open("a") as f:
-                f.write(f'\nexport PATH="{local_bin_str}:$PATH"\n')
-            print(c(f"  Added {local_bin_str} to PATH in ~/.bashrc", "DIM"))
-        print(c("  Run: source ~/.bashrc  (or open a new shell)", "DIM"))
-    else:
-        print(c("  Available in all shells immediately", "GRN"))
-
 
 # ── workers ───────────────────────────────────────────────────────────────────
 

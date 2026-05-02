@@ -247,34 +247,6 @@ def get_codex_command(
     return f"bash '{safe_path}'"
 
 
-# TODO [deferred, reviewed 2026-04-30]: OperatorConsole's own profile
-# (config/profiles/operator_console.yaml) still uses Claude.
-# Switch it to `tool: aider` once SwitchBoard integration is validated end-to-end.
-def get_aider_command(
-    profile: dict,
-    repo_root: Path,
-    console_dir: Path | None = None,
-    session_key: str | None = None,
-) -> str:
-    """Return a shell command string for the retired SwitchBoard+Aider flow."""
-    import tempfile
-
-    script = (
-        "#!/usr/bin/env bash\n"
-        "echo 'ERROR: SwitchBoard no longer ships the legacy OpenAI-compatible Aider bridge.'\n"
-        "echo 'Use the canonical lane-based SwitchBoard flow or a direct local Aider setup instead.'\n"
-        "exec bash -l\n"
-    )
-
-    key = (session_key or profile.get("name", "unknown")).lower()
-    script_path = Path(tempfile.gettempdir()) / f"console-aider-{key}.sh"
-    script_path.write_text(script, encoding="utf-8")
-    script_path.chmod(0o755)
-
-    safe_path = str(script_path).replace("'", "'\\''")
-    return f"bash '{safe_path}'"
-
-
 def ensure_claude_md(
     repo_root: Path,
     templates_dir: Path,
@@ -332,7 +304,6 @@ Do not edit `.console/.context` directly — it is regenerated at each launch.
 
 # ── CLI update helpers ────────────────────────────────────────────────────────
 
-_UPDATE_LOG = Path("/tmp/console-cli-update.log")
 
 _CLI_UPDATES: list[tuple[str, list[str]]] = [
     ("claude",  ["claude", "update"]),
@@ -359,17 +330,3 @@ def update_clis(*, verbose: bool = False) -> dict[str, str]:
     return results
 
 
-def spawn_update_clis_background() -> None:
-    """Fire-and-forget background CLI update; output goes to /tmp/console-cli-update.log."""
-    import sys
-    log = _UPDATE_LOG.open("w")
-    try:
-        subprocess.Popen(
-            [sys.executable, "-c",
-             "from operator_console.bootstrap import update_clis; r = update_clis(); "
-             "[print(f'{k}: {v}') for k,v in r.items()]"],
-            stdout=log, stderr=log,
-            start_new_session=True,
-        )
-    except Exception:
-        pass

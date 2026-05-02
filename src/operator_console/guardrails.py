@@ -35,7 +35,7 @@ def get_branch(repo_root: Path) -> str | None:
         return None
 
 
-def check_branch(repo_root: Path, force: bool = False) -> None:
+def check_branch(repo_root: Path) -> None:
     """Warn (but don't block) if on a protected branch."""
     branch = get_branch(repo_root)
     if branch is None:
