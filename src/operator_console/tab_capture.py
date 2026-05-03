@@ -3,7 +3,6 @@
 """Capture live Zellij tab layout for profile save/restore."""
 from __future__ import annotations
 import subprocess
-from pathlib import Path
 
 
 def dump_live_layout() -> str | None:

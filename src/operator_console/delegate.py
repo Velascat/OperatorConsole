@@ -115,17 +115,23 @@ def _parse_args(args: list[str]) -> dict:
     while i < len(args):
         a = args[i]
         if a == "--goal" and i + 1 < len(args):
-            parsed["goal"] = args[i + 1]; i += 2
+            parsed["goal"] = args[i + 1]
+            i += 2
         elif a == "--task-type" and i + 1 < len(args):
-            parsed["task_type"] = args[i + 1]; i += 2
+            parsed["task_type"] = args[i + 1]
+            i += 2
         elif a == "--repo" and i + 1 < len(args):
-            parsed["repo"] = args[i + 1]; i += 2
+            parsed["repo"] = args[i + 1]
+            i += 2
         elif a == "--priority" and i + 1 < len(args):
-            parsed["priority"] = args[i + 1]; i += 2
+            parsed["priority"] = args[i + 1]
+            i += 2
         elif a == "--lane" and i + 1 < len(args):
-            parsed["lane"] = args[i + 1]; i += 2
+            parsed["lane"] = args[i + 1]
+            i += 2
         elif a == "--json":
-            parsed["json"] = True; i += 1
+            parsed["json"] = True
+            i += 1
         else:
             i += 1
     return parsed

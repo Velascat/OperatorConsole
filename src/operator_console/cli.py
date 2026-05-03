@@ -201,7 +201,6 @@ def show_help(_: list[str]) -> None:
 
 def _profile_repos_from_env() -> dict[str, Path] | None:
     """Return {name: path} for the active CONSOLE_PROFILE, or None if unset/unknown."""
-    import os
     from operator_console.profile_loader import load_profile
     name = os.environ.get("CONSOLE_PROFILE", "").strip().lower()
     if not name:
@@ -276,9 +275,6 @@ def _discover_repos() -> dict[str, dict]:
 
 def _autopick() -> tuple[list[dict], str | None]:
     """Auto-select current repo, or show single-select picker if not in any repo."""
-    import subprocess
-    from operator_console.session import session_exists
-    from operator_console.launcher import CONSOLE_SESSION
 
     all_profiles = _discover_repos()
     if not all_profiles:
@@ -330,7 +326,8 @@ def _expand_selection(selected_raw: list[dict]) -> tuple[list[dict], str | None]
                 try:
                     sub = load_profile(sub_name, PROFILES_DIR)
                 except FileNotFoundError as e:
-                    print(c(f"✗ {e}", "RED")); sys.exit(1)
+                    print(c(f"✗ {e}", "RED"))
+                    sys.exit(1)
                 if sub["name"] not in seen:
                     result.append(sub)
                     seen.add(sub["name"])
@@ -580,7 +577,8 @@ def main() -> None:
                     try:
                         raw.append(load_profile(pname, PROFILES_DIR))
                     except FileNotFoundError as e:
-                        print(c(f"✗ {e}", "RED")); sys.exit(1)
+                        print(c(f"✗ {e}", "RED"))
+                        sys.exit(1)
                 profiles, tab_name = _expand_selection(raw)
                 for p in profiles:
                     errs = validate_profile(p)

@@ -397,8 +397,10 @@ def _bar(pct: int, width: int = BAR_W) -> str:
 
 def _uptime(start: float) -> str:
     e = int(time.time() - start)
-    if e < 60:   return f"{e}s"
-    if e < 3600: return f"{e // 60}m"
+    if e < 60:
+        return f"{e}s"
+    if e < 3600:
+        return f"{e // 60}m"
     return f"{e // 3600}h{(e % 3600) // 60}m"
 
 
@@ -624,7 +626,8 @@ def _draw_main(stdscr, data: dict, sel: int, refreshing: bool, flash: str, C: di
     """Render the main view. Returns the (possibly-clamped) scroll offset."""
     stdscr.erase()
     h, w = stdscr.getmaxyx()
-    put = lambda r, t, a=0: _put(stdscr, r, h, w, t, a)
+    def put(r, t, a=0):
+        return _put(stdscr, r, h, w, t, a)
 
     spin = " ⟳" if refreshing else "  "
     ts   = time.strftime("%H:%M:%S")
@@ -702,7 +705,8 @@ def _draw_main(stdscr, data: dict, sel: int, refreshing: bool, flash: str, C: di
 
 def _draw_submenu(stdscr, role: str, info: dict, sel: int, C: dict) -> None:
     h, w = stdscr.getmaxyx()
-    put = lambda r, t, a=0: _put(stdscr, r, h, w, t, a)
+    def put(r, t, a=0):
+        return _put(stdscr, r, h, w, t, a)
     stdscr.erase()
 
     alive  = info.get("alive", False)
@@ -726,7 +730,8 @@ def _draw_submenu(stdscr, role: str, info: dict, sel: int, C: dict) -> None:
 
 def _draw_log_view(stdscr, role: str, lines: list[str], C: dict) -> None:
     h, w = stdscr.getmaxyx()
-    put = lambda r, t, a=0: _put(stdscr, r, h, w, t, a)
+    def put(r, t, a=0):
+        return _put(stdscr, r, h, w, t, a)
     stdscr.erase()
 
     put(0, f" circuit breaker — {role} (last {LOG_TAIL_LINES} lines)", C["HEAD"] | curses.A_BOLD)
@@ -869,9 +874,13 @@ def _pane(stdscr, profile_name: str) -> None:
                 role   = _ROLES[role_sel]
                 if action == "tail logs":
                     msg = _do_tail(role)
-                    flash = msg; flash_at = time.time(); mode = "roles"
+                    flash = msg
+                    flash_at = time.time()
+                    mode = "roles"
                 elif action == "board":
-                    flash = _do_board(); flash_at = time.time(); mode = "roles"
+                    flash = _do_board()
+                    flash_at = time.time()
+                    mode = "roles"
                 elif action == "circuit breaker":
                     log_lines = _read_log_lines(role)
                     mode = "log"
@@ -892,7 +901,8 @@ def _pane(stdscr, profile_name: str) -> None:
             elif key == curses.KEY_END:
                 scroll = 10_000  # clamped by _draw_main
             elif key in (curses.KEY_ENTER, 10, 13):
-                mode = "action"; action_sel = 0
+                mode = "action"
+                action_sel = 0
             elif key == ord("r"):
                 with lock:
                     data.update({"roles": dict(_empty_roles), "campaigns": [],

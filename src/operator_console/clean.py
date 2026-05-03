@@ -31,11 +31,14 @@ def _parse_args(args: list[str]) -> dict:
                 pass
             i += 2
         elif a in ("-y", "--yes"):
-            parsed["yes"] = True; i += 1
+            parsed["yes"] = True
+            i += 1
         elif a == "--dry-run":
-            parsed["dry_run"] = True; i += 1
+            parsed["dry_run"] = True
+            i += 1
         elif a == "--root" and i + 1 < len(args):
-            parsed["root"] = Path(args[i + 1]); i += 2
+            parsed["root"] = Path(args[i + 1])
+            i += 2
         else:
             i += 1
     return parsed

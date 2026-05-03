@@ -36,15 +36,20 @@ def _parse_args(args: list[str]) -> dict:
     while i < len(args):
         a = args[i]
         if a == "--goal" and i + 1 < len(args):
-            parsed["goal"] = args[i + 1]; i += 2
+            parsed["goal"] = args[i + 1]
+            i += 2
         elif a == "--task-type" and i + 1 < len(args):
-            parsed["task_type"] = args[i + 1]; i += 2
+            parsed["task_type"] = args[i + 1]
+            i += 2
         elif a == "--repo-key" and i + 1 < len(args):
-            parsed["repo_key"] = args[i + 1]; i += 2
+            parsed["repo_key"] = args[i + 1]
+            i += 2
         elif a == "--clone-url" and i + 1 < len(args):
-            parsed["clone_url"] = args[i + 1]; i += 2
+            parsed["clone_url"] = args[i + 1]
+            i += 2
         elif a == "--repo-path" and i + 1 < len(args):
-            parsed["repo_path"] = args[i + 1]; i += 2
+            parsed["repo_path"] = args[i + 1]
+            i += 2
         else:
             i += 1
     return parsed

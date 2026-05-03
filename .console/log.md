@@ -7,6 +7,7 @@ _Not a task tracker — that's backlog.md. Keep entries concise and dated._
 
 | Decision | Rationale | Date |
 |----------|-----------|------|
+| Ruff style violations resolved | E701/E702/E741/F401 across clean.py, cli.py, delegate.py, observer.py, watcher_status_pane.py, git_watcher.py, commands.py, auto_once.py, tab_capture.py | 2026-05-03 |
 | CLAUDE.md: simplify console update instruction | "Before each commit" → "After meaningful progress" | 2026-05-02 |
 | cmd_install restored as `console symlink` | Was dead code (no CLI dispatch); added case "symlink" in cli.py; symlinks CONSOLE_DIR/console → ~/.local/bin/console | 2026-05-02 |
 | get_aider_command implemented | Old version was a stub printing an error; now a real launcher (profile["aider"]: bin/model/auto_commits); aider pane added to layout alongside claude/codex | 2026-05-02 |

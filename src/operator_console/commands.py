@@ -186,7 +186,7 @@ def cmd_resume(args: list[str], default_profile: dict | None) -> None:
     repo_root = Path(default_profile["repo_root"]) if default_profile else Path.cwd()
     prompt = build_resume_prompt(repo_root)
 
-    width = min(70, max(50, max(len(l) for l in prompt.splitlines()) + 4))
+    width = min(70, max(50, max(len(ln) for ln in prompt.splitlines()) + 4))
     print()
     print(c("╔" + "═" * (width - 2) + "╗", "CYN"))
     print(c("║  Claude Resume Context" + " " * (width - 25) + "║", "CYN", "B"))
@@ -668,7 +668,7 @@ def cmd_layout(args: list[str], default_profile: dict | None, console_dir: Path)
 
     elif sub == "load":
         import os
-        from operator_console.launcher import _delete_dead_session, attach
+        from operator_console.launcher import _delete_dead_session
         from operator_console.session import session_exists as _session_exists
         from operator_console.guardrails import check_branch
 

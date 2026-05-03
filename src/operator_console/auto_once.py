@@ -10,7 +10,6 @@ written to ~/.console/operations_center/runs/<run_id>/ by the execute entrypoint
 """
 from __future__ import annotations
 
-from pathlib import Path
 
 _C = {
     "R": "\033[0m", "B": "\033[1m", "DIM": "\033[2m",

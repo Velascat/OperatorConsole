@@ -62,9 +62,12 @@ def _dirty(s: tuple[int, int, int] | None) -> bool:
 
 def _fmt(s: tuple[int, int, int]) -> str:
     parts = []
-    if s[0]: parts.append(f"{s[0]}S")
-    if s[1]: parts.append(f"{s[1]}M")
-    if s[2]: parts.append(f"{s[2]}?")
+    if s[0]:
+        parts.append(f"{s[0]}S")
+    if s[1]:
+        parts.append(f"{s[1]}M")
+    if s[2]:
+        parts.append(f"{s[2]}?")
     return " ".join(parts)
 
 
