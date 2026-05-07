@@ -19,34 +19,32 @@ OperatorConsole is not a neutral bootstrap script or a multiplexer-agnostic tool
 **Single repo:**
 ```
 ┌────────────────────────────────────────────────────────┐
-│  OperatorConsole  │  YourRepo  │  ...                         │  ← tab bar
+│  OperatorConsole  │  YourRepo  │  ...                  │  ← tab bar
 ├──────────┬──────────────────────────────┬──────────────┤
-│          │                              │              │
-│ lazygit  │   claude / codex / aider     │     logs     │
-│  (28%)   │      stacked in center       │    (28%)     │
-├──────────┤──────────────────────────────┤              │
-│ status   │  shell  (15%)                │              │
-│  (25%)   │                              │              │
+│          │                              │   shell      │
+│ lazygit  │   claude / codex / aider     │  ──────────  │
+│  (28%)   │     (stacked in center)      │   status     │
+│          │                              │   (28%)      │
 └──────────┴──────────────────────────────┴──────────────┘
-│  NORMAL  │  console  │  ...                               │  ← status bar
+│  NORMAL  │  console  │  ...                            │  ← status bar
 ```
 
-Left 28%: lazygit (top) + OperationsCenter status script (bottom 25%). Center 44%: stacked `claude`, `codex`, and `aider`, plus a shell at the bottom (15%). Right 28%: logs.
+Left 28%: `lazygit`. Center: stacked `claude` / `codex` / `aider`. Right 28%: stacked `shell` + watcher `status` pane.
 
 **Multi repo (`console multi` or group profile) — single tab:**
 ```
 ┌──────────────────────────────────────────────────────┐
-│  platform  │  ...                                │  ← tab bar (group name, not member list)
-├──────────┬─────────────────────────┬──────────────────┤
-│ lazygit  │                         │  shell-A ▸       │
-│  repo-A  │  claude / codex / aider │  shell-B ▸  (75%)│
-│ lazygit  │      (GitHub/)          ├──────────────────┤
-│  repo-B  │                         │  oc-status  (25%)│
-│   ...  ▸ │                         │                  │
-└──────────┴─────────────────────────┴──────────────────┘
+│  platform  │  ...                                   │  ← tab bar (group name)
+├──────────────┬───────────────────────┬──────────────┤
+│ git_watcher  │                       │   shell      │
+│  repo-A ▸    │  claude/codex/aider   │  ──────────  │
+│  repo-B ▸    │      (GitHub/)        │   status     │
+│  repo-C ▸    │                       │   (28%)      │
+│  (28%)       │                       │              │
+└──────────────┴───────────────────────┴──────────────┘
 ```
 
-Left 28%: stacked lazygits (all repos). Center: stacked `claude`, `codex`, and `aider`, rooted at `~/Documents/GitHub/`. Right 28%: stacked shells (75%) + OperationsCenter status (25%).
+Left 28%: interactive `git_watcher` (curses; ↑↓ navigate, Enter → lazygit for that repo). Center: stacked `claude` / `codex` / `aider`, rooted at `~/Documents/GitHub/`. Right 28%: stacked `shell` + watcher `status` pane.
 
 Tab naming: group profiles use the group name (`platform`); ad-hoc multi-select joins all repo names (`RepoA+RepoB+RepoC`).
 
