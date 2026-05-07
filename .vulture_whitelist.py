@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Velascat
 # Vulture whitelist — symbols that are intentional public API not yet called from src/.
 # CxRP boundary surface: these are the module's exported functions, called by
 # downstream TUI code once the CxRP submission flow is wired up.

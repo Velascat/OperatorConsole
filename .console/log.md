@@ -23,7 +23,7 @@ _Not a task tracker — that's backlog.md. Keep entries concise and dated._
 
 ## Stop Points
 
-_(none recorded)_
+- CI license header (2026-05-06, on `main`): Added missing SPDX header to `.vulture_whitelist.py`. Same fix pattern applied across other Velascat repos. CI license-header job now passes.
 
 ## Notes
 
