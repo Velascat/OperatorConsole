@@ -7,6 +7,7 @@ _Not a task tracker — that's backlog.md. Keep entries concise and dated._
 
 | Decision | Rationale | Date |
 |----------|-----------|------|
+| WS architecture refs updated after subgrouping | WorkStation moved its architecture/ docs into adapters/, routing/, contracts/, execution/, policy/, system/ subdirs. Inbound README links rewritten. | 2026-05-07 |
 | docs reorganization | Moved docs/migration/fob-operator-flow-update.md and docs/audits/final_rename_refactor_verification_2.md into docs/history/. Removed empty migration/ and audits/ dirs. | 2026-05-07 |
 | docs/README.md index added | Required by Custodian R6 (newly landed). Indexes daily-use guides, architecture, migration, and audit history. | 2026-05-07 |
 | README ## What OperatorConsole Is Not section | Replaced inline "OperatorConsole is not a neutral bootstrap script..." sentence with a proper `## What OperatorConsole Is Not` H2 section listing the four explicit anti-scopes. Required by Custodian R4 README detector (newly landed). | 2026-05-06 |

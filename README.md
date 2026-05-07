@@ -310,7 +310,7 @@ OperatorConsole owns the operator experience: session management, workspace layo
 
 OperatorConsole does **not** own service Dockerfiles, compose manifests, routing policy, adapter logic, or contract definitions. Those belong to WorkStation (compose/Dockerfiles), SwitchBoard (routing policy), OperationsCenter (adapters), and CxRP/RxP (canonical contracts) respectively. OperatorConsole has no direct imports from any of those repos at runtime.
 
-For the full platform ownership model see `WorkStation/docs/architecture/ownership.md`.
+For the full platform ownership model see `WorkStation/docs/architecture/system/ownership.md`.
 
 ---
 
