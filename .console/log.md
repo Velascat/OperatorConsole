@@ -7,6 +7,7 @@ _Not a task tracker — that's backlog.md. Keep entries concise and dated._
 
 | Decision | Rationale | Date |
 |----------|-----------|------|
+| docs/architecture.md refresh | Module tree updated to actual src/operator_console/ contents (not the old src/console/ path with missing modules); pane diagram updated to current single/multi-repo Zellij stack layout (claude/codex/aider stack, watcher status pane); session-tracking section rewritten to cover all three tools (Claude, Codex, Aider) instead of only Claude. | 2026-05-07 |
 | WS architecture refs updated after subgrouping | WorkStation moved its architecture/ docs into adapters/, routing/, contracts/, execution/, policy/, system/ subdirs. Inbound README links rewritten. | 2026-05-07 |
 | docs reorganization | Moved docs/migration/fob-operator-flow-update.md and docs/audits/final_rename_refactor_verification_2.md into docs/history/. Removed empty migration/ and audits/ dirs. | 2026-05-07 |
 | docs/README.md index added | Required by Custodian R6 (newly landed). Indexes daily-use guides, architecture, migration, and audit history. | 2026-05-07 |

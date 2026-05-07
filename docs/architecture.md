@@ -4,18 +4,27 @@
 
 ```
 console (shell wrapper)
-└── src/console/cli.py              ← main dispatcher + repo discovery + profile picker
+└── src/operator_console/cli.py     ← main dispatcher + repo discovery + profile picker
     ├── profile_loader.py       ← YAML profile loading + validation
     ├── launcher.py             ← Zellij session creation / tab management
     ├── demo.py                 ← end-to-end platform validation flow
     ├── providers.py            ← provider dashboard helper + free-provider guide
     ├── layout.py               ← layout persistence (save/load/show/reset)
     ├── tab_capture.py          ← live Zellij layout capture (dump-layout + KDL extraction)
-    ├── session_group.py        ← session group persistence (save/load last group for console restore)
+    ├── session_group.py        ← session-group persistence (save/load last group for `console restore`)
     ├── session.py              ← Zellij session state queries
     ├── guardrails.py           ← branch detection + warnings
-    ├── bootstrap.py            ← Claude context generation + session wrapper scripts
-    └── commands.py             ← all helper command implementations
+    ├── bootstrap.py            ← Claude/Codex/Aider context generation + session wrapper scripts
+    ├── git_watcher.py          ← curses multi-repo git-dirty watcher (multi-repo left column)
+    ├── watcher_status_pane.py  ← Rich status pane for the right column
+    ├── delegate.py             ← `console run` wizard + queue writer
+    ├── queue.py / queue_status.py  ← OperationsCenter run-queue submission + display
+    ├── runs.py / runs_cmd.py / last.py  ← `console runs` / `console last` inspectors
+    ├── observer.py             ← repo observation snapshots for `console overview`
+    ├── system_status.py        ← `console status` (system readiness + watcher health)
+    ├── auto_once.py            ← single-shot autonomy helpers
+    ├── clean.py                ← `console reset` / `console clear` cleanup
+    └── commands.py             ← interactive TUI commands and run management
 ```
 
 ## Entry Point
@@ -67,14 +76,14 @@ Layout files:
 - New tabs: `/tmp/console-tab-<name>.kdl` — panes + explicit chrome
 
 Pane arrangement — **single repo**:
-- **Left 28%**: Git (`lazygit`) top + OperationsCenter status (bottom 25%)
-- **Center**: Claude (`claude --resume <id>`) top + Shell (`bash`) bottom 15% — horizontal split
-- **Right 28%**: Logs (`tail -f .console/runtime.log`)
+- **Left 28%**: Git (`lazygit`)
+- **Center**: a Zellij **stack** of `claude --resume <id>` / `codex --resume <id>` / `aider`, switchable with `Alt+↑/↓`
+- **Right 28%**: a stack of `shell` + watcher `status` pane
 
 Pane arrangement — **multi repo** (single tab):
-- **Left 28%**: stacked lazygits (all repos)
-- **Center**: Claude only — starts at `~/Documents/GitHub/`
-- **Right 28%**: stacked shells (auto height, 75%) + OperationsCenter status (bottom 25%)
+- **Left 28%**: interactive `git_watcher` (curses; ↑↓ navigate the repo list, Enter → lazygit for that repo)
+- **Center**: a stack of `claude` / `codex` / `aider`, all rooted at `~/Documents/GitHub/`
+- **Right 28%**: a stack of `shell` (rooted at `~/Documents/GitHub/`) + watcher `status` pane
 
 Tab naming: group profiles use the group name (e.g. `platform`); ad-hoc multi-select joins all repo names (`RepoA+RepoB+RepoC`). `_multi_tab_name()` always lists all repos — no truncation.
 
@@ -102,20 +111,30 @@ See [profiles.md](profiles.md) for format reference.
 
 `_profile_for_cwd()` uses the same discovery to find which profile's `repo_root` contains the current directory — used by `console status`, `console context`, `console test`, and `console audit`.
 
-## Claude Session Tracking
+## Session Tracking (Claude + Codex + Aider)
 
-`get_claude_command()` in `bootstrap.py` generates a per-profile shell wrapper script written to `/tmp/console-claude-<name>.sh`. The wrapper:
+`get_claude_command()`, `get_codex_command()`, and `get_aider_command()` in
+`bootstrap.py` each generate a per-profile shell wrapper script (e.g.
+`/tmp/console-claude-<name>.sh`). Each wrapper:
 
-1. Reads `config/profiles/<name>.session` — the saved Claude conversation ID
-2. Runs `claude --resume <id>` if saved, otherwise `claude` (fresh start); falls back to `claude` if the session no longer exists
-3. After Claude exits, scans `~/.claude/projects/<project-path>/` for the newest `.jsonl` file and saves its stem as the new session ID
+1. Reads the saved conversation ID from `config/profiles/<name>.<tool>-session`
+2. Runs the tool with `--resume <id>` if saved; falls back to a fresh start
+   if the saved session no longer exists
+3. After the tool exits, locates the newest session record under that tool's
+   storage layout and saves its identifier for next launch
 
-The project path is derived from the Claude working directory: `<cwd>` with `/` → `-` prefix convention (mirrors Claude Code's own storage layout).
+Both `claude --resume` and `codex --resume` are first-class. `aider` does not
+support `--resume` — it always starts a fresh session, but bootstrap still
+manages its working directory and environment.
 
-For single-profile tabs: session key = profile name, project dir derived from `repo_root`.
-For multi-profile (group) tabs: session key = `_multi_tab_name(profiles)`, project dir derived from `~/Documents/GitHub/`.
+The Claude project path is derived from the working directory: `<cwd>` with
+`/` → `-` (mirrors Claude Code's own storage layout under `~/.claude/projects/`).
 
-Session files (`config/profiles/*.session`) are always gitignored.
+For single-profile tabs: session key = profile name, project dir derived from
+`repo_root`. For multi-profile (group) tabs: session key = `_multi_tab_name(profiles)`,
+project dir derived from `~/Documents/GitHub/`.
+
+Session files (`config/profiles/*.*-session`) are always gitignored.
 
 ## Live Layout Capture
 
