@@ -20,12 +20,9 @@ deeper guides and historical material.
 - [architecture.md](architecture.md) — Launcher flow, session model, layout
   persistence internals.
 
-## Migration
+## History
 
-- [migration/fob-operator-flow-update.md](migration/fob-operator-flow-update.md) —
-  Operator-flow updates introduced by the fob refactor.
-
-## Audits
-
-- [audits/final_rename_refactor_verification_2.md](audits/final_rename_refactor_verification_2.md) —
+- [history/fob-operator-flow-update.md](history/fob-operator-flow-update.md) —
+  Operator-flow updates introduced by the fob refactor (historical migration record).
+- [history/final_rename_refactor_verification_2.md](history/final_rename_refactor_verification_2.md) —
   Verification log for the rename refactor.
