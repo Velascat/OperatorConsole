@@ -78,3 +78,10 @@ _Free-form scratch space. Clear periodically._
 - DC2+DC4 fixes (2026-05-08, on `fix/dc-class-findings`): docs/pipeline.md cross-repo reference rewritten as a full GitHub URL link (was a backticked relative path the local file couldn't resolve, tripping DC2). README.md gains an Architecture H2 above Workspace Layout, and First Run renamed to Quick start to satisfy DC4's required-section pattern. DC count: 3 → 0.
 
 - Banner restore title→sections spacer (2026-05-08, on `fix/banner-restore-title-sections-spacer`): The banner-divider PR #23 dropped the title→divider gap that the no-banner path keeps. Restored: banner case now ends with title (4) → blank (5) → divider (6), first section at row 7. Both code paths now read the same below the title.
+
+## 2026-05-08 — Hint bar marquee on overflow (fix/hint-bar-marquee)
+
+Hint bar at h-2 overflowed in narrow windows and got truncated. When wider than
+window, it now scrolls in lockstep with the top banner (reuses banner_offset).
+When it fits, renders static as before. No new state — same tick.
+

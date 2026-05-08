@@ -1356,10 +1356,22 @@ def _draw_main(
     # Footer block (bottom-up): divider (h-1), hints (h-2), divider (h-3),
     # optional flash (h-4 when present).
     _sep(stdscr, h - 1, h, w, C["DIM"])
-    put(h - 2,
+    hints = (
         " ↑↓ role  wheel scroll  click header collapse  +/- resize  = reset"
-        "  enter actions  r refresh  q quit",
-        C["DIM"])
+        "  enter actions  r refresh  q quit"
+    )
+    # Marquee when the hint bar overflows the window width, otherwise
+    # render the static string. Reuses the banner tick so both marquees
+    # advance in lockstep.
+    if len(hints) > (w - 1):
+        gap = "    "
+        loop = hints + gap
+        while len(loop) < (w - 1) * 2:
+            loop += hints + gap
+        h_off = (banner_offset or 0) % (len(hints) + len(gap))
+        put(h - 2, loop[h_off:h_off + (w - 1)], C["DIM"])
+    else:
+        put(h - 2, hints, C["DIM"])
     _sep(stdscr, h - 3, h, w, C["DIM"])
     if flash:
         put(h - 4, f" {flash}", C["HEAD"])
