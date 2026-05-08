@@ -109,3 +109,10 @@ T6/T7 exclude_paths for src/operator_console/** (TUI exercised via CLI,
 not name-imported in tests). T8 for test_architecture_demo.py (subprocess+curses).
 common_words += git_watcher (subcommand name, not a Python symbol).
 
+
+## 2026-05-08 — Title Case all status pane text
+
+Banner messages, section headers, descriptors (running/queued/active/pending/etc),
+hint chunks, action submenu, log view, and toggle indicators all Title Cased.
+STOPPED / STALL ALERT remain ALL CAPS as severity emphasis.
+
