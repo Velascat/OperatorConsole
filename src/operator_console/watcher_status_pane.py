@@ -393,6 +393,45 @@ def _backend_caps() -> dict[str, dict[str, int]]:
     return {k: v for k, v in out.items() if v}
 
 
+def _resource_gate() -> dict[str, int]:
+    """Read OC's global ``resource_gate:`` block from local YAML.
+
+    Returns ``{"max_concurrent": int, "min_available_memory_mb": int}``
+    with absent fields omitted. Empty dict when the block is missing
+    or unparseable. Mirrors the lightweight indented-block parser used
+    by ``_backend_caps`` so the pane stays bun-free.
+    """
+    if not _OC_CONFIG.exists():
+        return {}
+    out: dict[str, int] = {}
+    in_block = False
+    try:
+        for raw in _OC_CONFIG.read_text(encoding="utf-8").splitlines():
+            stripped = raw.rstrip()
+            if not stripped or stripped.lstrip().startswith("#"):
+                continue
+            # Top-level boundary: starts at column 0.
+            if not stripped.startswith(" ") and not stripped.startswith("\t"):
+                in_block = stripped.startswith("resource_gate:")
+                continue
+            if not in_block:
+                continue
+            content = stripped.strip()
+            if ":" not in content:
+                continue
+            key, _, val = content.partition(":")
+            key = key.strip()
+            val = val.split("#", 1)[0].strip().strip('"').strip("'")
+            if key in ("max_concurrent", "min_available_memory_mb") and val:
+                try:
+                    out[key] = int(val)
+                except ValueError:
+                    pass
+    except Exception:
+        return {}
+    return out
+
+
 def _backend_usage() -> dict[str, dict[str, int]]:
     """Per-backend live counters from usage.json events.
 
@@ -502,6 +541,7 @@ def _collect(repo_filter: set[str] | None) -> dict:
         "budget":    _exec_budget(),
         "backend_caps":  _backend_caps(),
         "backend_usage": _backend_usage(),
+        "resource_gate": _resource_gate(),
         "at":        now,
     }
 
@@ -724,8 +764,15 @@ def _build_sections(
     # ── queue ──
     queue = data.get("queue", [])
     if queue:
+        # Backlog signal: 0 → green, 1-4 → green, 5-9 → yellow, ≥10 → red.
+        n_q = len(queue)
+        q_attr = (
+            C["ERR"] if n_q >= 10
+            else C["YLW"] if n_q >= 5
+            else C["RUN"] if n_q else C["HEAD"]
+        )
         queue_lines: list[tuple[str, int]] = [
-            (f" Queue ({len(queue)} pending)", C["HEAD"] | curses.A_BOLD),
+            (f" Queue ({n_q} pending)", q_attr | curses.A_BOLD),
         ]
         for item in queue:
             typ  = (item.get("task_type") or "?")[:4]
@@ -737,9 +784,10 @@ def _build_sections(
     # ── execution budget (global hourly/daily caps) ──
     budget = data.get("budget", {})
     if budget.get("found"):
-        budget_lines: list[tuple[str, int]] = [
-            (" Execution budget", C["HEAD"] | curses.A_BOLD),
-        ]
+        # Compute the worst color across both windows so the section
+        # header reflects the budget's overall state.
+        budget_worst = C["RUN"]
+        rows: list[tuple[str, int]] = []
         for win, used, cap in (
             ("hourly", budget.get("hourly_used", 0), budget.get("hourly_cap", 0)),
             ("daily ", budget.get("daily_used", 0),  budget.get("daily_cap", 0)),
@@ -750,7 +798,15 @@ def _build_sections(
                 else C["YLW"] if ratio >= 0.8
                 else C["RUN"]
             )
-            budget_lines.append((f"  {win}  {used}/{cap}", attr))
+            if attr is C["ERR"]:
+                budget_worst = C["ERR"]
+            elif attr is C["YLW"] and budget_worst is C["RUN"]:
+                budget_worst = C["YLW"]
+            rows.append((f"  {win}  {used}/{cap}", attr))
+        budget_lines: list[tuple[str, int]] = [
+            (" Execution budget", budget_worst | curses.A_BOLD),
+            *rows,
+        ]
         sections.append({"id": "budget", "lines": budget_lines, "sel_local": -1})
 
     # ── backend caps (per-backend rate / concurrency / RAM) ──
@@ -763,9 +819,8 @@ def _build_sections(
             (res["mem_total_gb"] - res.get("mem_used_gb", 0)) * 1024
         )
     if caps or usage:
-        bc_lines: list[tuple[str, int]] = [
-            (" Backend caps", C["HEAD"] | curses.A_BOLD),
-        ]
+        bc_lines: list[tuple[str, int]] = []
+        bc_section_worst = C["RUN"]
         for backend in sorted(set(caps) | set(usage)):
             bc = caps.get(backend, {})
             bu = usage.get(backend, {})
@@ -804,14 +859,21 @@ def _build_sections(
                 cells.append(f"ram≥{ram_floor}MB")
             row = "  ".join(cells) if cells else "(no caps)"
             bc_lines.append((f"  {backend:<10} {row}", worst_attr))
-        sections.append({"id": "backend_caps", "lines": bc_lines, "sel_local": -1})
+            if worst_attr is C["ERR"]:
+                bc_section_worst = C["ERR"]
+            elif worst_attr is C["YLW"] and bc_section_worst is C["RUN"]:
+                bc_section_worst = C["YLW"]
+        sections.append({"id": "backend_caps", "lines": [
+            (" Backend caps", bc_section_worst | curses.A_BOLD),
+            *bc_lines,
+        ], "sel_local": -1})
 
     # ── services ──
     sb = data.get("sb", False)
     sb_icon = "✓" if sb else "✗"
     sb_attr = C["RUN"] if sb else C["ERR"]
     sections.append({"id": "services", "lines": [
-        (" Services", C["HEAD"] | curses.A_BOLD),
+        (" Services", sb_attr | curses.A_BOLD),
         (f"  {sb_icon} SwitchBoard", sb_attr),
     ], "sel_local": -1})
 
@@ -826,6 +888,9 @@ def _resources_lines(data: dict, C: dict) -> list[tuple[str, int]]:
     out: list[tuple[str, int]] = []
     res = data.get("resources", {})
     out.append((_SEP_MARKER, C["DIM"]))
+    # Blank spacer above the section title so the block visually
+    # detaches from whatever rendered above it.
+    out.append(("", 0))
     out.append((" System Resources", C["HEAD"] | curses.A_BOLD))
     out.append((f"  {'':15}  {'1m':>7} {'5m':>7} {'15m':>7}", C["DIM"]))
 
@@ -851,6 +916,55 @@ def _resources_lines(data: dict, C: dict) -> list[tuple[str, int]]:
         stg = res.get("swap_total_gb", 0)
         out.append((f"  {'Swap':15}  {_bar(sp):>7} {sp:>3d}%  {sug:.1f}/{stg:.1f}G",
                     C["YLW"] if sp > 50 else C["DIM"]))
+
+    # ── Global resource gate (OC's resource_gate: block) ──
+    # Always render the row so operators can see whether the gate is
+    # configured at all. When unset, show "(unset)" so it's obvious
+    # the feature exists but no floor is enforced.
+    gate = data.get("resource_gate", {}) or {}
+    usage = data.get("backend_usage", {}) or {}
+    total_in_flight = sum(int(b.get("in_flight", 0)) for b in usage.values())
+    mem_total_gb = res.get("mem_total_gb", 0)
+    mem_used_gb = res.get("mem_used_gb", 0)
+    free_mb = int(max(0, (mem_total_gb - mem_used_gb)) * 1024) if mem_total_gb else 0
+
+    mc = gate.get("max_concurrent")
+    floor_mb = gate.get("min_available_memory_mb")
+
+    if mc is None and floor_mb is None:
+        out.append((f"  {'Global gate':15}  (unset)  config: resource_gate.* in OC local.yaml",
+                    C["DIM"]))
+    else:
+        # Concurrency cell
+        if mc is not None:
+            ratio = (total_in_flight / mc) if mc else 0.0
+            conc_attr = (
+                C["ERR"] if ratio >= 1.0
+                else C["YLW"] if ratio >= 0.8
+                else C["RUN"]
+            )
+            conc_cell = f"in_flight {total_in_flight}/{mc}"
+        else:
+            conc_attr = C["DIM"]
+            conc_cell = f"in_flight {total_in_flight}/∞"
+        # RAM-floor cell
+        if floor_mb is not None:
+            ram_attr = C["ERR"] if free_mb and free_mb < floor_mb else C["RUN"]
+            ram_cell = f"ram≥{floor_mb}MB ({free_mb} free)"
+        else:
+            ram_attr = C["DIM"]
+            ram_cell = "ram≥∞"
+        # Worst color wins for the line
+        worst = ram_attr if ram_attr is C["ERR"] else (
+            conc_attr if conc_attr is C["ERR"] else
+            ram_attr if ram_attr is C["YLW"] else
+            conc_attr if conc_attr is C["YLW"] else
+            C["DIM"]
+        )
+        out.append((f"  {'Global gate':15}  {conc_cell}  {ram_cell}", worst))
+    # Blank spacer at the bottom so the block visually separates from
+    # whatever sits below it (typically the footer).
+    out.append(("", 0))
     return out
 
 
@@ -928,6 +1042,7 @@ def _draw_main(
     collapsed: dict[str, bool] | None = None,
     size_mult: dict[str, float] | None = None,
     focused_section: str | None = None,
+    banner_offset: int = 0,
 ) -> tuple[dict[str, tuple[int, int]], dict[str, int]]:
     """Render the main view with per-section scroll/collapse/size state.
 
@@ -956,13 +1071,27 @@ def _draw_main(
 
     stale_roles = _stale_heartbeat_roles()
     if stale_roles:
-        banner = (
+        banner_payload = (
             f" ⚠  STALL ALERT — {len(stale_roles)} role(s) silent > "
-            f"{_STALE_HEARTBEAT_S // 60}min: {', '.join(stale_roles)}"
+            f"{_STALE_HEARTBEAT_S // 60}min: {', '.join(stale_roles)} "
         )
-        put(0, banner.ljust(w - 1), C["ERR"] | curses.A_BOLD | curses.A_REVERSE)
-        put(1, f" Operations Center{spin}  {ts}", C["HEAD"] | curses.A_BOLD)
-        _sep(stdscr, 2, h, w, C["DIM"])
+        # Streaming marquee: render `payload + gap + payload + gap` and
+        # slide a (w-1)-char window across it on each frame. The frame
+        # counter ticks once per redraw so the speed follows the pane's
+        # refresh tempo (faster when banner is active — see _pane()).
+        gap = "    "
+        loop = banner_payload + gap
+        # Repeat the loop until it's at least 2× window width so any
+        # offset slice contains a full banner copy without wrap glue.
+        while len(loop) < (w - 1) * 2:
+            loop += banner_payload + gap
+        offset = (banner_offset or 0) % (len(banner_payload) + len(gap))
+        view = loop[offset:offset + (w - 1)]
+        put(0, view, C["ERR"] | curses.A_BOLD | curses.A_REVERSE)
+        # Blank spacer row between banner and OC title.
+        put(1, "", 0)
+        put(2, f" Operations Center{spin}  {ts}", C["HEAD"] | curses.A_BOLD)
+        _sep(stdscr, 3, h, w, C["DIM"])
     else:
         put(0, f" Operations Center{spin}  {ts}", C["HEAD"] | curses.A_BOLD)
         _sep(stdscr, 1, h, w, C["DIM"])
@@ -990,7 +1119,9 @@ def _draw_main(
 
     bottom_h   = len(bottom_lines)
     footer_h   = 2 if flash else 1
-    middle_top = 3 if stale_roles else 2
+    # Banner block is 4 rows tall (banner / blank / title / sep) when
+    # stale; otherwise just title + sep (2 rows).
+    middle_top = 4 if stale_roles else 2
     middle_bottom = h - bottom_h - footer_h
     middle_h   = max(0, middle_bottom - middle_top)
 
@@ -1218,7 +1349,11 @@ def _pane(stdscr, profile_name: str) -> None:
     with lock:
         data.update(_collect(repo_filter))
 
-    stdscr.timeout(500)
+    # 200ms tick when a stall banner is streaming, 500ms otherwise. The
+    # value is reset each iteration based on whether the banner is up.
+    _BANNER_TICK_MS = 200
+    _IDLE_TICK_MS = 500
+    stdscr.timeout(_IDLE_TICK_MS)
     # Mouse: enable wheel + click. mouseinterval(0) disables click-debounce
     # so wheel events fire as fast as the terminal sends them.
     try:
@@ -1244,9 +1379,21 @@ def _pane(stdscr, profile_name: str) -> None:
     # mouse-wheel events update this so subsequent keyboard scrolling
     # follows the cursor.
     focused_section = "roles"
+    # Streaming banner offset for the stall-alert marquee. Advances when
+    # the banner is up (stale heartbeats present) and resets when it's
+    # cleared.
+    banner_offset = 0
     # Collapsed sections show only their header row; +/- resize scales the
-    # focused section's natural row count up or down.
-    collapsed_sections: dict[str, bool] = {}
+    # focused section's natural row count up or down. Default everything
+    # collapsed so the pane opens compact — operators expand what they
+    # need with click-on-header or `c`. (System Resources is bottom-
+    # anchored, not part of the collapsible section set.)
+    collapsed_sections: dict[str, bool] = {
+        sid: True for sid in (
+            "roles", "active", "recent", "board",
+            "campaigns", "queue", "budget", "backend_caps", "services",
+        )
+    }
     size_mult: dict[str, float] = {}
 
     while True:
@@ -1268,7 +1415,23 @@ def _pane(stdscr, profile_name: str) -> None:
                 collapsed=collapsed_sections,
                 size_mult=size_mult,
                 focused_section=focused_section,
+                banner_offset=banner_offset,
             )
+
+        # Banner marquee: advance the offset 2 chars per frame and use
+        # a faster timeout while the banner is up so it scrolls smoothly.
+        # The stall flag lives on the role data — refresh it from the
+        # latest snapshot rather than re-running the heartbeat scan here.
+        any_stale = any(
+            not info.get("alive", False)
+            for info in snap.get("roles", {}).values()
+        ) and bool(_stale_heartbeat_roles())
+        if any_stale:
+            banner_offset += 2
+            stdscr.timeout(_BANNER_TICK_MS)
+        else:
+            banner_offset = 0
+            stdscr.timeout(_IDLE_TICK_MS)
 
         key = stdscr.getch()
 

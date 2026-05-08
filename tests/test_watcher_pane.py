@@ -92,6 +92,38 @@ class TestCursesPaneCollectors:
         monkeypatch.setattr(wsp, "_USAGE_PATH", tmp_path / "missing.json")
         assert wsp._backend_usage() == {}
 
+    def test_resource_gate_parses_block(self, tmp_path, monkeypatch):
+        from operator_console import watcher_status_pane as wsp
+        cfg = tmp_path / "operations_center.local.yaml"
+        cfg.write_text(
+            "kodo:\n"
+            "  binary: kodo\n"
+            "resource_gate:\n"
+            "  max_concurrent: 6              # leave headroom for co-tenants\n"
+            "  min_available_memory_mb: 12288 # reserve 12 GiB\n"
+            "archon:\n"
+            "  enabled: false\n"
+        )
+        monkeypatch.setattr(wsp, "_OC_CONFIG", cfg)
+        assert wsp._resource_gate() == {
+            "max_concurrent": 6,
+            "min_available_memory_mb": 12288,
+        }
+
+    def test_resource_gate_missing_block_returns_empty(
+        self, tmp_path, monkeypatch,
+    ):
+        from operator_console import watcher_status_pane as wsp
+        cfg = tmp_path / "operations_center.local.yaml"
+        cfg.write_text("kodo:\n  binary: kodo\n")
+        monkeypatch.setattr(wsp, "_OC_CONFIG", cfg)
+        assert wsp._resource_gate() == {}
+
+    def test_resource_gate_missing_file(self, tmp_path, monkeypatch):
+        from operator_console import watcher_status_pane as wsp
+        monkeypatch.setattr(wsp, "_OC_CONFIG", tmp_path / "missing.yaml")
+        assert wsp._resource_gate() == {}
+
 
 class TestSectionAllocator:
     def test_natural_height_fits(self):
