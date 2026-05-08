@@ -1,12 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Velascat
-"""Tests for pipeline commands: runs.py, last.py, delegate.py, system_status.py."""
+"""Tests for pipeline commands: runs.py, last.py, delegate.py."""
 from __future__ import annotations
 
 import json
 from pathlib import Path
-
-import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -284,34 +282,6 @@ class TestDelegateArgParsing:
 
 
 # ---------------------------------------------------------------------------
-# system_status.py — module structure
-# ---------------------------------------------------------------------------
-
-
-class TestSystemStatusModule:
-    def test_run_status_function_exists(self):
-        from operator_console.system_status import run_status
-        assert callable(run_status)
-
-    def test_run_status_returns_int(self, capsys):
-        from operator_console.system_status import run_status
-        code = run_status(["--json"])
-        out = capsys.readouterr().out
-        data = json.loads(out)
-        assert isinstance(code, int)
-        assert "switchboard" in data
-        assert "operations_center" in data
-        assert "binaries" in data
-
-    def test_json_output_has_last_run_key(self, capsys):
-        from operator_console.system_status import run_status
-        run_status(["--json"])
-        out = capsys.readouterr().out
-        data = json.loads(out)
-        assert "last_run" in data
-
-
-# ---------------------------------------------------------------------------
 # Static file presence checks
 # ---------------------------------------------------------------------------
 
@@ -326,10 +296,6 @@ def test_last_module_exists():
 
 def test_delegate_module_exists():
     assert (REPO_ROOT / "src" / "operator_console" / "delegate.py").exists()
-
-
-def test_system_status_module_exists():
-    assert (REPO_ROOT / "src" / "operator_console" / "system_status.py").exists()
 
 
 def test_cli_dispatches_delegate():

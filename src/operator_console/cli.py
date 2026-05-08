@@ -685,30 +685,28 @@ def main() -> None:
             sys.exit(run_last(args))
 
         case "status":
-            # `console status --watcher` (or `--watch`) launches the live
-            # curses pane — the same one zellij preloads in the layout, but
-            # accessible directly from the CLI without zellij.
-            if "--watcher" in args or "--watch" in args:
-                from operator_console.watcher_status_pane import main as _w
-                # Strip the alias flags before forwarding (the pane parses
-                # its own argv via sys.argv for --profile etc).
-                sys.argv = [sys.argv[0]] + [
-                    a for a in args if a not in ("--watcher", "--watch")
-                ]
-                sys.exit(_w() or 0)
+            # `console status --repo` / `--all` keep the text-output repo
+            # snapshot. Everything else routes to the live watcher pane —
+            # the same one zellij preloads in the layout. `--json` dumps
+            # the watcher's collected snapshot for scripted consumers.
             if "--repo" in args or "--all" in args:
                 all_repos = _discover_repos() if "--all" in args else None
                 commands.cmd_status(args, CONSOLE_DIR, _profile_for_cwd(), all_repos)
+            elif "--json" in args:
+                import json as _json
+                from operator_console.watcher_status_pane import (
+                    _collect, _profile_repos,
+                )
+                profile_name = ""
+                for i, a in enumerate(args):
+                    if a == "--profile" and i + 1 < len(args):
+                        profile_name = args[i + 1]
+                snap = _collect(_profile_repos(profile_name) if profile_name else None)
+                print(_json.dumps(snap, default=str, indent=2, ensure_ascii=False))
             else:
-                from operator_console.system_status import run_status
-                sys.exit(run_status(args))
-
-        case "watcher":
-            # Shortcut for `console status --watcher`. Forwards the rest
-            # of argv (e.g. --profile <name>) directly to the pane.
-            from operator_console.watcher_status_pane import main as _w
-            sys.argv = [sys.argv[0]] + args
-            sys.exit(_w() or 0)
+                from operator_console.watcher_status_pane import main as _w
+                sys.argv = [sys.argv[0]] + args
+                sys.exit(_w() or 0)
 
         case "workers":
             sys.exit(commands.cmd_workers(args))

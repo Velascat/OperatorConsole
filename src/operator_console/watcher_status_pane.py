@@ -1002,9 +1002,14 @@ def _draw_main(
         sections, avail, collapsed=collapsed, size_mult=size_mult,
     )
 
-    # Roles section auto-scrolls to keep the selected role visible.
+    # Roles section auto-scrolls to keep the selected role visible —
+    # but skip when the section is collapsed; otherwise the offset
+    # would move off the header row and hide the section name.
     for i, sec in enumerate(sections):
         if sec["id"] != "roles":
+            continue
+        if collapsed.get("roles", False):
+            section_offsets["roles"] = 0
             continue
         sl = sec["sel_local"]
         if sl < 0 or rows_per[i] <= 0:
