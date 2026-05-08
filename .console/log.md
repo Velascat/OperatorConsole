@@ -4,6 +4,8 @@ _Chronological continuity log. Decisions, stop points, what changed and why._
 _Not a task tracker — that's backlog.md. Keep entries concise and dated._
 
 
+- Watcher: keep header visible when collapsed (2026-05-08, on `fix/watcher-collapsed-header-visible`): Scroll indicators (▲/▼) were overwriting the single visible row of a collapsed section, hiding the section name. Skip the indicator overlay when `collapsed[id]` is true so the header — including the ▶ marker — stays readable.
+
 - Status pane: backend caps + per-backend usage (2026-05-08, on `feat/status-backend-caps-and-runs`): `console status` now surfaces a **Backend caps** block between Execution budget and System resources. Reads per-backend caps from `config/operations_center.local.yaml::backend_caps` and walks `usage.json` events to compute live counters: `hourly` / `daily` (execution events tagged with `backend=`), `in_flight` (execution_started minus execution_finished). Per-backend RAM threshold displayed as `ram≥<threshold>MB (free MB)` colored red when current free is below the floor. Layout: `kodo  in_flight 0/1  ram≥6144MB (2834 free)` — compact one-liner per backend with same yellow/red ratios as the global budget rows. JSON output gains `backend_caps` + `backend_usage` top-level keys. 4 new tests (yaml read, usage aggregation, JSON shape, missing-file fallbacks). Console suite still green; ruff clean.
 
 

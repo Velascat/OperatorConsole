@@ -1050,10 +1050,14 @@ def _draw_main(
                 put(row, text, attr)
             row += 1
         # Scroll indicators (overwrite the first/last row of the section).
-        if off > 0 and start_row < middle_bottom:
-            put(start_row, "▲" + " " * (w - 2), C["YLW"])
-        if off + sec_h < len(sec["lines"]) and (start_row + sec_h - 1) < middle_bottom:
-            put(start_row + sec_h - 1, "▼" + " " * (w - 2), C["YLW"])
+        # Skip when collapsed — the section is just the header row, and
+        # overwriting it with ▼ would hide the section name.
+        is_collapsed = collapsed.get(sec["id"], False)
+        if not is_collapsed:
+            if off > 0 and start_row < middle_bottom:
+                put(start_row, "▲" + " " * (w - 2), C["YLW"])
+            if off + sec_h < len(sec["lines"]) and (start_row + sec_h - 1) < middle_bottom:
+                put(start_row + sec_h - 1, "▼" + " " * (w - 2), C["YLW"])
         section_rows[sec["id"]] = (start_row, start_row + sec_h)
 
     # Bottom-anchored resources block (also scrollable as its own section).
