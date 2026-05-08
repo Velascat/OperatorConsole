@@ -1352,24 +1352,11 @@ def _draw_main(
                 vbuf.append(("", 0))
         section_buf_ranges[sec["id"]] = (start_idx, len(vbuf))
 
-    # Roles auto-scroll: when the selected role would otherwise be off-
-    # screen, nudge top_scroll_offset to bring it into view. Skip when
-    # the roles section is collapsed.
     middle_h = middle_bottom - middle_top
-    if not collapsed.get("roles", False):
-        for sec in sections:
-            if sec["id"] != "roles":
-                continue
-            sl = sec["sel_local"]
-            if sl < 0:
-                break
-            buf_start, _ = section_buf_ranges.get("roles", (0, 0))
-            sel_buf_idx = buf_start + sl
-            if sel_buf_idx < top_scroll_offset:
-                top_scroll_offset = sel_buf_idx
-            elif sel_buf_idx >= top_scroll_offset + middle_h:
-                top_scroll_offset = sel_buf_idx - middle_h + 1
-            break
+    # Top-block auto-scroll is OFF: operator-driven scroll wins. A previous
+    # version re-snapped to the selected role every frame, which made
+    # scrolling down feel "stuck on the first section". Operators scroll
+    # manually with the wheel / PgUp / PgDn / Home / End.
 
     # Clamp scroll offset.
     total_buf_h = len(vbuf)
