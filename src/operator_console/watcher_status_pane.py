@@ -1208,7 +1208,13 @@ def _banner_unit_len(message: str, banner_count: int, banner_index: int, w: int)
     """
     counter = f"  [{banner_index + 1}/{banner_count}]" if banner_count > 1 else ""
     payload = f" {message}{counter} "
-    return len(payload) + 4
+    if banner_count == 1:
+        lp = " " * ((w - 1) // 4)
+        g  = " " * max(6, (w - 1) // 6)
+    else:
+        lp = ""
+        g  = "    "
+    return len(lp) + len(payload) + len(g)
 
 
 def _wrap_hints(chunks: tuple[str, ...], width: int) -> list[str]:
@@ -1278,7 +1284,13 @@ def _draw_main(
         """Return (full_unit_text, severity) for one banner condition."""
         ctr = f"  [{b_idx + 1}/{banner_count}]" if banner_count > 1 else ""
         payload = f" {b_message}{ctr} "
-        return payload + "    ", b_severity
+        if banner_count == 1:
+            lp = " " * ((w - 1) // 4)
+            g  = " " * max(6, (w - 1) // 6)
+        else:
+            lp = ""
+            g  = "    "
+        return lp + payload + g, b_severity
 
     severity, message = current_banner
     cur_unit, cur_sev = _build_unit(severity, message, banner_index)

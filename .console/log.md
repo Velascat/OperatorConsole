@@ -3,6 +3,8 @@
 _Chronological continuity log. Decisions, stop points, what changed and why._
 _Not a task tracker — that's backlog.md. Keep entries concise and dated._
 
+- Banner single-loop padding at half size (2026-05-08, on fix/banner-single-padding): Single-banner re-stream gets lp=(w-1)//4 and g=max(6,(w-1)//6) — half the original values — so there's a visible breath between loops. Multi-banner keeps lp="" and g="    " (4 spaces); the crossfade coloring is the boundary signal there.
+
 - Banner padding stripped (2026-05-08, on fix/banner-strip-padding): Removed leading pad (`(w-1)//2` spaces) and large gap (`max(12, (w-1)//3)` spaces) from `_build_unit` and `_banner_unit_len`. Both cases now use a fixed 4-space separator between units — the tape streams the next banner in seamlessly so the large pads were dead space.
 
 - Multi-banner cycling system + white-on-red fix (2026-05-08, on feat/multi-banner-cycle): The single-purpose stall banner becomes a 4-level banner system. CRITICAL (white on red — fixes the previous black-on-red look from A_REVERSE), WARNING (white on yellow), INFO (white on cyan), HEALTHY (white on green). Conditions: CRITICAL = stall / SwitchBoard offline / resource gate at cap or below RAM floor. WARNING = backend at concurrency cap / queue depth ≥ 10 / free RAM within 1.2× of gate floor. INFO = first 30s after launch (readings stabilizing). HEALTHY = nothing else. Worst-first sort; cycle index advances every 15 frames (3s at 200ms tick); marquee restarts when cycling. Counter shown on banner when count > 1 ([N/M]). Banner block always renders so layout stays stable; middle_top fixed at 7. 8 new tests in TestBannerConditions; 26 watcher tests passing.
