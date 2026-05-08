@@ -188,3 +188,20 @@ anchored. Default-open: System Resources only; Gate + Rate collapsed.
 
 ## 2026-05-08 — Restore leading divider on bottom block (above Global Rate)
 
+
+## 2026-05-08 — Top block as virtual scroll buffer
+
+When all top sections are uncollapsed and overflow the middle area,
+the top block scrolls as a single virtual buffer (mouse-wheel + PgUp/
+Dn). Bottom-anchored sections (Rate/Gate/Resources) stay put; the
+top block flows behind them.
+
+- _allocate_section_rows: drop proportional scaling, return natural sizes
+- _draw_main: build vbuf from sections with dividers, render slice
+  starting at top_scroll_offset, expose section_buf_ranges for hit-testing
+- Mouse wheel anywhere over top sections scrolls top_scroll_offset
+- PgUp/PgDn/Home/End now operate on top_scroll_offset
+- Top block scroll arrows on boundary rows (▲/▼) when scrolled
+- Dropped per-section scrolling for top sections (kept section_offsets
+  signature for compatibility)
+
