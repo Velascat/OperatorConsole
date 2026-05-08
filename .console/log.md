@@ -147,3 +147,11 @@ board, queue, backend rows, action submenu, log view header.
 
 ## 2026-05-08 — Global Gate three-liner; Execution Budget → Global Rate (single-line); spacers + ≥ spacing
 
+
+## 2026-05-08 — Reorder pane sections by operator timeline
+
+Swapped board ↔ campaigns in section build order. Final timeline:
+Workers / Active (Present) → Recent (Past) → Campaigns / Board / Queue
+(Future) → Global Rate / Backend Limits (Capacity) → Services (Infra)
+→ System Resources / Global Gate (bottom-anchored).
+

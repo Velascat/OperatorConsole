@@ -874,21 +874,7 @@ def _build_sections(
             recent_lines.append((f"  {icon}  {ts} {_tc(role):<10} {tag:<22} {title}", attr))
         sections.append({"id": "recent", "lines": recent_lines, "sel_local": -1})
 
-    # ── board ──
-    board_items = plane.get("board", [])
-    if board_items:
-        board_lines: list[tuple[str, int]] = [
-            (f" Board ({len(board_items)} Queued)", C["HEAD"] | curses.A_BOLD),
-        ]
-        for item in board_items:
-            repo  = _tc(item.get("repo", "?"))[:14]
-            state = item.get("state", "")
-            icon  = "·" if "backlog" in state.lower() else "→"
-            title = item.get("title", "?")[:max(w - 20, 8)]
-            board_lines.append((f"  {icon}  {repo:<14} {title}", C["DIM"]))
-        sections.append({"id": "board", "lines": board_lines, "sel_local": -1})
-
-    # ── campaigns ──
+    # ── campaigns ── (Future — high-level workstreams)
     campaigns = data.get("campaigns", [])
     if campaigns:
         camp_lines: list[tuple[str, int]] = [
@@ -905,6 +891,20 @@ def _build_sections(
                 icon, attr = "▶", C["YLW"]
             camp_lines.append((f"  {icon}  {slug}", attr))
         sections.append({"id": "campaigns", "lines": camp_lines, "sel_local": -1})
+
+    # ── board ── (Future — items in motion)
+    board_items = plane.get("board", [])
+    if board_items:
+        board_lines: list[tuple[str, int]] = [
+            (f" Board ({len(board_items)} Queued)", C["HEAD"] | curses.A_BOLD),
+        ]
+        for item in board_items:
+            repo  = _tc(item.get("repo", "?"))[:14]
+            state = item.get("state", "")
+            icon  = "·" if "backlog" in state.lower() else "→"
+            title = item.get("title", "?")[:max(w - 20, 8)]
+            board_lines.append((f"  {icon}  {repo:<14} {title}", C["DIM"]))
+        sections.append({"id": "board", "lines": board_lines, "sel_local": -1})
 
     # ── queue ──
     queue = data.get("queue", [])
