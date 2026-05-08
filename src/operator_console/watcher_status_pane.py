@@ -1099,10 +1099,15 @@ def _draw_main(
         # Blank spacer row between banner and OC title.
         put(1, "", 0)
         put(2, f" Operations Center{spin}  {ts}", C["HEAD"] | curses.A_BOLD)
-        _sep(stdscr, 3, h, w, C["DIM"])
+        # Blank row between title and divider so the title visually
+        # detaches from the section grid below it. Divider sits
+        # immediately above the first section.
+        put(3, "", 0)
+        _sep(stdscr, 4, h, w, C["DIM"])
     else:
         put(0, f" Operations Center{spin}  {ts}", C["HEAD"] | curses.A_BOLD)
-        _sep(stdscr, 1, h, w, C["DIM"])
+        put(1, "", 0)
+        _sep(stdscr, 2, h, w, C["DIM"])
 
     sections, focused_idx = _build_sections(data, sel, w, C)
     bottom_lines = _resources_lines(data, C)
@@ -1127,11 +1132,11 @@ def _draw_main(
 
     bottom_h   = len(bottom_lines)
     footer_h   = 2 if flash else 1
-    # Banner block is 4 rows tall (banner / blank / title / sep) when
-    # stale; otherwise just title + sep (2 rows). Add 1 more row of
-    # whitespace so the first section visually detaches from the
-    # title/separator above it.
-    middle_top = (4 if stale_roles else 2) + 1
+    # Header rows (no banner): title (0) → blank (1) → divider (2);
+    # first section starts at 3.
+    # Header rows (banner): marquee (0) → blank (1) → title (2) →
+    # blank (3) → divider (4); first section starts at 5.
+    middle_top = 5 if stale_roles else 3
     middle_bottom = h - bottom_h - footer_h
     middle_h   = max(0, middle_bottom - middle_top)
 
