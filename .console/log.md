@@ -211,3 +211,6 @@ top block flows behind them.
 
 ## 2026-05-08 — Banner cycle buffer: leading pad + longer gap + 6s dwell
 
+
+## 2026-05-08 — `x` collapse all + banner cycles after full scroll
+

@@ -1185,10 +1185,29 @@ _HINT_CHUNKS: tuple[str, ...] = (
     "= Reset",
     "Enter Actions",
     "c Collapse",
+    "x Collapse All",
     "r Refresh",
     "? Hints",
     "q Quit",
 )
+
+
+def _banner_unit_len(message: str, banner_count: int, banner_index: int, w: int) -> int:
+    """Length of one full marquee unit (leading_pad + payload + gap).
+
+    Mirrors the unit construction in ``_draw_main``'s banner render so
+    the caller can advance the cycle index only after a complete scroll
+    pass through the unit.
+    """
+    counter = f"  [{banner_index + 1}/{banner_count}]" if banner_count > 1 else ""
+    payload = f" {message}{counter} "
+    if banner_count > 1:
+        gap = " " * max(12, max(1, (w - 1)) // 3)
+        leading_pad = " " * (max(1, w - 1) // 2)
+    else:
+        gap = "    "
+        leading_pad = ""
+    return len(leading_pad) + len(payload) + len(gap)
 
 
 def _wrap_hints(chunks: tuple[str, ...], width: int) -> list[str]:
@@ -1698,15 +1717,21 @@ def _pane(stdscr, profile_name: str) -> None:
                 top_scroll_offset=top_scroll_offset,
             )
 
-        # Marquee + cycle bookkeeping. Banner always animates; tick at
-        # the faster cadence so the scroll reads smoothly regardless of
-        # severity.
+        # Marquee + cycle bookkeeping. Banner always animates. Cycle to
+        # the next condition only when the current condition's full unit
+        # (leading_pad + payload + gap) has scrolled past — so each
+        # message is fully read before the next fades in.
         banner_offset += 2
         banner_frame_count += 1
-        if banner_frame_count >= _BANNER_CYCLE_FRAMES and len(conditions) > 1:
-            banner_index = (banner_index + 1) % len(conditions)
-            banner_frame_count = 0
-            banner_offset = 0  # restart marquee for the next condition
+        if len(conditions) > 1:
+            _, current_message = current_banner
+            unit_len = _banner_unit_len(
+                current_message, len(conditions), banner_index, stdscr.getmaxyx()[1],
+            )
+            if banner_offset >= unit_len:
+                banner_index = (banner_index + 1) % len(conditions)
+                banner_frame_count = 0
+                banner_offset = 0
         stdscr.timeout(_BANNER_TICK_MS)
 
         key = stdscr.getch()
@@ -1807,6 +1832,11 @@ def _pane(stdscr, profile_name: str) -> None:
                 action_sel = 0
             elif key == ord("?"):
                 hints_collapsed = not hints_collapsed
+            elif key == ord("x"):
+                # Collapse every collapsible section in one keystroke.
+                for sid in list(collapsed_sections):
+                    collapsed_sections[sid] = True
+                top_scroll_offset = 0
             elif key == ord("r"):
                 with lock:
                     data.update({"roles": dict(_empty_roles), "campaigns": [],
