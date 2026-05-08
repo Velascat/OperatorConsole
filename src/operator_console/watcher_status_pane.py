@@ -240,7 +240,7 @@ def _banner_conditions(data: dict, started_at: float) -> list[tuple[str, str]]:
     if data.get("sb") is False:
         conds.append((
             BANNER_CRIT,
-            "⚠  SwitchBoard offline — lane selection unavailable",
+            "⚠  SwitchBoard Offline — Lane Selection Unavailable",
         ))
     # Resource gate at saturation = critical
     gate = data.get("resource_gate") or {}
@@ -251,8 +251,8 @@ def _banner_conditions(data: dict, started_at: float) -> list[tuple[str, str]]:
     if mc is not None and total_in_flight >= mc:
         conds.append((
             BANNER_CRIT,
-            f"⚠  Global gate at cap — {total_in_flight}/{mc} dispatches "
-            "in flight; new runs blocked",
+            f"⚠  Global Gate at Cap — {total_in_flight}/{mc} Dispatches "
+            "in Flight; New Runs Blocked",
         ))
     floor_mb = gate.get("min_available_memory_mb")
     if floor_mb is not None:
@@ -264,8 +264,8 @@ def _banner_conditions(data: dict, started_at: float) -> list[tuple[str, str]]:
         if free_mb and free_mb < floor_mb:
             conds.append((
                 BANNER_CRIT,
-                f"⚠  Memory below gate floor — {free_mb}MB free, "
-                f"{floor_mb}MB required",
+                f"⚠  Memory Below Gate Floor — {free_mb}MB Free, "
+                f"{floor_mb}MB Required",
             ))
 
     # ── WARNING ──
@@ -280,14 +280,14 @@ def _banner_conditions(data: dict, started_at: float) -> list[tuple[str, str]]:
     if saturated_backends:
         conds.append((
             BANNER_WARN,
-            "⚠  Backend(s) at concurrency cap: "
+            "⚠  Backend(s) at Concurrency Cap: "
             + ", ".join(saturated_backends),
         ))
     queue = data.get("queue") or []
     if len(queue) >= 10:
         conds.append((
             BANNER_WARN,
-            f"⚠  Queue depth {len(queue)} ≥ 10 — backlog accumulating",
+            f"⚠  Queue Depth {len(queue)} ≥ 10 — Backlog Accumulating",
         ))
     # Free RAM near the gate floor (within 1.2× of the floor)
     if floor_mb is not None:
@@ -299,8 +299,8 @@ def _banner_conditions(data: dict, started_at: float) -> list[tuple[str, str]]:
         if free_mb and floor_mb <= free_mb < int(floor_mb * 1.2):
             conds.append((
                 BANNER_WARN,
-                f"⚠  Memory near gate floor — {free_mb}MB free vs "
-                f"{floor_mb}MB required (1.2× margin)",
+                f"⚠  Memory Near Gate Floor — {free_mb}MB Free vs "
+                f"{floor_mb}MB Required (1.2× Margin)",
             ))
 
     # ── INFO ──
@@ -308,7 +308,7 @@ def _banner_conditions(data: dict, started_at: float) -> list[tuple[str, str]]:
     if started_at and (time.time() - started_at) < 30:
         conds.append((
             BANNER_INFO,
-            "ℹ  Just started — readings stabilizing",
+            "ℹ  Just Started — Readings Stabilizing",
         ))
 
     if conds:
@@ -317,7 +317,7 @@ def _banner_conditions(data: dict, started_at: float) -> list[tuple[str, str]]:
         conds.sort(key=lambda c: order.get(c[0], 99))
         return conds
 
-    return [(BANNER_HEALTHY, "✓  All systems nominal")]
+    return [(BANNER_HEALTHY, "✓  All Systems Nominal")]
 
 
 def _stale_heartbeat_roles() -> list[str]:
@@ -802,8 +802,8 @@ def _build_sections(
     n_up = sum(1 for r in _ROLES if roles.get(r, {}).get("alive", False))
     total_rc = sum(restarts.get(r, 0) for r in _ROLES)
     hdr_attr = (C["YLW"] | curses.A_BOLD) if (n_up < len(_ROLES) or total_rc > 0) else (C["HEAD"] | curses.A_BOLD)
-    rc_tag = f"{total_rc} restarts" if total_rc else "clean"
-    role_lines.append((f" Workers ({n_up}/{len(_ROLES)} running, {rc_tag})", hdr_attr))
+    rc_tag = f"{total_rc} Restarts" if total_rc else "Clean"
+    role_lines.append((f" Workers ({n_up}/{len(_ROLES)} Running, {rc_tag})", hdr_attr))
     for i, role in enumerate(_ROLES):
         info  = roles.get(role, {})
         alive = info.get("alive", False)
@@ -818,7 +818,7 @@ def _build_sections(
             attr = C["ERR"]
         if i == sel:
             role_sel_local = len(role_lines)
-            full = ("▶" + line[1:] + " [enter]")[:w - 1]
+            full = ("▶" + line[1:] + " [Enter]")[:w - 1]
             role_lines.append((full, C["SEL"] | curses.A_BOLD))
         else:
             role_lines.append((line, attr))
@@ -829,7 +829,7 @@ def _build_sections(
     active_tasks = plane.get("active", [])
     if active_tasks:
         active_lines: list[tuple[str, int]] = [
-            (f" Active ({len(active_tasks)} running)", C["HEAD"] | curses.A_BOLD),
+            (f" Active ({len(active_tasks)} Running)", C["HEAD"] | curses.A_BOLD),
         ]
         for item in active_tasks:
             repo  = item.get("repo", "?")[:10]
@@ -841,7 +841,7 @@ def _build_sections(
     recent = data.get("recent", [])
     if recent:
         recent_lines: list[tuple[str, int]] = [
-            (f" Recent ({len(recent)} events, last 5m)", C["HEAD"] | curses.A_BOLD),
+            (f" Recent ({len(recent)} Events, Last 5m)", C["HEAD"] | curses.A_BOLD),
         ]
         for ev in recent[:8]:
             action = ev.get("action", "")
@@ -865,7 +865,7 @@ def _build_sections(
     board_items = plane.get("board", [])
     if board_items:
         board_lines: list[tuple[str, int]] = [
-            (f" Board ({len(board_items)} queued)", C["HEAD"] | curses.A_BOLD),
+            (f" Board ({len(board_items)} Queued)", C["HEAD"] | curses.A_BOLD),
         ]
         for item in board_items:
             repo  = item.get("repo", "?")[:10]
@@ -879,7 +879,7 @@ def _build_sections(
     campaigns = data.get("campaigns", [])
     if campaigns:
         camp_lines: list[tuple[str, int]] = [
-            (f" Campaigns ({len(campaigns)} active)", C["HEAD"] | curses.A_BOLD),
+            (f" Campaigns ({len(campaigns)} Active)", C["HEAD"] | curses.A_BOLD),
         ]
         for c in campaigns:
             slug   = c.get("slug", c.get("campaign_id", "?"))[:w - 6]
@@ -904,7 +904,7 @@ def _build_sections(
             else C["RUN"] if n_q else C["HEAD"]
         )
         queue_lines: list[tuple[str, int]] = [
-            (f" Queue ({n_q} pending)", q_attr | curses.A_BOLD),
+            (f" Queue ({n_q} Pending)", q_attr | curses.A_BOLD),
         ]
         for item in queue:
             typ  = (item.get("task_type") or "?")[:4]
@@ -921,8 +921,8 @@ def _build_sections(
         budget_worst = C["RUN"]
         rows: list[tuple[str, int]] = []
         for win, used, cap in (
-            ("hourly", budget.get("hourly_used", 0), budget.get("hourly_cap", 0)),
-            ("daily ", budget.get("daily_used", 0),  budget.get("daily_cap", 0)),
+            ("Hourly", budget.get("hourly_used", 0), budget.get("hourly_cap", 0)),
+            ("Daily ", budget.get("daily_used", 0),  budget.get("daily_cap", 0)),
         ):
             ratio = (used / cap) if cap else 0.0
             attr = (
@@ -936,7 +936,7 @@ def _build_sections(
                 budget_worst = C["YLW"]
             rows.append((f"  {win}  {used}/{cap}", attr))
         budget_lines: list[tuple[str, int]] = [
-            (" Execution budget", budget_worst | curses.A_BOLD),
+            (" Execution Budget", budget_worst | curses.A_BOLD),
             *rows,
         ]
         sections.append({"id": "budget", "lines": budget_lines, "sel_local": -1})
@@ -989,14 +989,14 @@ def _build_sections(
                 if mem_avail_mb and mem_avail_mb < ram_floor:
                     worst_attr = C["ERR"]
                 cells.append(f"ram≥{ram_floor}MB")
-            row = "  ".join(cells) if cells else "(no caps)"
+            row = "  ".join(cells) if cells else "(No Caps)"
             bc_lines.append((f"  {backend:<10} {row}", worst_attr))
             if worst_attr is C["ERR"]:
                 bc_section_worst = C["ERR"]
             elif worst_attr is C["YLW"] and bc_section_worst is C["RUN"]:
                 bc_section_worst = C["YLW"]
         sections.append({"id": "backend_caps", "lines": [
-            (" Backend caps", bc_section_worst | curses.A_BOLD),
+            (" Backend Caps", bc_section_worst | curses.A_BOLD),
             *bc_lines,
         ], "sel_local": -1})
 
@@ -1071,7 +1071,7 @@ def _resources_lines(data: dict, C: dict) -> list[tuple[str, int]]:
     floor_mb = gate.get("min_available_memory_mb")
 
     if mc is None and floor_mb is None:
-        out.append((f"  {'Global Gate':15}  (unset)", C["DIM"]))
+        out.append((f"  {'Global Gate':15}  (Unset)", C["DIM"]))
     else:
         # Concurrency cell
         if mc is not None:
@@ -1175,16 +1175,16 @@ def _allocate_section_rows(
 
 
 _HINT_CHUNKS: tuple[str, ...] = (
-    "↑↓ role",
-    "wheel scroll",
-    "click header collapse",
-    "+/- resize",
-    "= reset",
-    "enter actions",
-    "c collapse",
-    "r refresh",
-    "? hints",
-    "q quit",
+    "↑↓ Role",
+    "Wheel Scroll",
+    "Click Header Collapse",
+    "+/- Resize",
+    "= Reset",
+    "Enter Actions",
+    "c Collapse",
+    "r Refresh",
+    "? Hints",
+    "q Quit",
 )
 
 
@@ -1215,7 +1215,7 @@ def _draw_main(
     size_mult: dict[str, float] | None = None,
     focused_section: str | None = None,
     banner_offset: int = 0,
-    current_banner: tuple[str, str] = (BANNER_HEALTHY, "✓  All systems nominal"),
+    current_banner: tuple[str, str] = (BANNER_HEALTHY, "✓  All Systems Nominal"),
     banner_count: int = 1,
     banner_index: int = 0,
     hints_collapsed: bool = True,
@@ -1284,7 +1284,7 @@ def _draw_main(
         # Strip the original leading space so the marker takes its place.
         new_text = marker + text.lstrip()
         if focused_section == sec["id"]:
-            new_text += "  ← focused"
+            new_text += "  ← Focused"
         # Show non-default size multiplier so operators can see what they did.
         mult = size_mult.get(sec["id"], 1.0)
         if abs(mult - 1.0) > 0.01:
@@ -1296,7 +1296,7 @@ def _draw_main(
     # Hint area is one row when collapsed (default), or N wrapped rows
     # when expanded. Flash adds one row above the hints when present.
     if hints_collapsed:
-        hint_lines: list[str] = [" ? hints  (press ? to expand)"]
+        hint_lines: list[str] = [" ? Hints  (Press ? to Expand)"]
     else:
         hint_lines = [" " + ln for ln in _wrap_hints(_HINT_CHUNKS, max(1, w - 2))]
     hint_h     = len(hint_lines)
@@ -1426,7 +1426,7 @@ def _draw_submenu(stdscr, role: str, info: dict, sel: int, C: dict) -> None:
             put(i + 2, f"    {action}", 0)
 
     _sep(stdscr, len(_ACTIONS) + 2, h, w, C["DIM"])
-    put(h - 1, " ↑↓ select  ↵ run  esc back", C["DIM"])
+    put(h - 1, " ↑↓ Select  ↵ Run  Esc Back", C["DIM"])
     stdscr.refresh()
 
 
@@ -1438,13 +1438,13 @@ def _draw_log_view(stdscr, role: str, lines: list[str], C: dict) -> None:
         return _put(stdscr, r, h, w, t, a)
     stdscr.erase()
 
-    put(0, f" circuit breaker — {role} (last {LOG_TAIL_LINES} lines)", C["HEAD"] | curses.A_BOLD)
+    put(0, f" Circuit Breaker — {role} (Last {LOG_TAIL_LINES} Lines)", C["HEAD"] | curses.A_BOLD)
     _sep(stdscr, 1, h, w, C["DIM"])
 
     for i, line in enumerate(lines[-(h - 3):]):
         put(i + 2, f" {line}", C["DIM"])
 
-    put(h - 1, " esc back", C["DIM"])
+    put(h - 1, " Esc Back", C["DIM"])
     stdscr.refresh()
 
 
