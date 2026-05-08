@@ -133,3 +133,6 @@ Plain red on dark background is nearly invisible on most terminals.
 Bolding both ERR and YLW promotes them to the bright variants — readable
 on dark + light alike.
 
+
+## 2026-05-08 — Expand cryptic Backend Caps + Global Gate cell labels
+
