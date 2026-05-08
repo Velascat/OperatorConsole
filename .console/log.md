@@ -182,3 +182,6 @@ anchored. Default-open: System Resources only; Gate + Rate collapsed.
 
 ## 2026-05-08 — Single divider directly under Services (drop spacer-then-divider)
 
+
+## 2026-05-08 — Anchor inter-block divider to last top section
+
