@@ -1512,8 +1512,10 @@ def _pane(stdscr, profile_name: str) -> None:
         "DIM":  curses.color_pair(2) | curses.A_DIM,
         "HEAD": curses.color_pair(3),
         "SEL":  curses.color_pair(4),
-        "YLW":  curses.color_pair(5),
-        "ERR":  curses.color_pair(6),
+        # YLW + ERR get A_BOLD so they're bright on dark terminals —
+        # plain red on a dark background is nearly invisible.
+        "YLW":  curses.color_pair(5) | curses.A_BOLD,
+        "ERR":  curses.color_pair(6) | curses.A_BOLD,
         "BANNER_CRIT":    curses.color_pair(7),
         "BANNER_WARN":    curses.color_pair(8),
         "BANNER_HEALTHY": curses.color_pair(9),

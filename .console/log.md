@@ -126,3 +126,10 @@ truth; pre-push catches regressions before they hit GitHub.
 
 ## 2026-05-08 — CI fix: Direct URL pip install syntax
 
+
+## 2026-05-08 — A_BOLD on ERR + YLW for dark-terminal readability
+
+Plain red on dark background is nearly invisible on most terminals.
+Bolding both ERR and YLW promotes them to the bright variants — readable
+on dark + light alike.
+
