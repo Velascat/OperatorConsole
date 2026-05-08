@@ -96,3 +96,9 @@ tracks the hint rows; flash sits one row above. Added '?' key handler.
 ## 2026-05-08 — M1: CHANGELOG.md stub (Keep-a-Changelog format)
 
 Added a minimal CHANGELOG.md so M1 (and M5 format check) pass.
+
+## 2026-05-08 — DC8: Move Quick start before Architecture in README
+
+Reorder per canonical convention: What X is → What X is not → Quick
+start → Architecture → ...
+
