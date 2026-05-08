@@ -602,23 +602,36 @@ def _recent_activity() -> list[dict]:
 _SEP_MARKER = "\x00SEP\x00"   # synthetic line that renders as a separator
 
 
-def _build_main_lines(data: dict, sel: int, w: int, C: dict) -> tuple[list[tuple[str, int]], int]:
-    """Build all middle-section lines as (text, attr) tuples plus the row index
-    of the currently-selected role (so the caller can keep it on screen).
+def _build_sections(
+    data: dict, sel: int, w: int, C: dict,
+) -> tuple[list[dict], int]:
+    """Build the middle area as a list of independently scrollable sections.
 
-    Lines whose text equals _SEP_MARKER render as a horizontal separator.
+    Each section is a dict::
+
+        {"id": str, "lines": [(text, attr), ...], "sel_local": int}
+
+    ``sel_local`` is the line index *within the section* of the currently
+    selected role (only set for the "roles" section; -1 elsewhere). The
+    caller uses it to keep the selection visible when scrolling the
+    roles section.
+
+    Returns ``(sections, focused_section_idx)`` — focused section is
+    where the selected role lives (always 0 today since "roles" is
+    always first), used as the default target for keyboard scroll keys.
     """
-    lines: list[tuple[str, int]] = []
-    sel_row = -1
+    sections: list[dict] = []
 
-    # ── roles ──
+    # ── roles section ──
+    role_lines: list[tuple[str, int]] = []
+    role_sel_local = -1
     roles    = data.get("roles", {})
     restarts = data.get("restarts", {})
     n_up = sum(1 for r in _ROLES if roles.get(r, {}).get("alive", False))
     total_rc = sum(restarts.get(r, 0) for r in _ROLES)
     hdr_attr = (C["YLW"] | curses.A_BOLD) if (n_up < len(_ROLES) or total_rc > 0) else (C["HEAD"] | curses.A_BOLD)
     rc_tag = f"{total_rc} restarts" if total_rc else "clean"
-    lines.append((f" Workers ({n_up}/{len(_ROLES)} running, {rc_tag})", hdr_attr))
+    role_lines.append((f" Workers ({n_up}/{len(_ROLES)} running, {rc_tag})", hdr_attr))
     for i, role in enumerate(_ROLES):
         info  = roles.get(role, {})
         alive = info.get("alive", False)
@@ -632,28 +645,32 @@ def _build_main_lines(data: dict, sel: int, w: int, C: dict) -> tuple[list[tuple
             line = f"  ✗  {role:<11} STOPPED{rb}"
             attr = C["ERR"]
         if i == sel:
-            sel_row = len(lines)
+            role_sel_local = len(role_lines)
             full = ("▶" + line[1:] + " [enter]")[:w - 1]
-            lines.append((full, C["SEL"] | curses.A_BOLD))
+            role_lines.append((full, C["SEL"] | curses.A_BOLD))
         else:
-            lines.append((line, attr))
+            role_lines.append((line, attr))
+    sections.append({"id": "roles", "lines": role_lines, "sel_local": role_sel_local})
 
     # ── active tasks (Plane: Running) ──
     plane = data.get("plane", {})
     active_tasks = plane.get("active", [])
     if active_tasks:
-        lines.append((_SEP_MARKER, C["DIM"]))
-        lines.append((f" Active ({len(active_tasks)} running)", C["HEAD"] | curses.A_BOLD))
+        active_lines: list[tuple[str, int]] = [
+            (f" Active ({len(active_tasks)} running)", C["HEAD"] | curses.A_BOLD),
+        ]
         for item in active_tasks:
             repo  = item.get("repo", "?")[:10]
             title = item.get("title", "?")[:max(w - 16, 8)]
-            lines.append((f"  ▶  {repo:<11} {title}", C["RUN"]))
+            active_lines.append((f"  ▶  {repo:<11} {title}", C["RUN"]))
+        sections.append({"id": "active", "lines": active_lines, "sel_local": -1})
 
     # ── recent activity (worker logs) ──
     recent = data.get("recent", [])
     if recent:
-        lines.append((_SEP_MARKER, C["DIM"]))
-        lines.append((f" Recent ({len(recent)} events, last 5m)", C["HEAD"] | curses.A_BOLD))
+        recent_lines: list[tuple[str, int]] = [
+            (f" Recent ({len(recent)} events, last 5m)", C["HEAD"] | curses.A_BOLD),
+        ]
         for ev in recent[:8]:
             action = ev.get("action", "")
             status = ev.get("status", "")
@@ -669,25 +686,29 @@ def _build_main_lines(data: dict, sel: int, w: int, C: dict) -> tuple[list[tuple
             else:
                 icon, attr = "·", C["DIM"]
             tag = f"{action}({status})" if status else action
-            lines.append((f"  {icon}  {ts} {role:<8} {tag:<22} {title}", attr))
+            recent_lines.append((f"  {icon}  {ts} {role:<8} {tag:<22} {title}", attr))
+        sections.append({"id": "recent", "lines": recent_lines, "sel_local": -1})
 
     # ── board ──
     board_items = plane.get("board", [])
     if board_items:
-        lines.append((_SEP_MARKER, C["DIM"]))
-        lines.append((f" Board ({len(board_items)} queued)", C["HEAD"] | curses.A_BOLD))
+        board_lines: list[tuple[str, int]] = [
+            (f" Board ({len(board_items)} queued)", C["HEAD"] | curses.A_BOLD),
+        ]
         for item in board_items:
             repo  = item.get("repo", "?")[:10]
             state = item.get("state", "")
             icon  = "·" if "backlog" in state.lower() else "→"
             title = item.get("title", "?")[:max(w - 16, 8)]
-            lines.append((f"  {icon}  {repo:<11} {title}", C["DIM"]))
+            board_lines.append((f"  {icon}  {repo:<11} {title}", C["DIM"]))
+        sections.append({"id": "board", "lines": board_lines, "sel_local": -1})
 
     # ── campaigns ──
     campaigns = data.get("campaigns", [])
     if campaigns:
-        lines.append((_SEP_MARKER, C["DIM"]))
-        lines.append((f" Campaigns ({len(campaigns)} active)", C["HEAD"] | curses.A_BOLD))
+        camp_lines: list[tuple[str, int]] = [
+            (f" Campaigns ({len(campaigns)} active)", C["HEAD"] | curses.A_BOLD),
+        ]
         for c in campaigns:
             slug   = c.get("slug", c.get("campaign_id", "?"))[:w - 6]
             status = c.get("status", "")
@@ -697,24 +718,28 @@ def _build_main_lines(data: dict, sel: int, w: int, C: dict) -> tuple[list[tuple
                 icon, attr = "✗", C["ERR"]
             else:
                 icon, attr = "▶", C["YLW"]
-            lines.append((f"  {icon}  {slug}", attr))
+            camp_lines.append((f"  {icon}  {slug}", attr))
+        sections.append({"id": "campaigns", "lines": camp_lines, "sel_local": -1})
 
     # ── queue ──
     queue = data.get("queue", [])
     if queue:
-        lines.append((_SEP_MARKER, C["DIM"]))
-        lines.append((f" Queue ({len(queue)} pending)", C["HEAD"] | curses.A_BOLD))
+        queue_lines: list[tuple[str, int]] = [
+            (f" Queue ({len(queue)} pending)", C["HEAD"] | curses.A_BOLD),
+        ]
         for item in queue:
             typ  = (item.get("task_type") or "?")[:4]
             repo = (item.get("repo_name") or "?")[:10]
             goal = (item.get("goal") or "")[:max(w - 20, 8)]
-            lines.append((f"  {typ:<5} {repo:<11} {goal}", C["DIM"]))
+            queue_lines.append((f"  {typ:<5} {repo:<11} {goal}", C["DIM"]))
+        sections.append({"id": "queue", "lines": queue_lines, "sel_local": -1})
 
     # ── execution budget (global hourly/daily caps) ──
     budget = data.get("budget", {})
     if budget.get("found"):
-        lines.append((_SEP_MARKER, C["DIM"]))
-        lines.append((" Execution budget", C["HEAD"] | curses.A_BOLD))
+        budget_lines: list[tuple[str, int]] = [
+            (" Execution budget", C["HEAD"] | curses.A_BOLD),
+        ]
         for win, used, cap in (
             ("hourly", budget.get("hourly_used", 0), budget.get("hourly_cap", 0)),
             ("daily ", budget.get("daily_used", 0),  budget.get("daily_cap", 0)),
@@ -725,7 +750,8 @@ def _build_main_lines(data: dict, sel: int, w: int, C: dict) -> tuple[list[tuple
                 else C["YLW"] if ratio >= 0.8
                 else C["RUN"]
             )
-            lines.append((f"  {win}  {used}/{cap}", attr))
+            budget_lines.append((f"  {win}  {used}/{cap}", attr))
+        sections.append({"id": "budget", "lines": budget_lines, "sel_local": -1})
 
     # ── backend caps (per-backend rate / concurrency / RAM) ──
     caps = data.get("backend_caps", {})
@@ -737,14 +763,14 @@ def _build_main_lines(data: dict, sel: int, w: int, C: dict) -> tuple[list[tuple
             (res["mem_total_gb"] - res.get("mem_used_gb", 0)) * 1024
         )
     if caps or usage:
-        lines.append((_SEP_MARKER, C["DIM"]))
-        lines.append((" Backend caps", C["HEAD"] | curses.A_BOLD))
+        bc_lines: list[tuple[str, int]] = [
+            (" Backend caps", C["HEAD"] | curses.A_BOLD),
+        ]
         for backend in sorted(set(caps) | set(usage)):
             bc = caps.get(backend, {})
             bu = usage.get(backend, {})
             cells: list[str] = []
             worst_attr = C["RUN"]
-            # Rate: hourly / daily
             for win_label, used_key, cap_key in (
                 ("h", "hourly", "max_per_hour"),
                 ("d", "daily",  "max_per_day"),
@@ -760,7 +786,6 @@ def _build_main_lines(data: dict, sel: int, w: int, C: dict) -> tuple[list[tuple
                     cells.append(f"{win_label}={used}/{limit}")
                 elif used:
                     cells.append(f"{win_label}={used}/∞")
-            # Concurrency
             in_flight = bu.get("in_flight", 0)
             mc = bc.get("max_concurrent")
             if mc is not None:
@@ -772,24 +797,28 @@ def _build_main_lines(data: dict, sel: int, w: int, C: dict) -> tuple[list[tuple
                 cells.append(f"in_flight={in_flight}/{mc}")
             elif in_flight:
                 cells.append(f"in_flight={in_flight}/∞")
-            # RAM threshold
             ram_floor = bc.get("min_available_memory_mb")
             if ram_floor is not None:
                 if mem_avail_mb and mem_avail_mb < ram_floor:
                     worst_attr = C["ERR"]
                 cells.append(f"ram≥{ram_floor}MB")
-            line = "  ".join(cells) if cells else "(no caps)"
-            lines.append((f"  {backend:<10} {line}", worst_attr))
+            row = "  ".join(cells) if cells else "(no caps)"
+            bc_lines.append((f"  {backend:<10} {row}", worst_attr))
+        sections.append({"id": "backend_caps", "lines": bc_lines, "sel_local": -1})
 
     # ── services ──
     sb = data.get("sb", False)
-    lines.append((_SEP_MARKER, C["DIM"]))
-    lines.append((" Services", C["HEAD"] | curses.A_BOLD))
     sb_icon = "✓" if sb else "✗"
     sb_attr = C["RUN"] if sb else C["ERR"]
-    lines.append((f"  {sb_icon} SwitchBoard", sb_attr))
+    sections.append({"id": "services", "lines": [
+        (" Services", C["HEAD"] | curses.A_BOLD),
+        (f"  {sb_icon} SwitchBoard", sb_attr),
+    ], "sel_local": -1})
 
-    return lines, sel_row
+    # Focused section = the one containing the selected role (always 0 today
+    # since "roles" is always the first section). Keyboard PgUp/PgDn target this.
+    focused_idx = 0
+    return sections, focused_idx
 
 
 def _resources_lines(data: dict, C: dict) -> list[tuple[str, int]]:
@@ -825,8 +854,56 @@ def _resources_lines(data: dict, C: dict) -> list[tuple[str, int]]:
     return out
 
 
-def _draw_main(stdscr, data: dict, sel: int, refreshing: bool, flash: str, C: dict, scroll: int) -> int:
-    """Render the main view. Returns the (possibly-clamped) scroll offset."""
+def _allocate_section_rows(
+    sections: list[dict], available_rows: int,
+) -> list[int]:
+    """Decide how many on-screen rows each section gets.
+
+    Each section requests its natural height (len(lines)). If the total
+    fits, every section gets its full ask. Otherwise, give each section
+    its proportional share with a minimum of 3 rows so even tiny
+    sections keep their header visible. Sections with 0 lines get 0.
+    """
+    if available_rows <= 0 or not sections:
+        return [0] * len(sections)
+    natural = [max(0, len(s["lines"])) for s in sections]
+    total = sum(natural)
+    if total <= available_rows:
+        return natural[:]
+    # Overflow — proportionally allocate, min 3 rows for non-empty sections.
+    n_nonempty = sum(1 for n in natural if n > 0)
+    if n_nonempty == 0:
+        return [0] * len(sections)
+    min_per_section = min(3, available_rows // n_nonempty)
+    fixed = [min_per_section if n > 0 else 0 for n in natural]
+    fixed_sum = sum(fixed)
+    leftover = max(0, available_rows - fixed_sum)
+    extra_demand = sum(max(0, n - min_per_section) for n in natural)
+    out = list(fixed)
+    if extra_demand > 0:
+        for i, n in enumerate(natural):
+            if n > min_per_section:
+                share = (n - min_per_section) * leftover // extra_demand
+                out[i] += share
+    # Clamp so we don't exceed what was requested
+    out = [min(o, n) for o, n in zip(out, natural, strict=False)]
+    return out
+
+
+def _draw_main(
+    stdscr, data: dict, sel: int, refreshing: bool, flash: str, C: dict,
+    section_offsets: dict[str, int],
+) -> dict[str, tuple[int, int]]:
+    """Render the main view with per-section scroll offsets.
+
+    Each top-level section (roles / active / recent / board / campaigns /
+    queue / budget / backend_caps / services) renders inside its own row
+    range with its own scroll offset (mutated in-place on this dict).
+    Mouse-wheel events route to whichever section the cursor is over.
+
+    Returns ``{section_id: (start_row, end_row_exclusive)}`` so the
+    caller can map mouse-y back to a section for wheel-scroll handling.
+    """
     stdscr.erase()
     h, w = stdscr.getmaxyx()
     def put(r, t, a=0):
@@ -835,10 +912,6 @@ def _draw_main(stdscr, data: dict, sel: int, refreshing: bool, flash: str, C: di
     spin = " ⟳" if refreshing else "  "
     ts   = time.strftime("%H:%M:%S")
 
-    # D4 stall alert: scan heartbeat files; any role whose heartbeat hasn't
-    # been touched in > _STALE_HEARTBEAT_S seconds means the worker is
-    # silent (crashed, hung, or its supervisor died). Render a red banner
-    # at the very top so it's the first thing the operator sees.
     stale_roles = _stale_heartbeat_roles()
     if stale_roles:
         banner = (
@@ -852,56 +925,87 @@ def _draw_main(stdscr, data: dict, sel: int, refreshing: bool, flash: str, C: di
         put(0, f" Operations Center{spin}  {ts}", C["HEAD"] | curses.A_BOLD)
         _sep(stdscr, 1, h, w, C["DIM"])
 
-    # Build content blocks
-    middle_lines, sel_row = _build_main_lines(data, sel, w, C)
-    bottom_lines          = _resources_lines(data, C)
+    sections, focused_idx = _build_sections(data, sel, w, C)
+    bottom_lines = _resources_lines(data, C)
 
-    # Reserve rows for the bottom-anchored resources block + footer + flash
-    bottom_h = len(bottom_lines)
-    footer_h = 2 if flash else 1                       # flash on h-2, help on h-1
-    middle_top    = 3 if stale_roles else 2            # banner pushes content down by 1
-    middle_bottom = h - bottom_h - footer_h            # exclusive
-    middle_h      = max(0, middle_bottom - middle_top)
+    bottom_h   = len(bottom_lines)
+    footer_h   = 2 if flash else 1
+    middle_top = 3 if stale_roles else 2
+    middle_bottom = h - bottom_h - footer_h
+    middle_h   = max(0, middle_bottom - middle_top)
 
-    # Clamp scroll into [0, max_scroll] and auto-scroll to keep selection visible
-    max_scroll = max(0, len(middle_lines) - middle_h)
-    if sel_row >= 0 and middle_h > 0:
-        if sel_row < scroll:
-            scroll = sel_row
-        elif sel_row >= scroll + middle_h:
-            scroll = sel_row - middle_h + 1
-    scroll = max(0, min(scroll, max_scroll))
+    # 1 row per separator between sections (header gets a separator row above it
+    # except for the first). Reserve those before allocating to sections.
+    n_seps    = max(0, len(sections) - 1)
+    avail     = max(0, middle_h - n_seps)
+    rows_per  = _allocate_section_rows(sections, avail)
 
-    # Render middle section (with scroll offset)
-    visible = middle_lines[scroll:scroll + middle_h]
-    for i, (text, attr) in enumerate(visible):
-        r = middle_top + i
-        if text == _SEP_MARKER:
-            _put(stdscr, r, h, w, "─" * (w - 1), attr)
-        else:
-            put(r, text, attr)
+    # Roles section auto-scrolls to keep the selected role visible.
+    for i, sec in enumerate(sections):
+        if sec["id"] != "roles":
+            continue
+        sl = sec["sel_local"]
+        if sl < 0 or rows_per[i] <= 0:
+            continue
+        off = section_offsets.get("roles", 0)
+        if sl < off:
+            section_offsets["roles"] = sl
+        elif sl >= off + rows_per[i]:
+            section_offsets["roles"] = sl - rows_per[i] + 1
 
-    # Scroll indicators
-    if scroll > 0 and middle_h > 0:
-        put(middle_top, "▲" + " " * (w - 2), C["YLW"])
-    if scroll + middle_h < len(middle_lines) and middle_h > 0:
-        put(middle_bottom - 1, "▼" + " " * (w - 2), C["YLW"])
+    # Render sections top-to-bottom, tracking each one's row range.
+    row = middle_top
+    section_rows: dict[str, tuple[int, int]] = {}
+    for i, sec in enumerate(sections):
+        if i > 0 and row < middle_bottom:
+            _put(stdscr, row, h, w, "─" * (w - 1), C["DIM"])
+            row += 1
+        sec_h = rows_per[i]
+        if sec_h <= 0 or row >= middle_bottom:
+            continue
+        max_off = max(0, len(sec["lines"]) - sec_h)
+        off = max(0, min(section_offsets.get(sec["id"], 0), max_off))
+        section_offsets[sec["id"]] = off
+        start_row = row
+        for j in range(sec_h):
+            if row >= middle_bottom:
+                break
+            idx = off + j
+            if idx >= len(sec["lines"]):
+                row += 1
+                continue
+            text, attr = sec["lines"][idx]
+            if text == _SEP_MARKER:
+                _put(stdscr, row, h, w, "─" * (w - 1), attr)
+            else:
+                put(row, text, attr)
+            row += 1
+        # Scroll indicators (overwrite the first/last row of the section).
+        if off > 0 and start_row < middle_bottom:
+            put(start_row, "▲" + " " * (w - 2), C["YLW"])
+        if off + sec_h < len(sec["lines"]) and (start_row + sec_h - 1) < middle_bottom:
+            put(start_row + sec_h - 1, "▼" + " " * (w - 2), C["YLW"])
+        section_rows[sec["id"]] = (start_row, start_row + sec_h)
 
-    # Render bottom-anchored resources
+    # Bottom-anchored resources block (also scrollable as its own section).
+    res_start = middle_bottom
     for i, (text, attr) in enumerate(bottom_lines):
-        r = middle_bottom + i
+        r = res_start + i
         if r >= h - footer_h:
             break
         if text == _SEP_MARKER:
             _put(stdscr, r, h, w, "─" * (w - 1), attr)
         else:
             put(r, text, attr)
+    if bottom_h > 0:
+        section_rows["resources"] = (res_start, min(res_start + bottom_h, h - footer_h))
 
     if flash:
         put(h - 2, f" {flash}", C["HEAD"])
-    put(h - 1, " ↑↓ role  PgUp/PgDn scroll  enter actions  r refresh  q quit", C["DIM"])
+    put(h - 1, " ↑↓ role  wheel/PgUp PgDn scroll section  enter actions  r refresh  q quit",
+        C["DIM"])
     stdscr.refresh()
-    return scroll
+    return section_rows
 
 
 # ── submenu view ──────────────────────────────────────────────────────────────
@@ -1035,13 +1139,30 @@ def _pane(stdscr, profile_name: str) -> None:
         data.update(_collect(repo_filter))
 
     stdscr.timeout(500)
-    role_sel   = 0
-    mode       = "roles"
-    action_sel = 0
+    # Mouse: enable wheel + click. mouseinterval(0) disables click-debounce
+    # so wheel events fire as fast as the terminal sends them.
+    try:
+        curses.mousemask(curses.ALL_MOUSE_EVENTS | curses.REPORT_MOUSE_POSITION)
+        curses.mouseinterval(0)
+    except curses.error:
+        pass  # Terminal without mouse support — keyboard still works.
+
+    role_sel    = 0
+    mode        = "roles"
+    action_sel  = 0
     log_lines: list[str] = []
-    flash      = ""
-    flash_at   = 0.0
-    scroll     = 0
+    flash       = ""
+    flash_at    = 0.0
+    # Per-section scroll offsets. Persists across refreshes so a section
+    # that's been scrolled stays scrolled when the data updates.
+    section_offsets: dict[str, int] = {}
+    # Last rendered section row ranges — used by mouse-wheel events to
+    # find which section the cursor is hovering over.
+    section_rows: dict[str, tuple[int, int]] = {}
+    # The "focused" section — what PgUp/PgDn target. Defaults to 'roles';
+    # mouse-wheel events update this so subsequent keyboard scrolling
+    # follows the cursor.
+    focused_section = "roles"
 
     while True:
         if flash and time.time() - flash_at > 2:
@@ -1057,7 +1178,9 @@ def _pane(stdscr, profile_name: str) -> None:
             _draw_submenu(stdscr, _ROLES[role_sel],
                           snap["roles"].get(_ROLES[role_sel], {}), action_sel, C)
         else:
-            scroll = _draw_main(stdscr, snap, role_sel, refreshing, flash, C, scroll)
+            section_rows = _draw_main(
+                stdscr, snap, role_sel, refreshing, flash, C, section_offsets,
+            )
 
         key = stdscr.getch()
 
@@ -1096,13 +1219,46 @@ def _pane(stdscr, profile_name: str) -> None:
             elif key == curses.KEY_DOWN:
                 role_sel = (role_sel + 1) % len(_ROLES)
             elif key == curses.KEY_PPAGE:
-                scroll = max(0, scroll - 10)
+                # Scroll the focused section up by half its visible rows.
+                if focused_section in section_rows:
+                    s, e = section_rows[focused_section]
+                    section_offsets[focused_section] = max(
+                        0, section_offsets.get(focused_section, 0) - max(1, (e - s) // 2),
+                    )
             elif key == curses.KEY_NPAGE:
-                scroll += 10  # _draw_main clamps to max
+                if focused_section in section_rows:
+                    s, e = section_rows[focused_section]
+                    section_offsets[focused_section] = (
+                        section_offsets.get(focused_section, 0) + max(1, (e - s) // 2)
+                    )
             elif key == curses.KEY_HOME:
-                scroll = 0
+                section_offsets[focused_section] = 0
             elif key == curses.KEY_END:
-                scroll = 10_000  # clamped by _draw_main
+                section_offsets[focused_section] = 10_000  # clamped on next render
+            elif key == curses.KEY_MOUSE:
+                # Wheel events: BUTTON4=up, BUTTON5=down. Map mouse y to
+                # the section under the cursor and bump that section's
+                # offset by 3 lines (typical wheel step).
+                try:
+                    _, _mx, my, _, bstate = curses.getmouse()
+                except curses.error:
+                    bstate = 0
+                    my = -1
+                target_section = None
+                for sec_id, (s, e) in section_rows.items():
+                    if s <= my < e:
+                        target_section = sec_id
+                        break
+                if target_section is not None:
+                    focused_section = target_section
+                    if bstate & curses.BUTTON4_PRESSED:
+                        section_offsets[target_section] = max(
+                            0, section_offsets.get(target_section, 0) - 3,
+                        )
+                    elif bstate & curses.BUTTON5_PRESSED:
+                        section_offsets[target_section] = (
+                            section_offsets.get(target_section, 0) + 3
+                        )
             elif key in (curses.KEY_ENTER, 10, 13):
                 mode = "action"
                 action_sel = 0

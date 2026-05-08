@@ -685,12 +685,30 @@ def main() -> None:
             sys.exit(run_last(args))
 
         case "status":
+            # `console status --watcher` (or `--watch`) launches the live
+            # curses pane — the same one zellij preloads in the layout, but
+            # accessible directly from the CLI without zellij.
+            if "--watcher" in args or "--watch" in args:
+                from operator_console.watcher_status_pane import main as _w
+                # Strip the alias flags before forwarding (the pane parses
+                # its own argv via sys.argv for --profile etc).
+                sys.argv = [sys.argv[0]] + [
+                    a for a in args if a not in ("--watcher", "--watch")
+                ]
+                sys.exit(_w() or 0)
             if "--repo" in args or "--all" in args:
                 all_repos = _discover_repos() if "--all" in args else None
                 commands.cmd_status(args, CONSOLE_DIR, _profile_for_cwd(), all_repos)
             else:
                 from operator_console.system_status import run_status
                 sys.exit(run_status(args))
+
+        case "watcher":
+            # Shortcut for `console status --watcher`. Forwards the rest
+            # of argv (e.g. --profile <name>) directly to the pane.
+            from operator_console.watcher_status_pane import main as _w
+            sys.argv = [sys.argv[0]] + args
+            sys.exit(_w() or 0)
 
         case "workers":
             sys.exit(commands.cmd_workers(args))

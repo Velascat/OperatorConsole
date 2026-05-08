@@ -285,3 +285,63 @@ class TestCursesPaneCollectors:
         from operator_console import watcher_status_pane as wsp
         monkeypatch.setattr(wsp, "_USAGE_PATH", tmp_path / "missing.json")
         assert wsp._backend_usage() == {}
+
+
+# ---------------------------------------------------------------------------
+# Curses pane: section allocator + per-section scroll
+# ---------------------------------------------------------------------------
+
+
+class TestSectionAllocator:
+    def test_natural_height_fits(self):
+        from operator_console.watcher_status_pane import _allocate_section_rows
+        sections = [
+            {"id": "a", "lines": [("h", 0), ("a1", 0), ("a2", 0)]},
+            {"id": "b", "lines": [("h", 0), ("b1", 0)]},
+        ]
+        out = _allocate_section_rows(sections, 20)
+        assert out == [3, 2]  # everyone gets natural height
+
+    def test_overflow_proportional(self):
+        from operator_console.watcher_status_pane import _allocate_section_rows
+        sections = [
+            {"id": "a", "lines": [("h", 0)] + [(f"a{i}", 0) for i in range(20)]},  # 21
+            {"id": "b", "lines": [("h", 0)] + [(f"b{i}", 0) for i in range(20)]},  # 21
+        ]
+        # 10 rows for 42 lines — both should get ~5
+        out = _allocate_section_rows(sections, 10)
+        assert sum(out) <= 10
+        assert min(out) >= 3  # min-per-section floor
+        assert abs(out[0] - out[1]) <= 1  # roughly proportional
+
+    def test_empty_sections_get_zero(self):
+        from operator_console.watcher_status_pane import _allocate_section_rows
+        sections = [
+            {"id": "a", "lines": [("h", 0)]},
+            {"id": "empty", "lines": []},
+        ]
+        out = _allocate_section_rows(sections, 10)
+        assert out[1] == 0
+
+    def test_zero_available_returns_zeros(self):
+        from operator_console.watcher_status_pane import _allocate_section_rows
+        sections = [{"id": "a", "lines": [("h", 0), ("x", 0)]}]
+        assert _allocate_section_rows(sections, 0) == [0]
+
+
+class TestWatcherCliShortcut:
+    def test_console_watcher_imports(self):
+        # The `console watcher` CLI subcommand and the --watcher flag both
+        # forward to watcher_status_pane.main(). We can't run curses in a
+        # test, but we can confirm the entrypoint resolves.
+        from operator_console.watcher_status_pane import main as wmain
+        assert callable(wmain)
+
+    def test_console_status_watcher_flag_listed_in_cli(self):
+        cli_src = (
+            __import__("operator_console.cli", fromlist=["__file__"]).__file__
+        )
+        from pathlib import Path as _P
+        text = _P(cli_src).read_text()
+        assert "case \"watcher\":" in text
+        assert "--watcher" in text or "--watch" in text
