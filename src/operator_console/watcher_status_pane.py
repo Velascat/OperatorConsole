@@ -1258,13 +1258,24 @@ def _draw_main(
         f"  [{banner_index + 1}/{banner_count}]" if banner_count > 1 else ""
     )
     banner_payload = f" {message}{counter} "
-    gap = "    "
-    loop = banner_payload + gap
+    # When cycling between multiple conditions, give each one more
+    # breathing room: longer trailing gap (so the message scrolls fully
+    # off before the next one fades in) and a leading pad equal to
+    # half the window so the new message starts mostly off-screen and
+    # scrolls in.
+    if banner_count > 1:
+        gap = " " * max(12, (w - 1) // 3)
+        leading_pad = " " * ((w - 1) // 2)
+    else:
+        gap = "    "
+        leading_pad = ""
+    one_unit = leading_pad + banner_payload + gap
+    loop = one_unit
     # Repeat until at least 2× window width so any offset slice
     # contains a full banner copy without wrap glue.
     while len(loop) < (w - 1) * 2:
-        loop += banner_payload + gap
-    offset = (banner_offset or 0) % (len(banner_payload) + len(gap))
+        loop += one_unit
+    offset = (banner_offset or 0) % len(one_unit)
     view = loop[offset:offset + (w - 1)]
     _sep(stdscr, 0, h, w, C["DIM"])
     put(1, view, _banner_color(severity, C))
@@ -1630,7 +1641,10 @@ def _pane(stdscr, profile_name: str) -> None:
     banner_index = 0
     banner_frame_count = 0
     pane_started_at = time.time()
-    _BANNER_CYCLE_FRAMES = 15  # at 200ms tick → 3s per condition
+    # Per-condition dwell. Longer when cycling so each message scrolls
+    # most of the way through (with leading pad + trailing gap) before
+    # the next one starts.
+    _BANNER_CYCLE_FRAMES = 30  # at 200ms tick → 6s per condition
     # Collapsed sections show only their header row; +/- resize scales the
     # focused section's natural row count up or down. Default everything
     # collapsed so the pane opens compact — operators expand what they

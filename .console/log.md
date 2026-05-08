@@ -208,3 +208,6 @@ top block flows behind them.
 
 ## 2026-05-08 — Drop top-block auto-scroll (operator-driven only)
 
+
+## 2026-05-08 — Banner cycle buffer: leading pad + longer gap + 6s dwell
+
