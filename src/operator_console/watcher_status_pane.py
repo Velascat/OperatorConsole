@@ -305,19 +305,26 @@ def _banner_conditions(data: dict, started_at: float) -> list[tuple[str, str]]:
 
     # ── INFO ──
     # First 30 seconds after launch — readings may not be populated yet.
-    if started_at and (time.time() - started_at) < 30:
-        conds.append((
-            BANNER_INFO,
-            "ℹ  Just Started — Readings Stabilizing",
-        ))
+    # Special-case: this banner is *pinned* to the front of the cycle so
+    # operators see "Just Started" first when the pane comes up, even when
+    # CRITICAL conditions are also present. Once the 30s window closes
+    # (or the operator has seen the message scroll past once), the regular
+    # severity-sorted order takes over.
+    just_started = (
+        started_at
+        and (time.time() - started_at) < 30
+    )
 
     if conds:
-        # Sort by severity, preserving insertion order within each level.
         order = {lvl: i for i, lvl in enumerate(_BANNER_LEVEL_ORDER)}
         conds.sort(key=lambda c: order.get(c[0], 99))
-        return conds
+    else:
+        conds = [(BANNER_HEALTHY, "✓  All Systems Nominal")]
 
-    return [(BANNER_HEALTHY, "✓  All Systems Nominal")]
+    if just_started:
+        conds.insert(0, (BANNER_INFO, "ℹ  Just Started — Readings Stabilizing"))
+
+    return conds
 
 
 def _stale_heartbeat_roles() -> list[str]:

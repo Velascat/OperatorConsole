@@ -217,3 +217,6 @@ top block flows behind them.
 
 ## 2026-05-08 — Banner continuous-stream cycling (no hard cut)
 
+
+## 2026-05-08 — Pin 'Just Started' banner to front of cycle (override severity sort)
+
