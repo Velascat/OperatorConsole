@@ -19,6 +19,10 @@ OperatorConsole maintains a persistent workspace that you can leave and return t
 - A planning, routing, or execution engine — those are delegated to OperationsCenter and SwitchBoard via subprocess
 - A contract authority — canonical contracts live in CxRP/RxP
 
+## Architecture
+
+OperatorConsole launches a multi-pane workspace per repo, organised around three surfaces: an interactive AI pane (Claude/Codex/Aider), a git surface (lazygit or a multi-repo dirty-watcher), and a status pane (the curses watcher behind `console status`). The CLI dispatches all of this — see `src/operator_console/cli.py` for the full subcommand map. Repo-specific behaviour comes from YAML profiles under `config/profiles/` that the launcher loads at startup.
+
 ## Workspace Layout
 
 Three columns. The center and right columns each contain a Zellij **stack** —
@@ -83,7 +87,7 @@ console doctor            # verify dependencies
 
 Dependencies: `zellij`, `claude` (Claude Code CLI), `lazygit`, `git`, `python3`, `fzf`
 
-## First Run
+## Quick start
 
 ```bash
 cd ~/Documents/GitHub/YourRepo
