@@ -136,3 +136,11 @@ on dark + light alike.
 
 ## 2026-05-08 — Expand cryptic Backend Caps + Global Gate cell labels
 
+
+## 2026-05-08 — Title-Case displayed values; rename Backend Caps → Backend Limits
+
+New _tc() helper Title-Cases snake_case identifiers for display only —
+data unchanged. Wired into worker rows, active tasks, recent activity,
+board, queue, backend rows, action submenu, log view header.
+'(no caps)' → '(No Limits)'. Action submenu items also Title-Cased.
+
