@@ -155,3 +155,16 @@ Workers / Active (Present) → Recent (Past) → Campaigns / Board / Queue
 (Future) → Global Rate / Backend Limits (Capacity) → Services (Infra)
 → System Resources / Global Gate (bottom-anchored).
 
+
+## 2026-05-08 — Bottom-anchored collapsible sections
+
+Restructured the bottom of the pane: System Resources, Global Gate, and
+Global Rate are now three independently collapsible sections, all bottom-
+anchored. Default-open: System Resources only; Gate + Rate collapsed.
+
+- Replaced flat _resources_lines() with _bottom_sections() → list[dict]
+- Removed top-section 'budget' (Global Rate moved to bottom)
+- Bottom render loop: spacer + divider, then each section header (and
+  body if expanded), divider between sections
+- Click-on-header / 'c' / mouse-wheel hit-testing all work uniformly
+
