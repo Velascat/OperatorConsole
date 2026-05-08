@@ -179,3 +179,6 @@ anchored. Default-open: System Resources only; Gate + Rate collapsed.
 
 ## 2026-05-08 — Reorder bottom sections: Rate → Gate → Resources
 
+
+## 2026-05-08 — Single divider directly under Services (drop spacer-then-divider)
+
