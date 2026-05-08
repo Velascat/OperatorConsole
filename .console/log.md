@@ -3,6 +3,8 @@
 _Chronological continuity log. Decisions, stop points, what changed and why._
 _Not a task tracker — that's backlog.md. Keep entries concise and dated._
 
+- Add PlatformManifest to platform group + watcher (2026-05-08, on `feat/add-platform-manifest-to-platform-group`): Tenth public platform repo joins the workspace. New `config/profiles/platformmanifest.yaml` mirrors the rxp/sourceregistry shape (lazygit + bash panes, pytest -q + ruff helpers). `config/profiles/platform.yaml` group list grew from 9 → 10. `.gitignore` allowlist updated. The git-dirty watcher reads its repo set from the loaded profile group at launcher.py:132 so no code change required — adding to platform.yaml is sufficient. All 10 group members validate cleanly via `validate_profile`.
+
 
 - `console status` → watcher; system_status.py removed (2026-05-08, on `feat/status-watcher-default`): The dense curses pane (watcher_status_pane.py) is now the canonical `console status`. `--repo` / `--all` keep the text repo-snapshot path; `--json` dumps the watcher's `_collect()` snapshot for scripted consumers; `--watcher` / `--watch` aliases and the `console watcher` subcommand removed (status IS the watcher). `system_status.py` deleted in full — its budget/backend-caps/usage/resources helpers were already duplicated inside the watcher with the same I/O paths. tests/test_system_status.py replaced by tests/test_watcher_pane.py (collectors + allocator + CLI route assertions). test_pipeline.py system_status block dropped. docs/architecture.md tree updated. **Bonus fix**: roles section's auto-scroll was overriding the offset when collapsed, hiding the "Workers" header — now skipped while collapsed.
 

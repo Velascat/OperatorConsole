@@ -19,6 +19,7 @@ config/profiles/*.yaml
 !config/profiles/executorruntime.yaml
 !config/profiles/sourceregistry.yaml
 !config/profiles/rxp.yaml
+!config/profiles/platformmanifest.yaml
 
 # Saved tab layouts, session IDs, and generated rc files (always private)
 config/profiles/*.kdl
