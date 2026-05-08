@@ -3,6 +3,8 @@
 _Chronological continuity log. Decisions, stop points, what changed and why._
 _Not a task tracker — that's backlog.md. Keep entries concise and dated._
 
+- Banner padding unified at half original (2026-05-08, on fix/banner-half-padding): Both single and multi-banner now use lp=(w-1)//4 and g=max(6,(w-1)//6) — half the original multi-banner values. Removes the single/multi branch entirely.
+
 - Banner single-loop padding at half size (2026-05-08, on fix/banner-single-padding): Single-banner re-stream gets lp=(w-1)//4 and g=max(6,(w-1)//6) — half the original values — so there's a visible breath between loops. Multi-banner keeps lp="" and g="    " (4 spaces); the crossfade coloring is the boundary signal there.
 
 - Banner padding stripped (2026-05-08, on fix/banner-strip-padding): Removed leading pad (`(w-1)//2` spaces) and large gap (`max(12, (w-1)//3)` spaces) from `_build_unit` and `_banner_unit_len`. Both cases now use a fixed 4-space separator between units — the tape streams the next banner in seamlessly so the large pads were dead space.
