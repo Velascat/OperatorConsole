@@ -1242,6 +1242,7 @@ def _draw_main(
     banner_index: int = 0,
     hints_collapsed: bool = True,
     top_scroll_offset: int = 0,
+    next_banner: tuple[str, str] | None = None,
 ) -> tuple[dict[str, tuple[int, int]], dict[str, int], int]:
     """Render the main view with per-section scroll/collapse/size state.
 
@@ -1272,32 +1273,60 @@ def _draw_main(
     # all active conditions worst-first. Layout (rows 0-6):
     #   divider (0) → marquee (1) → divider (2) → blank (3) →
     #   title (4) → blank (5) → divider (6) → first section (7).
+    def _build_unit(b_severity: str, b_message: str, b_idx: int) -> tuple[str, str]:
+        """Return (full_unit_text, severity) for one banner condition."""
+        ctr = f"  [{b_idx + 1}/{banner_count}]" if banner_count > 1 else ""
+        payload = f" {b_message}{ctr} "
+        if banner_count > 1:
+            g = " " * max(12, (w - 1) // 3)
+            lp = " " * ((w - 1) // 2)
+        else:
+            g = "    "
+            lp = ""
+        return lp + payload + g, b_severity
+
     severity, message = current_banner
-    counter = (
-        f"  [{banner_index + 1}/{banner_count}]" if banner_count > 1 else ""
-    )
-    banner_payload = f" {message}{counter} "
-    # When cycling between multiple conditions, give each one more
-    # breathing room: longer trailing gap (so the message scrolls fully
-    # off before the next one fades in) and a leading pad equal to
-    # half the window so the new message starts mostly off-screen and
-    # scrolls in.
-    if banner_count > 1:
-        gap = " " * max(12, (w - 1) // 3)
-        leading_pad = " " * ((w - 1) // 2)
+    cur_unit, cur_sev = _build_unit(severity, message, banner_index)
+
+    if next_banner is not None and banner_count > 1:
+        nx_severity, nx_message = next_banner
+        nx_idx = (banner_index + 1) % banner_count
+        nx_unit, nx_sev = _build_unit(nx_severity, nx_message, nx_idx)
     else:
-        gap = "    "
-        leading_pad = ""
-    one_unit = leading_pad + banner_payload + gap
-    loop = one_unit
-    # Repeat until at least 2× window width so any offset slice
-    # contains a full banner copy without wrap glue.
-    while len(loop) < (w - 1) * 2:
-        loop += one_unit
-    offset = (banner_offset or 0) % len(one_unit)
-    view = loop[offset:offset + (w - 1)]
+        nx_unit, nx_sev = cur_unit, cur_sev  # repeat self when single condition
+
+    # Tape = current unit + next unit. Offset wraps within this two-unit tape.
+    # When offset crosses len(cur_unit), the caller advances banner_index and
+    # subtracts cur_unit length so the transition stays seamless.
+    tape = cur_unit + nx_unit
+    offset = (banner_offset or 0) % len(tape) if tape else 0
+    view = tape[offset:offset + (w - 1)]
+    while len(view) < (w - 1):
+        # Wrap around the tape (rare — only if offset is near the end).
+        view += tape[: max(0, (w - 1) - len(view))]
+    # Split the view into the segment that comes from cur_unit and the segment
+    # that comes from nx_unit, so we can color them differently as the
+    # transition crosses the boundary.
+    cur_attr = _banner_color(cur_sev, C)
+    nx_attr  = _banner_color(nx_sev, C)
+    cur_unit_end = len(cur_unit)
+    boundary_in_view = cur_unit_end - offset  # chars of cur_unit visible from col 0
     _sep(stdscr, 0, h, w, C["DIM"])
-    put(1, view, _banner_color(severity, C))
+    if boundary_in_view <= 0:
+        # Already past the boundary — entire view belongs to nx_unit.
+        put(1, view, nx_attr)
+    elif boundary_in_view >= (w - 1):
+        # Entire view is still inside cur_unit.
+        put(1, view, cur_attr)
+    else:
+        # Split: cur_unit color on the left, nx_unit on the right.
+        cur_part = view[:boundary_in_view]
+        nx_part  = view[boundary_in_view:].ljust(max(0, (w - 1) - boundary_in_view))
+        try:
+            stdscr.addstr(1, 0, cur_part, cur_attr)
+            stdscr.addstr(1, boundary_in_view, nx_part, nx_attr)
+        except curses.error:
+            pass
     _sep(stdscr, 2, h, w, C["DIM"])
     put(3, "", 0)
     put(4, f" Operations Center{spin}  {ts}", C["HEAD"] | curses.A_BOLD)
@@ -1704,6 +1733,10 @@ def _pane(stdscr, profile_name: str) -> None:
             _draw_submenu(stdscr, _ROLES[role_sel],
                           snap["roles"].get(_ROLES[role_sel], {}), action_sel, C)
         else:
+            next_banner = (
+                conditions[(banner_index + 1) % len(conditions)]
+                if len(conditions) > 1 else None
+            )
             section_rows, header_rows, top_scroll_offset = _draw_main(
                 stdscr, snap, role_sel, refreshing, flash, C, section_offsets,
                 collapsed=collapsed_sections,
@@ -1715,6 +1748,7 @@ def _pane(stdscr, profile_name: str) -> None:
                 banner_index=banner_index,
                 hints_collapsed=hints_collapsed,
                 top_scroll_offset=top_scroll_offset,
+                next_banner=next_banner,
             )
 
         # Marquee + cycle bookkeeping. Banner always animates. Cycle to
@@ -1728,10 +1762,15 @@ def _pane(stdscr, profile_name: str) -> None:
             unit_len = _banner_unit_len(
                 current_message, len(conditions), banner_index, stdscr.getmaxyx()[1],
             )
+            # When the current unit has fully scrolled past, advance the
+            # cycle index but SUBTRACT the unit length from offset instead
+            # of resetting to 0 — the next unit (already chained on the
+            # tape) is now the "current" and has been visible for the last
+            # frame already, so transitions stream in seamlessly.
             if banner_offset >= unit_len:
                 banner_index = (banner_index + 1) % len(conditions)
                 banner_frame_count = 0
-                banner_offset = 0
+                banner_offset -= unit_len
         stdscr.timeout(_BANNER_TICK_MS)
 
         key = stdscr.getch()
