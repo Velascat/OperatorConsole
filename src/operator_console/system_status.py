@@ -3,9 +3,11 @@
 """console status — show system readiness: SwitchBoard, OperationsCenter, lane binaries, last run."""
 from __future__ import annotations
 
+import json
 import os
 import urllib.request
 from pathlib import Path
+from typing import Any
 
 _C = {
     "R": "\033[0m", "B": "\033[1m", "DIM": "\033[2m",
@@ -68,6 +70,99 @@ def _row(label: str, ok: bool, detail: str = "") -> None:
     print(f"  {_c(label + ' ', 'DIM'):<26}{mark}{suffix}")
 
 
+def _oc_budget() -> dict[str, Any]:
+    """Read OC's execution usage + caps. Returns counts and limits.
+
+    Path mirrors ``ExecutionControlSettings.usage_path`` default
+    (``tools/report/operations_center/execution/usage.json``).
+    Caps come from the same env vars OC reads at startup.
+
+    Missing file or parse error → returns zero counts so the pane still
+    renders something (the user is told the file is missing via ``found``).
+    """
+    repo = _repo_root("OperationsCenter")
+    path = repo / "tools" / "report" / "operations_center" / "execution" / "usage.json"
+    found = path.exists()
+    hourly = daily = 0
+    if found:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            hourly = int(data.get("hourly_exec_count", 0) or 0)
+            daily = int(data.get("daily_exec_count", 0) or 0)
+        except (OSError, ValueError, TypeError):
+            found = False
+    cap_hour = max(0, int(os.environ.get("OPERATIONS_CENTER_MAX_EXEC_PER_HOUR", "10")))
+    cap_day = max(0, int(os.environ.get("OPERATIONS_CENTER_MAX_EXEC_PER_DAY", "50")))
+    return {
+        "found": found, "path": str(path),
+        "hourly_used": hourly, "hourly_cap": cap_hour,
+        "daily_used": daily, "daily_cap": cap_day,
+    }
+
+
+def _proc_count() -> int:
+    """Count active processes via /proc.
+
+    Works on Linux (including WSL2 Dave runs). Returns 0 if /proc isn't
+    available so the rendering doesn't crash on macOS dev mode.
+    """
+    proc = Path("/proc")
+    if not proc.is_dir():
+        return 0
+    try:
+        return sum(1 for entry in proc.iterdir() if entry.name.isdigit())
+    except OSError:
+        return 0
+
+
+def _memory_summary() -> dict[str, Any]:
+    """Read /proc/meminfo. Returns RAM and swap totals/used in MB.
+
+    ``low_mem_threshold_mb`` is OC's kodo-side guardrail
+    (``Settings.kodo.min_kodo_available_mb``, default 6144) — when free
+    RAM drops below this OC blocks new kodo dispatches. Surfaced here
+    so operators see *why* their budget might be silently throttled
+    even when the cap looks unmet.
+
+    Linux-only. Returns zeros when /proc/meminfo isn't readable.
+    """
+    info: dict[str, int] = {}
+    try:
+        with open("/proc/meminfo", encoding="utf-8") as fh:
+            for line in fh:
+                key, _, rest = line.partition(":")
+                value, _, unit = rest.strip().partition(" ")
+                try:
+                    kb = int(value)
+                except ValueError:
+                    continue
+                if unit.lower().startswith("kb"):
+                    info[key.strip()] = kb
+    except OSError:
+        pass
+
+    def _mb(key: str) -> int:
+        return info.get(key, 0) // 1024
+
+    mem_total = _mb("MemTotal")
+    mem_avail = _mb("MemAvailable")
+    swap_total = _mb("SwapTotal")
+    swap_free = _mb("SwapFree")
+    mem_used = max(0, mem_total - mem_avail)
+    swap_used = max(0, swap_total - swap_free)
+
+    return {
+        "mem_total_mb": mem_total,
+        "mem_used_mb": mem_used,
+        "mem_available_mb": mem_avail,
+        "swap_total_mb": swap_total,
+        "swap_used_mb": swap_used,
+        "swap_free_mb": swap_free,
+        # OC's kodo dispatch guardrail (config/operations_center.local.yaml::kodo.min_kodo_available_mb)
+        "low_mem_threshold_mb": 6144,
+    }
+
+
 def run_status(args: list[str]) -> int:
     use_json = "--json" in args
 
@@ -81,18 +176,25 @@ def run_status(args: list[str]) -> int:
     binaries = ["claude", "codex", "kodo", "aider"]
     binary_status = {b: _which(b) for b in binaries}
     watcher_statuses = _watcher_status()
+    budget = _oc_budget()
+    proc_count = _proc_count()
+    mem = _memory_summary()
 
     from operator_console.runs import latest_run, run_summary
     last_run_dir = latest_run()
     last = run_summary(last_run_dir) if last_run_dir else None
 
     if use_json:
-        import json
         payload = {
             "switchboard": {"ok": sb_ok, "url": sb_health_url},
             "operations_center": {"ok": cp_ok, "path": str(cp_repo)},
             "binaries": binary_status,
             "watchers": watcher_statuses,
+            "execution_budget": budget,
+            "system": {
+                "process_count": proc_count,
+                "memory": mem,
+            },
             "last_run": last,
         }
         print(json.dumps(payload, indent=2, default=str, ensure_ascii=False))
@@ -130,6 +232,48 @@ def run_status(args: list[str]) -> int:
         ok = status == "running"
         mark = _c("running", "GRN") if ok else _c("stopped", "DIM")
         print(f"    {_c(role, 'DIM'):<22}{mark}")
+
+    print()
+
+    # Execution budget — OC's hourly/daily caps + circuit-breaker context
+    print(_c("  Execution budget", "B"))
+    if budget["found"]:
+        for win, used, cap in (
+            ("hourly", budget["hourly_used"], budget["hourly_cap"]),
+            ("daily ", budget["daily_used"],  budget["daily_cap"]),
+        ):
+            ratio = (used / cap) if cap else 0.0
+            color = "RED" if ratio >= 1 else "YLW" if ratio >= 0.8 else "GRN"
+            usage_disp = _c(f"{used}/{cap}", color)
+            print(f"    {_c(win, 'DIM'):<22}{usage_disp}")
+    else:
+        print(f"    {_c('·', 'DIM')} usage.json not found ({budget['path']})")
+
+    print()
+
+    # System resources — process count + RAM/swap with kodo dispatch threshold
+    print(_c("  System resources", "B"))
+    print(f"    {_c('processes', 'DIM'):<22}{proc_count}")
+    if mem["mem_total_mb"]:
+        mem_low = mem["mem_available_mb"] < mem["low_mem_threshold_mb"]
+        mem_color = "RED" if mem_low else "GRN"
+        ram_disp = _c(
+            f"{mem['mem_used_mb']}/{mem['mem_total_mb']} MB used  "
+            f"({mem['mem_available_mb']} MB free, threshold {mem['low_mem_threshold_mb']} MB)",
+            mem_color,
+        )
+        print(f"    {_c('ram', 'DIM'):<22}{ram_disp}")
+    if mem["swap_total_mb"]:
+        swap_ratio = mem["swap_used_mb"] / mem["swap_total_mb"]
+        swap_color = "RED" if swap_ratio >= 0.8 else "YLW" if swap_ratio >= 0.5 else "GRN"
+        swap_disp = _c(
+            f"{mem['swap_used_mb']}/{mem['swap_total_mb']} MB used  "
+            f"({mem['swap_free_mb']} MB free)",
+            swap_color,
+        )
+        print(f"    {_c('swap', 'DIM'):<22}{swap_disp}")
+    elif mem["mem_total_mb"]:
+        print(f"    {_c('swap', 'DIM'):<22}{_c('disabled', 'DIM')}")
 
     print()
 

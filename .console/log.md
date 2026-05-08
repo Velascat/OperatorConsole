@@ -5,6 +5,8 @@ _Not a task tracker — that's backlog.md. Keep entries concise and dated._
 
 ## Recent Decisions
 
+- Status pane: execution budget + system resources (2026-05-08, on `feat/status-budget-resources`): Two new sections in `console status` after the Watchers block. **Execution budget** reads OC's `tools/report/operations_center/execution/usage.json` for hourly/daily exec counts and shows them against env-driven caps (`OPERATIONS_CENTER_MAX_EXEC_PER_HOUR`/`DAY`, defaults 10/50). Color yellow at >=80%, red at >=100%, green otherwise. **System resources** shows process count + RAM/swap from /proc. RAM colored against OC's kodo dispatch threshold (kodo.min_kodo_available_mb, 6144 MB default); when free RAM drops below this OC silently blocks new kodo dispatches, so surfacing it explains why the budget might appear unmet. JSON output gains `execution_budget` + `system` top-level keys. 6 new tests; full console suite green.
+
 | Decision | Rationale | Date |
 |----------|-----------|------|
 | docs/architecture.md refresh | Module tree updated to actual src/operator_console/ contents (not the old src/console/ path with missing modules); pane diagram updated to current single/multi-repo Zellij stack layout (claude/codex/aider stack, watcher status pane); session-tracking section rewritten to cover all three tools (Claude, Codex, Aider) instead of only Claude. | 2026-05-07 |
