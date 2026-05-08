@@ -66,3 +66,5 @@ _Not a task tracker — that's backlog.md. Keep entries concise and dated._
 _Free-form scratch space. Clear periodically._
 
 - Fix title/divider/section spacing (2026-05-08, on `fix/title-divider-spacer-position`): The previous spacer landed *between* the divider and the first section, leaving the divider hugging the title. Operator wanted the divider hugging the first section instead, with the blank row between the title and the divider. Reordered: no banner → title (0) / blank (1) / divider (2) / section (3); banner → marquee (0) / blank (1) / title (2) / blank (3) / divider (4) / section (5).
+
+- Global Gate row: shorten + capitalize (2026-05-08, on `fix/global-gate-line-fit-and-caps`): The gate readout was overflowing on narrower terminals. Compressed `in_flight` → `i-f`, dropped the `, ram+swap` annotation (the RAM and Swap rows above already explain free memory composition), and dropped the `config: resource_gate.* in OC local.yaml` hint from the (unset) form. Label switched from `Global gate` → `Global Gate`. New format: `Global Gate    i-f 0/6  mem≥12288MB (22000 free)` — fits comfortably in 80-col terminals.
