@@ -3,6 +3,8 @@
 _Chronological continuity log. Decisions, stop points, what changed and why._
 _Not a task tracker — that's backlog.md. Keep entries concise and dated._
 
+- codex --full-auto → -a never (2026-05-08, on fix/codex-full-auto): codex dropped --full-auto. Updated bootstrap.py default approval_mode to `-a never`; same fix applied to kodo sessions/codex.py, orchestrators/codex_cli.py, and benchmark/runner.py in that repo.
+
 - Banner padding equalized and trimmed (2026-05-08, on fix/banner-equal-padding): Equalized lp and g to the same value, then trimmed 15% — both now `max(4, (w-1)*17//80)` (= (w-1)//4 × 0.85). At 120 cols: 25 spaces each side.
 
 - Banner padding unified at half original (2026-05-08, on fix/banner-half-padding): Both single and multi-banner now use lp=(w-1)//4 and g=max(6,(w-1)//6) — half the original multi-banner values. Removes the single/multi branch entirely.

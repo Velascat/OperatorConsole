@@ -184,9 +184,9 @@ def get_codex_command(
     codex_cfg    = profile.get("codex", {})
     codex_bin    = codex_cfg.get("bin", "codex")
     safe_bin     = codex_bin.replace("'", "'\\''")
-    # Default to --full-auto (sandboxed, no per-command approval prompts).
+    # Default to -a never (no per-command approval prompts).
     # Override per-profile with codex.approval_mode: "" to get default behaviour.
-    approval     = codex_cfg.get("approval_mode", "--full-auto")
+    approval     = codex_cfg.get("approval_mode", "-a never")
     approval_arg = f" {approval}" if approval else ""
 
     not_found_block = (
