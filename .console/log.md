@@ -85,3 +85,10 @@ Hint bar at h-2 overflowed in narrow windows and got truncated. When wider than
 window, it now scrolls in lockstep with the top banner (reuses banner_offset).
 When it fits, renders static as before. No new state — same tick.
 
+
+## 2026-05-08 — Multi-line collapsible hint bar (replaces marquee)
+
+Replaced marquee-on-overflow with a wrapped multi-line hint bar that
+defaults to collapsed (' ? hints (press ? to expand)'). Footer height
+tracks the hint rows; flash sits one row above. Added '?' key handler.
+

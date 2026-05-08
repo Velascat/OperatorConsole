@@ -1174,6 +1174,39 @@ def _allocate_section_rows(
     return out
 
 
+_HINT_CHUNKS: tuple[str, ...] = (
+    "↑↓ role",
+    "wheel scroll",
+    "click header collapse",
+    "+/- resize",
+    "= reset",
+    "enter actions",
+    "c collapse",
+    "r refresh",
+    "? hints",
+    "q quit",
+)
+
+
+def _wrap_hints(chunks: tuple[str, ...], width: int) -> list[str]:
+    """Greedily wrap chunks into lines fitting width, two-space separator."""
+    if width <= 0:
+        return [""]
+    lines: list[str] = []
+    cur = ""
+    for chunk in chunks:
+        candidate = chunk if not cur else f"{cur}  {chunk}"
+        if len(candidate) <= width:
+            cur = candidate
+        else:
+            if cur:
+                lines.append(cur)
+            cur = chunk if len(chunk) <= width else chunk[:width]
+    if cur:
+        lines.append(cur)
+    return lines or [""]
+
+
 def _draw_main(
     stdscr, data: dict, sel: int, refreshing: bool, flash: str, C: dict,
     section_offsets: dict[str, int],
@@ -1185,6 +1218,7 @@ def _draw_main(
     current_banner: tuple[str, str] = (BANNER_HEALTHY, "✓  All systems nominal"),
     banner_count: int = 1,
     banner_index: int = 0,
+    hints_collapsed: bool = True,
 ) -> tuple[dict[str, tuple[int, int]], dict[str, int]]:
     """Render the main view with per-section scroll/collapse/size state.
 
@@ -1258,10 +1292,15 @@ def _draw_main(
         sec["lines"][0] = (new_text, attr)
 
     bottom_h   = len(bottom_lines)
-    # Footer block (bottom-up): divider → footer hints → divider.
-    # When a flash is up, render flash on the row above the hints —
-    # so the footer block grows by 1 row.
-    footer_h   = 4 if flash else 3
+    # Footer block (bottom-up): divider → hint area → divider.
+    # Hint area is one row when collapsed (default), or N wrapped rows
+    # when expanded. Flash adds one row above the hints when present.
+    if hints_collapsed:
+        hint_lines: list[str] = [" ? hints  (press ? to expand)"]
+    else:
+        hint_lines = [" " + ln for ln in _wrap_hints(_HINT_CHUNKS, max(1, w - 2))]
+    hint_h     = len(hint_lines)
+    footer_h   = 2 + hint_h + (1 if flash else 0)
     # Header rows (always banner): divider (0) → marquee (1) →
     # divider (2) → blank (3) → title (4) → blank (5) → divider (6);
     # first section starts at 7.
@@ -1356,25 +1395,12 @@ def _draw_main(
     # Footer block (bottom-up): divider (h-1), hints (h-2), divider (h-3),
     # optional flash (h-4 when present).
     _sep(stdscr, h - 1, h, w, C["DIM"])
-    hints = (
-        " ↑↓ role  wheel scroll  click header collapse  +/- resize  = reset"
-        "  enter actions  r refresh  q quit"
-    )
-    # Marquee when the hint bar overflows the window width, otherwise
-    # render the static string. Reuses the banner tick so both marquees
-    # advance in lockstep.
-    if len(hints) > (w - 1):
-        gap = "    "
-        loop = hints + gap
-        while len(loop) < (w - 1) * 2:
-            loop += hints + gap
-        h_off = (banner_offset or 0) % (len(hints) + len(gap))
-        put(h - 2, loop[h_off:h_off + (w - 1)], C["DIM"])
-    else:
-        put(h - 2, hints, C["DIM"])
-    _sep(stdscr, h - 3, h, w, C["DIM"])
+    # Hint rows occupy h-2 down to h-1-hint_h.
+    for i, ln in enumerate(hint_lines):
+        put(h - 1 - hint_h + i, ln, C["DIM"])
+    _sep(stdscr, h - 2 - hint_h, h, w, C["DIM"])
     if flash:
-        put(h - 4, f" {flash}", C["HEAD"])
+        put(h - 3 - hint_h, f" {flash}", C["HEAD"])
     stdscr.refresh()
     return section_rows, header_rows
 
@@ -1569,6 +1595,8 @@ def _pane(stdscr, profile_name: str) -> None:
         )
     }
     size_mult: dict[str, float] = {}
+    # Hint bar starts collapsed — operators toggle with `?`.
+    hints_collapsed = True
 
     while True:
         if flash and time.time() - flash_at > 2:
@@ -1601,6 +1629,7 @@ def _pane(stdscr, profile_name: str) -> None:
                 current_banner=current_banner,
                 banner_count=len(conditions),
                 banner_index=banner_index,
+                hints_collapsed=hints_collapsed,
             )
 
         # Marquee + cycle bookkeeping. Banner always animates; tick at
@@ -1717,6 +1746,8 @@ def _pane(stdscr, profile_name: str) -> None:
             elif key in (curses.KEY_ENTER, 10, 13):
                 mode = "action"
                 action_sel = 0
+            elif key == ord("?"):
+                hints_collapsed = not hints_collapsed
             elif key == ord("r"):
                 with lock:
                     data.update({"roles": dict(_empty_roles), "campaigns": [],
