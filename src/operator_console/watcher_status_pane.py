@@ -959,8 +959,8 @@ def _build_sections(
             cells: list[str] = []
             worst_attr = C["RUN"]
             for win_label, used_key, cap_key in (
-                ("h", "hourly", "max_per_hour"),
-                ("d", "daily",  "max_per_day"),
+                ("Hourly", "hourly", "max_per_hour"),
+                ("Daily",  "daily",  "max_per_day"),
             ):
                 limit = bc.get(cap_key)
                 used = bu.get(used_key, 0)
@@ -970,9 +970,9 @@ def _build_sections(
                         worst_attr = C["ERR"]
                     elif ratio >= 0.8 and worst_attr is C["RUN"]:
                         worst_attr = C["YLW"]
-                    cells.append(f"{win_label}={used}/{limit}")
+                    cells.append(f"{win_label} {used}/{limit}")
                 elif used:
-                    cells.append(f"{win_label}={used}/∞")
+                    cells.append(f"{win_label} {used}/∞")
             in_flight = bu.get("in_flight", 0)
             mc = bc.get("max_concurrent")
             if mc is not None:
@@ -981,14 +981,14 @@ def _build_sections(
                     worst_attr = C["ERR"]
                 elif ratio >= 0.8 and worst_attr is C["RUN"]:
                     worst_attr = C["YLW"]
-                cells.append(f"in_flight={in_flight}/{mc}")
+                cells.append(f"In-Flight {in_flight}/{mc}")
             elif in_flight:
-                cells.append(f"in_flight={in_flight}/∞")
+                cells.append(f"In-Flight {in_flight}/∞")
             ram_floor = bc.get("min_available_memory_mb")
             if ram_floor is not None:
                 if mem_avail_mb and mem_avail_mb < ram_floor:
                     worst_attr = C["ERR"]
-                cells.append(f"ram≥{ram_floor}MB")
+                cells.append(f"RAM ≥{ram_floor}MB")
             row = "  ".join(cells) if cells else "(No Caps)"
             bc_lines.append((f"  {backend:<10} {row}", worst_attr))
             if worst_attr is C["ERR"]:
@@ -1081,18 +1081,18 @@ def _resources_lines(data: dict, C: dict) -> list[tuple[str, int]]:
                 else C["YLW"] if ratio >= 0.8
                 else C["RUN"]
             )
-            conc_cell = f"i-f {total_in_flight}/{mc}"
+            conc_cell = f"In-Flight {total_in_flight}/{mc}"
         else:
             conc_attr = C["DIM"]
-            conc_cell = f"i-f {total_in_flight}/∞"
+            conc_cell = f"In-Flight {total_in_flight}/∞"
         # Memory-floor cell. "free" sums RAM + swap, matching OC's
         # gate enforcement (UsageStore.available_memory_mb()).
         if floor_mb is not None:
             ram_attr = C["ERR"] if free_mb and free_mb < floor_mb else C["RUN"]
-            ram_cell = f"mem≥{floor_mb}MB ({free_mb} free)"
+            ram_cell = f"Memory ≥{floor_mb}MB ({free_mb} Free)"
         else:
             ram_attr = C["DIM"]
-            ram_cell = "mem≥∞"
+            ram_cell = "Memory ≥∞"
         # Worst color wins for the line
         worst = ram_attr if ram_attr is C["ERR"] else (
             conc_attr if conc_attr is C["ERR"] else
