@@ -214,3 +214,6 @@ top block flows behind them.
 
 ## 2026-05-08 — `x` collapse all + banner cycles after full scroll
 
+
+## 2026-05-08 — Banner continuous-stream cycling (no hard cut)
+
