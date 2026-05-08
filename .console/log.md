@@ -185,3 +185,6 @@ anchored. Default-open: System Resources only; Gate + Rate collapsed.
 
 ## 2026-05-08 — Anchor inter-block divider to last top section
 
+
+## 2026-05-08 — Restore leading divider on bottom block (above Global Rate)
+

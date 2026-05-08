@@ -1330,9 +1330,11 @@ def _draw_main(
     def _sec_height(sec: dict) -> int:
         return 1 if collapsed.get(sec["id"], False) else len(sec["lines"])
 
-    # 1 divider between each bottom section (no leading divider — that
-    # one renders under the last top section after the middle loop).
-    bottom_h   = sum(_sec_height(s) for s in bottom_secs) + max(0, len(bottom_secs) - 1)
+    # 1 leading divider above the first bottom section + 1 between each
+    # subsequent. (A separate divider also renders under the last top
+    # section so when middle is short the divider stays glued there;
+    # when middle fills, the two dividers coincide at middle_bottom.)
+    bottom_h   = sum(_sec_height(s) for s in bottom_secs) + 1 + max(0, len(bottom_secs) - 1)
     # Footer block (bottom-up): divider → hint area → divider.
     # Hint area is one row when collapsed (default), or N wrapped rows
     # when expanded. Flash adds one row above the hints when present.
@@ -1429,9 +1431,13 @@ def _draw_main(
 
     # Bottom-anchored block: Global Rate / Global Gate / System Resources.
     # Each is independently collapsible. Render top-down starting at
-    # middle_bottom; bottom block has no leading divider of its own (the
-    # one above ties to Services).
+    # middle_bottom with a leading divider above Global Rate. (When the
+    # middle is short, this coincides with the under-Services divider
+    # at the same row — visually one line.)
     r = middle_bottom
+    if r < h - footer_h:
+        _put(stdscr, r, h, w, "─" * (w - 1), C["DIM"])
+        r += 1
     for idx, sec in enumerate(bottom_secs):
         if r >= h - footer_h:
             break
