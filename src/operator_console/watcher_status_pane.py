@@ -924,9 +924,16 @@ def _resources_lines(data: dict, C: dict) -> list[tuple[str, int]]:
     gate = data.get("resource_gate", {}) or {}
     usage = data.get("backend_usage", {}) or {}
     total_in_flight = sum(int(b.get("in_flight", 0)) for b in usage.values())
+    # Available memory = free RAM + free swap. Matches OC's
+    # UsageStore.available_memory_mb() so the watcher and the
+    # actual gate enforcement compare against the same number.
     mem_total_gb = res.get("mem_total_gb", 0)
     mem_used_gb = res.get("mem_used_gb", 0)
-    free_mb = int(max(0, (mem_total_gb - mem_used_gb)) * 1024) if mem_total_gb else 0
+    swap_total_gb = res.get("swap_total_gb", 0)
+    swap_used_gb = res.get("swap_used_gb", 0)
+    free_ram_mb = int(max(0, (mem_total_gb - mem_used_gb)) * 1024) if mem_total_gb else 0
+    free_swap_mb = int(max(0, (swap_total_gb - swap_used_gb)) * 1024) if swap_total_gb else 0
+    free_mb = free_ram_mb + free_swap_mb
 
     mc = gate.get("max_concurrent")
     floor_mb = gate.get("min_available_memory_mb")
@@ -950,10 +957,11 @@ def _resources_lines(data: dict, C: dict) -> list[tuple[str, int]]:
         # RAM-floor cell
         if floor_mb is not None:
             ram_attr = C["ERR"] if free_mb and free_mb < floor_mb else C["RUN"]
-            ram_cell = f"ram≥{floor_mb}MB ({free_mb} free)"
+            # "free" reads RAM + swap, matching OC's gate enforcement.
+            ram_cell = f"mem≥{floor_mb}MB ({free_mb} free, ram+swap)"
         else:
             ram_attr = C["DIM"]
-            ram_cell = "ram≥∞"
+            ram_cell = "mem≥∞"
         # Worst color wins for the line
         worst = ram_attr if ram_attr is C["ERR"] else (
             conc_attr if conc_attr is C["ERR"] else
@@ -1120,8 +1128,10 @@ def _draw_main(
     bottom_h   = len(bottom_lines)
     footer_h   = 2 if flash else 1
     # Banner block is 4 rows tall (banner / blank / title / sep) when
-    # stale; otherwise just title + sep (2 rows).
-    middle_top = 4 if stale_roles else 2
+    # stale; otherwise just title + sep (2 rows). Add 1 more row of
+    # whitespace so the first section visually detaches from the
+    # title/separator above it.
+    middle_top = (4 if stale_roles else 2) + 1
     middle_bottom = h - bottom_h - footer_h
     middle_h   = max(0, middle_bottom - middle_top)
 
