@@ -70,6 +70,107 @@ def _row(label: str, ok: bool, detail: str = "") -> None:
     print(f"  {_c(label + ' ', 'DIM'):<26}{mark}{suffix}")
 
 
+def _oc_backend_caps() -> dict[str, dict[str, int]]:
+    """Read per-backend caps from OC's local YAML.
+
+    Returns ``{}`` when the file/section is missing or unreadable.
+    The pane renders nothing if the dict is empty.
+
+    Pulls the live config the operator is actually running with —
+    ``config/operations_center.local.yaml`` is gitignored and lives
+    under the OC repo root. Fields per backend (any subset):
+    ``max_per_hour``, ``max_per_day``, ``min_available_memory_mb``,
+    ``max_concurrent``.
+    """
+    repo = _repo_root("OperationsCenter")
+    path = repo / "config" / "operations_center.local.yaml"
+    if not path.exists():
+        return {}
+    try:
+        # Only do a YAML import when the file exists so the pane still
+        # renders on a fresh checkout without PyYAML installed.
+        import yaml  # type: ignore[import-untyped]
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, Exception):  # noqa: BLE001 — render-best-effort
+        return {}
+    raw = (data or {}).get("backend_caps") or {}
+    out: dict[str, dict[str, int]] = {}
+    for backend, cfg in raw.items():
+        if not isinstance(cfg, dict):
+            continue
+        clean: dict[str, int] = {}
+        for field in ("max_per_hour", "max_per_day",
+                      "min_available_memory_mb", "max_concurrent"):
+            v = cfg.get(field)
+            if isinstance(v, int):
+                clean[field] = v
+        if clean:
+            out[str(backend)] = clean
+    return out
+
+
+def _oc_backend_usage() -> dict[str, dict[str, int]]:
+    """Walk usage.json events and compute per-backend counters.
+
+    Returns a dict keyed by backend name with ``hourly``, ``daily``,
+    ``in_flight`` (started − finished). Missing/unparseable file
+    returns ``{}``; backends with no events are absent from the map.
+
+    Mirrors the logic in ``UsageStore.budget_decision_for_backend`` /
+    ``concurrent_runs_for_backend`` so the pane shows the same numbers
+    OC enforces against.
+    """
+    from datetime import datetime, timezone, timedelta
+    repo = _repo_root("OperationsCenter")
+    path = repo / "tools" / "report" / "operations_center" / "execution" / "usage.json"
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return {}
+    events = data.get("events", []) or []
+    now = datetime.now(timezone.utc)
+    cutoff_hour = now - timedelta(hours=1)
+    cutoff_day = now - timedelta(days=1)
+    cutoff_concurrency = now - timedelta(hours=24)
+    per: dict[str, dict[str, Any]] = {}
+    in_flight: dict[str, set[str]] = {}
+    for ev in events:
+        if not isinstance(ev, dict):
+            continue
+        backend = ev.get("backend")
+        if not isinstance(backend, str) or not backend:
+            continue
+        ts_raw = ev.get("timestamp")
+        if not isinstance(ts_raw, str):
+            continue
+        try:
+            ts = datetime.fromisoformat(ts_raw)
+        except ValueError:
+            continue
+        bucket = per.setdefault(backend, {"hourly": 0, "daily": 0})
+        kind = ev.get("kind")
+        if kind == "execution":
+            if ts >= cutoff_day:
+                bucket["daily"] += 1
+                if ts >= cutoff_hour:
+                    bucket["hourly"] += 1
+        elif ts >= cutoff_concurrency:
+            tid = ev.get("task_id")
+            if isinstance(tid, str):
+                if kind == "execution_started":
+                    in_flight.setdefault(backend, set()).add(tid)
+                elif kind == "execution_finished":
+                    in_flight.setdefault(backend, set()).discard(tid)
+    for backend, ids in in_flight.items():
+        per.setdefault(backend, {"hourly": 0, "daily": 0})["in_flight"] = len(ids)
+    # Ensure every reported backend has an in_flight key (default 0)
+    for bucket in per.values():
+        bucket.setdefault("in_flight", 0)
+    return {k: dict(v) for k, v in per.items()}
+
+
 def _oc_budget() -> dict[str, Any]:
     """Read OC's execution usage + caps. Returns counts and limits.
 
@@ -177,6 +278,8 @@ def run_status(args: list[str]) -> int:
     binary_status = {b: _which(b) for b in binaries}
     watcher_statuses = _watcher_status()
     budget = _oc_budget()
+    backend_caps = _oc_backend_caps()
+    backend_usage = _oc_backend_usage()
     proc_count = _proc_count()
     mem = _memory_summary()
 
@@ -191,6 +294,8 @@ def run_status(args: list[str]) -> int:
             "binaries": binary_status,
             "watchers": watcher_statuses,
             "execution_budget": budget,
+            "backend_caps": backend_caps,
+            "backend_usage": backend_usage,
             "system": {
                 "process_count": proc_count,
                 "memory": mem,
@@ -250,6 +355,59 @@ def run_status(args: list[str]) -> int:
         print(f"    {_c('·', 'DIM')} usage.json not found ({budget['path']})")
 
     print()
+
+    # Per-backend caps + live usage (rate / concurrency / RAM threshold).
+    # Pulled from config/operations_center.local.yaml backend_caps block;
+    # live counters from usage.json events (tagged with backend=).
+    if backend_caps or backend_usage:
+        print(_c("  Backend caps", "B"))
+        configured_backends = sorted(set(backend_caps) | set(backend_usage))
+        for backend in configured_backends:
+            cap = backend_caps.get(backend, {})
+            usage = backend_usage.get(backend, {})
+            cells: list[str] = []
+
+            # Hourly / daily rate
+            for win, used_key, cap_key in (
+                ("hourly", "hourly", "max_per_hour"),
+                ("daily",  "daily",  "max_per_day"),
+            ):
+                limit = cap.get(cap_key)
+                used = usage.get(used_key, 0)
+                if limit is not None:
+                    ratio = (used / limit) if limit else 0.0
+                    color = "RED" if ratio >= 1 else "YLW" if ratio >= 0.8 else "GRN"
+                    cells.append(f"{win} {_c(f'{used}/{limit}', color)}")
+                elif used:
+                    cells.append(f"{win} {used}/∞")
+
+            # Concurrency
+            in_flight = usage.get("in_flight", 0)
+            mc = cap.get("max_concurrent")
+            if mc is not None:
+                ratio = (in_flight / mc) if mc else 0.0
+                color = "RED" if ratio >= 1 else "YLW" if ratio >= 0.8 else "GRN"
+                cells.append(f"in_flight {_c(f'{in_flight}/{mc}', color)}")
+            elif in_flight:
+                cells.append(f"in_flight {in_flight}/∞")
+
+            # RAM threshold (compared against current free)
+            ram_floor = cap.get("min_available_memory_mb")
+            if ram_floor is not None:
+                if mem["mem_total_mb"]:
+                    ok = mem["mem_available_mb"] >= ram_floor
+                    color = "GRN" if ok else "RED"
+                    cells.append(
+                        f"ram≥{_c(f'{ram_floor}', color)}MB"
+                        f" ({mem['mem_available_mb']} free)"
+                    )
+                else:
+                    cells.append(f"ram≥{ram_floor}MB")
+
+            line = "  ".join(cells) if cells else _c("(no caps configured)", "DIM")
+            print(f"    {_c(backend, 'DIM'):<22}{line}")
+
+        print()
 
     # System resources — process count + RAM/swap with kodo dispatch threshold
     print(_c("  System resources", "B"))
