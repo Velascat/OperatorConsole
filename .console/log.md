@@ -102,3 +102,10 @@ Added a minimal CHANGELOG.md so M1 (and M5 format check) pass.
 Reorder per canonical convention: What X is → What X is not → Quick
 start → Architecture → ...
 
+
+## 2026-05-08 — Custodian round: OConsole clean (39 → 0)
+
+T6/T7 exclude_paths for src/operator_console/** (TUI exercised via CLI,
+not name-imported in tests). T8 for test_architecture_demo.py (subprocess+curses).
+common_words += git_watcher (subcommand name, not a Python symbol).
+
