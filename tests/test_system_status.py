@@ -193,3 +193,95 @@ class TestStatusJsonShapeIncludesBackends:
         payload = json.loads(out)
         assert payload["backend_caps"] == {"kodo": {"max_concurrent": 1}}
         assert payload["backend_usage"] == {"kodo": {"hourly": 0, "daily": 2, "in_flight": 1}}
+
+
+# ---------------------------------------------------------------------------
+# Curses pane data collectors (watcher_status_pane.py)
+# ---------------------------------------------------------------------------
+
+
+class TestCursesPaneCollectors:
+    def test_exec_budget_reads_usage(self, tmp_path, monkeypatch):
+        from operator_console import watcher_status_pane as wsp
+        target = tmp_path / "tools" / "report" / "operations_center" / "execution"
+        target.mkdir(parents=True)
+        (target / "usage.json").write_text(
+            json.dumps({"hourly_exec_count": 7, "daily_exec_count": 33})
+        )
+        monkeypatch.setattr(wsp, "_USAGE_PATH", target / "usage.json")
+        monkeypatch.setenv("OPERATIONS_CENTER_MAX_EXEC_PER_HOUR", "12")
+        monkeypatch.setenv("OPERATIONS_CENTER_MAX_EXEC_PER_DAY", "60")
+        b = wsp._exec_budget()
+        assert b == {
+            "found": True, "hourly_used": 7, "hourly_cap": 12,
+            "daily_used": 33, "daily_cap": 60,
+        }
+
+    def test_exec_budget_missing_file(self, tmp_path, monkeypatch):
+        from operator_console import watcher_status_pane as wsp
+        monkeypatch.setattr(wsp, "_USAGE_PATH", tmp_path / "missing.json")
+        b = wsp._exec_budget()
+        assert b["found"] is False
+        assert b["hourly_used"] == 0
+
+    def test_backend_caps_parses_indented_block_with_inline_comments(
+        self, tmp_path, monkeypatch,
+    ):
+        from operator_console import watcher_status_pane as wsp
+        cfg = tmp_path / "operations_center.local.yaml"
+        cfg.write_text(
+            "kodo:\n"
+            "  binary: kodo\n"
+            "backend_caps:\n"
+            "  kodo:\n"
+            "    min_available_memory_mb: 6144   # subprocess team config\n"
+            "    max_concurrent: 1               # teams hate sharing\n"
+            "  archon:\n"
+            "    max_per_day: 5\n"
+            "    max_concurrent: 4\n"
+            "archon:\n"
+            "  enabled: false\n"
+        )
+        monkeypatch.setattr(wsp, "_OC_CONFIG", cfg)
+        caps = wsp._backend_caps()
+        assert caps == {
+            "kodo": {"min_available_memory_mb": 6144, "max_concurrent": 1},
+            "archon": {"max_per_day": 5, "max_concurrent": 4},
+        }
+
+    def test_backend_caps_missing_file(self, tmp_path, monkeypatch):
+        from operator_console import watcher_status_pane as wsp
+        monkeypatch.setattr(wsp, "_OC_CONFIG", tmp_path / "missing.yaml")
+        assert wsp._backend_caps() == {}
+
+    def test_backend_usage_aggregates_per_backend_counters(
+        self, tmp_path, monkeypatch,
+    ):
+        from operator_console import watcher_status_pane as wsp
+        from datetime import datetime, timezone, timedelta
+        now = datetime.now(timezone.utc)
+        events = [
+            {"kind": "execution", "backend": "archon",
+             "timestamp": (now - timedelta(minutes=5)).isoformat()},
+            {"kind": "execution", "backend": "archon",
+             "timestamp": (now - timedelta(hours=8)).isoformat()},
+            {"kind": "execution_started", "backend": "kodo", "task_id": "k1",
+             "timestamp": (now - timedelta(minutes=2)).isoformat()},
+            {"kind": "execution_started", "backend": "kodo", "task_id": "k2",
+             "timestamp": (now - timedelta(hours=1)).isoformat()},
+            {"kind": "execution_finished", "backend": "kodo", "task_id": "k2",
+             "timestamp": (now - timedelta(minutes=30)).isoformat()},
+        ]
+        path = tmp_path / "usage.json"
+        path.write_text(json.dumps({"events": events}))
+        monkeypatch.setattr(wsp, "_USAGE_PATH", path)
+        u = wsp._backend_usage()
+        assert u["archon"]["hourly"] == 1
+        assert u["archon"]["daily"] == 2
+        assert u["archon"]["in_flight"] == 0
+        assert u["kodo"]["in_flight"] == 1
+
+    def test_backend_usage_missing_file(self, tmp_path, monkeypatch):
+        from operator_console import watcher_status_pane as wsp
+        monkeypatch.setattr(wsp, "_USAGE_PATH", tmp_path / "missing.json")
+        assert wsp._backend_usage() == {}

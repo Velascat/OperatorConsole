@@ -320,6 +320,135 @@ def _sys_resources() -> dict:
     }
 
 
+_USAGE_PATH = _OC_ROOT / "tools" / "report" / "operations_center" / "execution" / "usage.json"
+
+
+def _exec_budget() -> dict:
+    """Read OC's execution usage.json for global hourly/daily counts.
+
+    Caps come from env (defaults match OC: 10/hour, 50/day). Missing or
+    unreadable file returns zero counts so the pane keeps rendering.
+    """
+    hourly = daily = 0
+    found = _USAGE_PATH.exists()
+    if found:
+        try:
+            data = json.loads(_USAGE_PATH.read_text(encoding="utf-8"))
+            hourly = int(data.get("hourly_exec_count", 0) or 0)
+            daily = int(data.get("daily_exec_count", 0) or 0)
+        except Exception:
+            found = False
+    cap_hour = int(os.environ.get("OPERATIONS_CENTER_MAX_EXEC_PER_HOUR", "10"))
+    cap_day = int(os.environ.get("OPERATIONS_CENTER_MAX_EXEC_PER_DAY", "50"))
+    return {"found": found, "hourly_used": hourly, "hourly_cap": cap_hour,
+            "daily_used": daily, "daily_cap": cap_day}
+
+
+def _backend_caps() -> dict[str, dict[str, int]]:
+    """Per-backend caps from OC's local YAML. Empty when unconfigured.
+
+    Reuses the lightweight indented-block parser pattern this module
+    already uses for the Plane block — keeps the pane bun-free even
+    on a bare interpreter without PyYAML.
+    """
+    if not _OC_CONFIG.exists():
+        return {}
+    out: dict[str, dict[str, int]] = {}
+    in_block = False
+    current_backend: str | None = None
+    try:
+        for raw in _OC_CONFIG.read_text(encoding="utf-8").splitlines():
+            stripped = raw.rstrip()
+            if not stripped or stripped.lstrip().startswith("#"):
+                continue
+            if not stripped.startswith(" ") and not stripped.startswith("\t"):
+                in_block = stripped.startswith("backend_caps:")
+                current_backend = None
+                continue
+            if not in_block:
+                continue
+            # Determine indent level (2 spaces = backend, 4 spaces = field)
+            indent = len(stripped) - len(stripped.lstrip())
+            content = stripped.strip()
+            if ":" not in content:
+                continue
+            key, _, val = content.partition(":")
+            key = key.strip()
+            # Strip trailing inline comment then quotes/whitespace.
+            val = val.split("#", 1)[0].strip().strip('"').strip("'")
+            if indent == 2:
+                # New backend section starts
+                current_backend = key
+                out.setdefault(current_backend, {})
+            elif indent == 4 and current_backend is not None and val:
+                if key in ("max_per_hour", "max_per_day",
+                           "min_available_memory_mb", "max_concurrent"):
+                    try:
+                        out[current_backend][key] = int(val)
+                    except ValueError:
+                        pass
+    except Exception:
+        return {}
+    # Drop empty stub entries (a backend with no fields)
+    return {k: v for k, v in out.items() if v}
+
+
+def _backend_usage() -> dict[str, dict[str, int]]:
+    """Per-backend live counters from usage.json events.
+
+    Returns ``{backend: {"hourly": int, "daily": int, "in_flight": int}}``
+    with the same logic as ``UsageStore.budget_decision_for_backend`` and
+    ``concurrent_runs_for_backend``. Missing/unreadable file → ``{}``.
+    """
+    if not _USAGE_PATH.exists():
+        return {}
+    try:
+        data = json.loads(_USAGE_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    events = data.get("events", []) or []
+    now = time.time()
+    cutoff_hour = now - 3600
+    cutoff_day = now - 86400
+    cutoff_concurrency = now - 86400  # 24h stale window
+    per: dict[str, dict] = {}
+    in_flight: dict[str, set[str]] = {}
+    for ev in events:
+        if not isinstance(ev, dict):
+            continue
+        backend = ev.get("backend")
+        if not isinstance(backend, str) or not backend:
+            continue
+        ts_raw = ev.get("timestamp")
+        if not isinstance(ts_raw, str):
+            continue
+        try:
+            # Strip timezone and parse ISO; fall back gracefully.
+            from datetime import datetime as _dt
+            ts = _dt.fromisoformat(ts_raw).timestamp()
+        except (ValueError, OverflowError):
+            continue
+        bucket = per.setdefault(backend, {"hourly": 0, "daily": 0})
+        kind = ev.get("kind")
+        if kind == "execution":
+            if ts >= cutoff_day:
+                bucket["daily"] += 1
+                if ts >= cutoff_hour:
+                    bucket["hourly"] += 1
+        elif ts >= cutoff_concurrency:
+            tid = ev.get("task_id")
+            if isinstance(tid, str):
+                if kind == "execution_started":
+                    in_flight.setdefault(backend, set()).add(tid)
+                elif kind == "execution_finished":
+                    in_flight.setdefault(backend, set()).discard(tid)
+    for backend, ids in in_flight.items():
+        per.setdefault(backend, {"hourly": 0, "daily": 0})["in_flight"] = len(ids)
+    for bucket in per.values():
+        bucket.setdefault("in_flight", 0)
+    return {k: dict(v) for k, v in per.items()}
+
+
 def _profile_repos(profile_name: str) -> set[str] | None:
     try:
         from operator_console.profile_loader import load_profile
@@ -370,6 +499,9 @@ def _collect(repo_filter: set[str] | None) -> dict:
         "resources": _sys_resources(),
         "plane":     {"active": _plane_cache["active"], "board": _plane_cache["board"]},
         "recent":    _recent_activity(),
+        "budget":    _exec_budget(),
+        "backend_caps":  _backend_caps(),
+        "backend_usage": _backend_usage(),
         "at":        now,
     }
 
@@ -577,6 +709,77 @@ def _build_main_lines(data: dict, sel: int, w: int, C: dict) -> tuple[list[tuple
             repo = (item.get("repo_name") or "?")[:10]
             goal = (item.get("goal") or "")[:max(w - 20, 8)]
             lines.append((f"  {typ:<5} {repo:<11} {goal}", C["DIM"]))
+
+    # ── execution budget (global hourly/daily caps) ──
+    budget = data.get("budget", {})
+    if budget.get("found"):
+        lines.append((_SEP_MARKER, C["DIM"]))
+        lines.append((" Execution budget", C["HEAD"] | curses.A_BOLD))
+        for win, used, cap in (
+            ("hourly", budget.get("hourly_used", 0), budget.get("hourly_cap", 0)),
+            ("daily ", budget.get("daily_used", 0),  budget.get("daily_cap", 0)),
+        ):
+            ratio = (used / cap) if cap else 0.0
+            attr = (
+                C["ERR"] if ratio >= 1
+                else C["YLW"] if ratio >= 0.8
+                else C["RUN"]
+            )
+            lines.append((f"  {win}  {used}/{cap}", attr))
+
+    # ── backend caps (per-backend rate / concurrency / RAM) ──
+    caps = data.get("backend_caps", {})
+    usage = data.get("backend_usage", {})
+    res = data.get("resources", {})
+    mem_avail_mb = 0
+    if res.get("mem_total_gb"):
+        mem_avail_mb = int(
+            (res["mem_total_gb"] - res.get("mem_used_gb", 0)) * 1024
+        )
+    if caps or usage:
+        lines.append((_SEP_MARKER, C["DIM"]))
+        lines.append((" Backend caps", C["HEAD"] | curses.A_BOLD))
+        for backend in sorted(set(caps) | set(usage)):
+            bc = caps.get(backend, {})
+            bu = usage.get(backend, {})
+            cells: list[str] = []
+            worst_attr = C["RUN"]
+            # Rate: hourly / daily
+            for win_label, used_key, cap_key in (
+                ("h", "hourly", "max_per_hour"),
+                ("d", "daily",  "max_per_day"),
+            ):
+                limit = bc.get(cap_key)
+                used = bu.get(used_key, 0)
+                if limit is not None:
+                    ratio = (used / limit) if limit else 0.0
+                    if ratio >= 1:
+                        worst_attr = C["ERR"]
+                    elif ratio >= 0.8 and worst_attr is C["RUN"]:
+                        worst_attr = C["YLW"]
+                    cells.append(f"{win_label}={used}/{limit}")
+                elif used:
+                    cells.append(f"{win_label}={used}/∞")
+            # Concurrency
+            in_flight = bu.get("in_flight", 0)
+            mc = bc.get("max_concurrent")
+            if mc is not None:
+                ratio = (in_flight / mc) if mc else 0.0
+                if ratio >= 1:
+                    worst_attr = C["ERR"]
+                elif ratio >= 0.8 and worst_attr is C["RUN"]:
+                    worst_attr = C["YLW"]
+                cells.append(f"in_flight={in_flight}/{mc}")
+            elif in_flight:
+                cells.append(f"in_flight={in_flight}/∞")
+            # RAM threshold
+            ram_floor = bc.get("min_available_memory_mb")
+            if ram_floor is not None:
+                if mem_avail_mb and mem_avail_mb < ram_floor:
+                    worst_attr = C["ERR"]
+                cells.append(f"ram≥{ram_floor}MB")
+            line = "  ".join(cells) if cells else "(no caps)"
+            lines.append((f"  {backend:<10} {line}", worst_attr))
 
     # ── services ──
     sb = data.get("sb", False)
