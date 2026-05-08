@@ -328,6 +328,45 @@ class TestSectionAllocator:
         sections = [{"id": "a", "lines": [("h", 0), ("x", 0)]}]
         assert _allocate_section_rows(sections, 0) == [0]
 
+    def test_collapsed_section_gets_one_row(self):
+        from operator_console.watcher_status_pane import _allocate_section_rows
+        sections = [
+            {"id": "a", "lines": [("h", 0), ("a1", 0), ("a2", 0), ("a3", 0)]},
+            {"id": "b", "lines": [("h", 0), ("b1", 0), ("b2", 0)]},
+        ]
+        out = _allocate_section_rows(
+            sections, 20, collapsed={"a": True},
+        )
+        # Collapsed section reduced to header-only; expanded one keeps natural.
+        assert out[0] == 1
+        assert out[1] == 3
+
+    def test_size_mult_grows_natural_height(self):
+        from operator_console.watcher_status_pane import _allocate_section_rows
+        sections = [
+            {"id": "a", "lines": [("h", 0), ("a1", 0)]},  # natural 2
+            {"id": "b", "lines": [("h", 0), ("b1", 0)]},  # natural 2
+        ]
+        out = _allocate_section_rows(
+            sections, 20, size_mult={"a": 2.0},
+        )
+        # 'a' wants ceil(2 * 2.0) = 4, 'b' stays at 2 — both fit.
+        assert out == [4, 2]
+
+    def test_collapsed_during_overflow(self):
+        from operator_console.watcher_status_pane import _allocate_section_rows
+        sections = [
+            {"id": "a", "lines": [("h", 0)] + [(f"a{i}", 0) for i in range(30)]},
+            {"id": "b", "lines": [("h", 0)] + [(f"b{i}", 0) for i in range(30)]},
+        ]
+        out = _allocate_section_rows(
+            sections, 10, collapsed={"a": True},
+        )
+        # Collapsed always 1 row; remaining 9 go to 'b'.
+        assert out[0] == 1
+        assert out[1] <= 9
+        assert sum(out) <= 10
+
 
 class TestWatcherCliShortcut:
     def test_console_watcher_imports(self):
