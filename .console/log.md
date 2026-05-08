@@ -3,6 +3,8 @@
 _Chronological continuity log. Decisions, stop points, what changed and why._
 _Not a task tracker — that's backlog.md. Keep entries concise and dated._
 
+- Wire cross_repo config (2026-05-08, on chore/wire-cross-repo-config): Added `audit.cross_repo.platform_manifest_repo: ../PlatformManifest` to `.custodian/config.yaml`. Enables X1/X2/X3 detectors; live run shows 0 findings.
+
 - codex --full-auto → -a never (2026-05-08, on fix/codex-full-auto): codex dropped --full-auto. Updated bootstrap.py default approval_mode to `-a never`; same fix applied to kodo sessions/codex.py, orchestrators/codex_cli.py, and benchmark/runner.py in that repo.
 
 - Banner padding equalized and trimmed (2026-05-08, on fix/banner-equal-padding): Equalized lp and g to the same value, then trimmed 15% — both now `max(4, (w-1)*17//80)` (= (w-1)//4 × 0.85). At 120 cols: 25 spaces each side.

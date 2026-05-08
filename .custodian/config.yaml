@@ -7,6 +7,9 @@ tests_root: tests
 # `_custodian/` overlay layer (see OperationsCenter for a worked example).
 
 audit:
+  cross_repo:
+    platform_manifest_repo: ../PlatformManifest
+
   # C2: OperatorConsole is a CLI/TUI tool — print() is its user-facing output API,
   # not a debug leftover. Exempting the whole package is the honest config.
   # C1: bootstrap.py has a single deferred TODO (pending SwitchBoard validation).
