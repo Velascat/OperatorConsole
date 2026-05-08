@@ -926,31 +926,26 @@ def _build_sections(
             queue_lines.append((f"  {typ:<7} {repo:<14} {goal}", C["DIM"]))
         sections.append({"id": "queue", "lines": queue_lines, "sel_local": -1})
 
-    # ── execution budget (global hourly/daily caps) ──
+    # ── global rate (across-all-backends rate cap; complements Backend
+    # Limits' per-backend rate caps and Global Gate's concurrency cap) ──
     budget = data.get("budget", {})
     if budget.get("found"):
         # Compute the worst color across both windows so the section
-        # header reflects the budget's overall state.
+        # header reflects the overall state.
         budget_worst = C["RUN"]
-        rows: list[tuple[str, int]] = []
+        cells: list[str] = []
         for win, used, cap in (
             ("Hourly", budget.get("hourly_used", 0), budget.get("hourly_cap", 0)),
-            ("Daily ", budget.get("daily_used", 0),  budget.get("daily_cap", 0)),
+            ("Daily",  budget.get("daily_used", 0),  budget.get("daily_cap", 0)),
         ):
             ratio = (used / cap) if cap else 0.0
-            attr = (
-                C["ERR"] if ratio >= 1
-                else C["YLW"] if ratio >= 0.8
-                else C["RUN"]
-            )
-            if attr is C["ERR"]:
+            if ratio >= 1:
                 budget_worst = C["ERR"]
-            elif attr is C["YLW"] and budget_worst is C["RUN"]:
+            elif ratio >= 0.8 and budget_worst is C["RUN"]:
                 budget_worst = C["YLW"]
-            rows.append((f"  {win}  {used}/{cap}", attr))
+            cells.append(f"{win} {used}/{cap}")
         budget_lines: list[tuple[str, int]] = [
-            (" Execution Budget", budget_worst | curses.A_BOLD),
-            *rows,
+            (f" Global Rate    {' | '.join(cells)}", budget_worst | curses.A_BOLD),
         ]
         sections.append({"id": "budget", "lines": budget_lines, "sel_local": -1})
 
@@ -1001,7 +996,7 @@ def _build_sections(
             if ram_floor is not None:
                 if mem_avail_mb and mem_avail_mb < ram_floor:
                     worst_attr = C["ERR"]
-                cells.append(f"RAM ≥{ram_floor}MB")
+                cells.append(f"RAM ≥ {ram_floor}MB")
             row = "  ".join(cells) if cells else "(No Limits)"
             bc_lines.append((f"  {_tc(backend):<14} {row}", worst_attr))
             if worst_attr is C["ERR"]:
@@ -1083,8 +1078,14 @@ def _resources_lines(data: dict, C: dict) -> list[tuple[str, int]]:
     mc = gate.get("max_concurrent")
     floor_mb = gate.get("min_available_memory_mb")
 
+    # Blank spacer before Global Gate so it visually detaches from
+    # the Swap row above.
+    out.append(("", 0))
+
     if mc is None and floor_mb is None:
-        out.append((f"  {'Global Gate':15}  (Unset)", C["DIM"]))
+        out.append((" Global Gate", C["DIM"] | curses.A_BOLD))
+        out.append(("", 0))
+        out.append(("    (Unset)", C["DIM"]))
     else:
         # Concurrency cell
         if mc is not None:
@@ -1102,18 +1103,23 @@ def _resources_lines(data: dict, C: dict) -> list[tuple[str, int]]:
         # gate enforcement (UsageStore.available_memory_mb()).
         if floor_mb is not None:
             ram_attr = C["ERR"] if free_mb and free_mb < floor_mb else C["RUN"]
-            ram_cell = f"Memory ≥{floor_mb}MB ({free_mb} Free)"
+            ram_cell = f"Memory ≥ {floor_mb}MB ({free_mb} Free)"
         else:
             ram_attr = C["DIM"]
-            ram_cell = "Memory ≥∞"
-        # Worst color wins for the line
+            ram_cell = "Memory ≥ ∞"
+        # Worst color wins for the sub-header
         worst = ram_attr if ram_attr is C["ERR"] else (
             conc_attr if conc_attr is C["ERR"] else
             ram_attr if ram_attr is C["YLW"] else
             conc_attr if conc_attr is C["YLW"] else
             C["DIM"]
         )
-        out.append((f"  {'Global Gate':15}  {conc_cell}  {ram_cell}", worst))
+        # Three-line layout (sub-header + two indented cells), with a blank
+        # spacer between the sub-header and the cells.
+        out.append((" Global Gate", worst | curses.A_BOLD))
+        out.append(("", 0))
+        out.append((f"    {conc_cell}", conc_attr))
+        out.append((f"    {ram_cell}", ram_attr))
     # Blank spacer at the bottom so the block visually separates from
     # whatever sits below it (typically the footer).
     out.append(("", 0))

@@ -144,3 +144,6 @@ data unchanged. Wired into worker rows, active tasks, recent activity,
 board, queue, backend rows, action submenu, log view header.
 '(no caps)' → '(No Limits)'. Action submenu items also Title-Cased.
 
+
+## 2026-05-08 — Global Gate three-liner; Execution Budget → Global Rate (single-line); spacers + ≥ spacing
+
