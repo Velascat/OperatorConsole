@@ -3,6 +3,8 @@
 _Chronological continuity log. Decisions, stop points, what changed and why._
 _Not a task tracker — that's backlog.md. Keep entries concise and dated._
 
+- Banner padding equalized and trimmed (2026-05-08, on fix/banner-equal-padding): Equalized lp and g to the same value, then trimmed 15% — both now `max(4, (w-1)*17//80)` (= (w-1)//4 × 0.85). At 120 cols: 25 spaces each side.
+
 - Banner padding unified at half original (2026-05-08, on fix/banner-half-padding): Both single and multi-banner now use lp=(w-1)//4 and g=max(6,(w-1)//6) — half the original multi-banner values. Removes the single/multi branch entirely.
 
 - Banner single-loop padding at half size (2026-05-08, on fix/banner-single-padding): Single-banner re-stream gets lp=(w-1)//4 and g=max(6,(w-1)//6) — half the original values — so there's a visible breath between loops. Multi-banner keeps lp="" and g="    " (4 spaces); the crossfade coloring is the boundary signal there.
