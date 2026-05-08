@@ -854,38 +854,69 @@ def _resources_lines(data: dict, C: dict) -> list[tuple[str, int]]:
     return out
 
 
+_SIZE_MULT_MIN = 0.3
+_SIZE_MULT_MAX = 3.0
+_SIZE_MULT_STEP = 0.25
+
+
 def _allocate_section_rows(
-    sections: list[dict], available_rows: int,
+    sections: list[dict],
+    available_rows: int,
+    *,
+    collapsed: dict[str, bool] | None = None,
+    size_mult: dict[str, float] | None = None,
 ) -> list[int]:
     """Decide how many on-screen rows each section gets.
 
-    Each section requests its natural height (len(lines)). If the total
-    fits, every section gets its full ask. Otherwise, give each section
-    its proportional share with a minimum of 3 rows so even tiny
-    sections keep their header visible. Sections with 0 lines get 0.
+    Each section requests an effective natural height = ``len(lines) *
+    size_mult.get(id, 1.0)``, rounded. Collapsed sections request 1
+    (header only). If the total fits, every section gets its full ask.
+    Otherwise, give each section its proportional share with a minimum
+    of 3 rows so even tiny sections keep their header visible.
+    Collapsed sections always render exactly 1 row and don't compete.
     """
+    collapsed = collapsed or {}
+    size_mult = size_mult or {}
     if available_rows <= 0 or not sections:
         return [0] * len(sections)
-    natural = [max(0, len(s["lines"])) for s in sections]
+    # Effective natural per section: collapsed → 1, else ceil(lines * mult).
+    natural: list[int] = []
+    for s in sections:
+        if not s["lines"]:
+            natural.append(0)
+            continue
+        if collapsed.get(s["id"], False):
+            natural.append(1)
+            continue
+        mult = size_mult.get(s["id"], 1.0)
+        # Round up so a 0.5x section still gets at least 1 line beyond its header.
+        from math import ceil
+        natural.append(max(1, ceil(len(s["lines"]) * mult)))
     total = sum(natural)
     if total <= available_rows:
         return natural[:]
     # Overflow — proportionally allocate, min 3 rows for non-empty sections.
-    n_nonempty = sum(1 for n in natural if n > 0)
-    if n_nonempty == 0:
-        return [0] * len(sections)
-    min_per_section = min(3, available_rows // n_nonempty)
-    fixed = [min_per_section if n > 0 else 0 for n in natural]
+    # Collapsed sections keep their 1-row reservation regardless.
+    is_collapsed = [collapsed.get(s["id"], False) for s in sections]
+    fixed = [
+        1 if is_collapsed[i] and natural[i] > 0
+        else (min(3, available_rows // max(1, sum(1 for n in natural if n > 0))) if natural[i] > 0 else 0)
+        for i in range(len(sections))
+    ]
     fixed_sum = sum(fixed)
     leftover = max(0, available_rows - fixed_sum)
-    extra_demand = sum(max(0, n - min_per_section) for n in natural)
+    # Only non-collapsed sections compete for extra rows.
+    extra_demand = sum(
+        max(0, natural[i] - fixed[i])
+        for i in range(len(sections))
+        if not is_collapsed[i]
+    )
     out = list(fixed)
     if extra_demand > 0:
         for i, n in enumerate(natural):
-            if n > min_per_section:
-                share = (n - min_per_section) * leftover // extra_demand
+            if not is_collapsed[i] and n > fixed[i]:
+                share = (n - fixed[i]) * leftover // extra_demand
                 out[i] += share
-    # Clamp so we don't exceed what was requested
     out = [min(o, n) for o, n in zip(out, natural, strict=False)]
     return out
 
@@ -893,17 +924,28 @@ def _allocate_section_rows(
 def _draw_main(
     stdscr, data: dict, sel: int, refreshing: bool, flash: str, C: dict,
     section_offsets: dict[str, int],
-) -> dict[str, tuple[int, int]]:
-    """Render the main view with per-section scroll offsets.
+    *,
+    collapsed: dict[str, bool] | None = None,
+    size_mult: dict[str, float] | None = None,
+    focused_section: str | None = None,
+) -> tuple[dict[str, tuple[int, int]], dict[str, int]]:
+    """Render the main view with per-section scroll/collapse/size state.
 
     Each top-level section (roles / active / recent / board / campaigns /
     queue / budget / backend_caps / services) renders inside its own row
-    range with its own scroll offset (mutated in-place on this dict).
-    Mouse-wheel events route to whichever section the cursor is over.
+    range with its own scroll offset (mutated in-place on
+    ``section_offsets``). Mouse-wheel events route to whichever section
+    the cursor is over; click-on-header toggles the section's collapsed
+    state; ``+``/``-`` keys grow/shrink the focused section's allocation.
 
-    Returns ``{section_id: (start_row, end_row_exclusive)}`` so the
-    caller can map mouse-y back to a section for wheel-scroll handling.
+    Returns ``(section_rows, header_rows)``:
+      - ``section_rows[sid] = (start, end_exclusive)`` for hit-testing
+        wheel scrolls anywhere in the section
+      - ``header_rows[sid] = row`` of the section's header line for
+        hit-testing collapse-toggle clicks
     """
+    collapsed = collapsed or {}
+    size_mult = size_mult or {}
     stdscr.erase()
     h, w = stdscr.getmaxyx()
     def put(r, t, a=0):
@@ -928,6 +970,24 @@ def _draw_main(
     sections, focused_idx = _build_sections(data, sel, w, C)
     bottom_lines = _resources_lines(data, C)
 
+    # Decorate section headers with a collapse indicator + focus highlight.
+    # Modifies sections in place — they're freshly built each frame.
+    for sec in sections:
+        if not sec["lines"]:
+            continue
+        text, attr = sec["lines"][0]
+        is_collapsed = collapsed.get(sec["id"], False)
+        marker = "▶ " if is_collapsed else "▼ "
+        # Strip the original leading space so the marker takes its place.
+        new_text = marker + text.lstrip()
+        if focused_section == sec["id"]:
+            new_text += "  ← focused"
+        # Show non-default size multiplier so operators can see what they did.
+        mult = size_mult.get(sec["id"], 1.0)
+        if abs(mult - 1.0) > 0.01:
+            new_text += f"  [{mult:.2f}×]"
+        sec["lines"][0] = (new_text, attr)
+
     bottom_h   = len(bottom_lines)
     footer_h   = 2 if flash else 1
     middle_top = 3 if stale_roles else 2
@@ -938,7 +998,9 @@ def _draw_main(
     # except for the first). Reserve those before allocating to sections.
     n_seps    = max(0, len(sections) - 1)
     avail     = max(0, middle_h - n_seps)
-    rows_per  = _allocate_section_rows(sections, avail)
+    rows_per  = _allocate_section_rows(
+        sections, avail, collapsed=collapsed, size_mult=size_mult,
+    )
 
     # Roles section auto-scrolls to keep the selected role visible.
     for i, sec in enumerate(sections):
@@ -953,9 +1015,11 @@ def _draw_main(
         elif sl >= off + rows_per[i]:
             section_offsets["roles"] = sl - rows_per[i] + 1
 
-    # Render sections top-to-bottom, tracking each one's row range.
+    # Render sections top-to-bottom, tracking each one's row range and
+    # the row of its header (for collapse-toggle click handling).
     row = middle_top
     section_rows: dict[str, tuple[int, int]] = {}
+    header_rows: dict[str, int] = {}
     for i, sec in enumerate(sections):
         if i > 0 and row < middle_bottom:
             _put(stdscr, row, h, w, "─" * (w - 1), C["DIM"])
@@ -967,6 +1031,11 @@ def _draw_main(
         off = max(0, min(section_offsets.get(sec["id"], 0), max_off))
         section_offsets[sec["id"]] = off
         start_row = row
+        # Header is the first line of the section's `lines` list. When the
+        # section's offset is 0 the header sits at start_row; otherwise the
+        # header has scrolled out of view and we record -1 to disable
+        # collapse-click hit-testing.
+        header_rows[sec["id"]] = start_row if off == 0 else -1
         for j in range(sec_h):
             if row >= middle_bottom:
                 break
@@ -1002,10 +1071,12 @@ def _draw_main(
 
     if flash:
         put(h - 2, f" {flash}", C["HEAD"])
-    put(h - 1, " ↑↓ role  wheel/PgUp PgDn scroll section  enter actions  r refresh  q quit",
+    put(h - 1,
+        " ↑↓ role  wheel scroll  click header collapse  +/- resize  = reset"
+        "  enter actions  r refresh  q quit",
         C["DIM"])
     stdscr.refresh()
-    return section_rows
+    return section_rows, header_rows
 
 
 # ── submenu view ──────────────────────────────────────────────────────────────
@@ -1159,10 +1230,15 @@ def _pane(stdscr, profile_name: str) -> None:
     # Last rendered section row ranges — used by mouse-wheel events to
     # find which section the cursor is hovering over.
     section_rows: dict[str, tuple[int, int]] = {}
+    header_rows: dict[str, int] = {}
     # The "focused" section — what PgUp/PgDn target. Defaults to 'roles';
     # mouse-wheel events update this so subsequent keyboard scrolling
     # follows the cursor.
     focused_section = "roles"
+    # Collapsed sections show only their header row; +/- resize scales the
+    # focused section's natural row count up or down.
+    collapsed_sections: dict[str, bool] = {}
+    size_mult: dict[str, float] = {}
 
     while True:
         if flash and time.time() - flash_at > 2:
@@ -1178,8 +1254,11 @@ def _pane(stdscr, profile_name: str) -> None:
             _draw_submenu(stdscr, _ROLES[role_sel],
                           snap["roles"].get(_ROLES[role_sel], {}), action_sel, C)
         else:
-            section_rows = _draw_main(
+            section_rows, header_rows = _draw_main(
                 stdscr, snap, role_sel, refreshing, flash, C, section_offsets,
+                collapsed=collapsed_sections,
+                size_mult=size_mult,
+                focused_section=focused_section,
             )
 
         key = stdscr.getch()
@@ -1235,6 +1314,22 @@ def _pane(stdscr, profile_name: str) -> None:
                 section_offsets[focused_section] = 0
             elif key == curses.KEY_END:
                 section_offsets[focused_section] = 10_000  # clamped on next render
+            elif key == ord("+"):
+                cur = size_mult.get(focused_section, 1.0)
+                size_mult[focused_section] = min(
+                    _SIZE_MULT_MAX, cur + _SIZE_MULT_STEP,
+                )
+            elif key == ord("-"):
+                cur = size_mult.get(focused_section, 1.0)
+                size_mult[focused_section] = max(
+                    _SIZE_MULT_MIN, cur - _SIZE_MULT_STEP,
+                )
+            elif key == ord("="):
+                size_mult.pop(focused_section, None)
+            elif key == ord("c"):
+                collapsed_sections[focused_section] = not collapsed_sections.get(
+                    focused_section, False,
+                )
             elif key == curses.KEY_MOUSE:
                 # Wheel events: BUTTON4=up, BUTTON5=down. Map mouse y to
                 # the section under the cursor and bump that section's
@@ -1259,6 +1354,13 @@ def _pane(stdscr, profile_name: str) -> None:
                         section_offsets[target_section] = (
                             section_offsets.get(target_section, 0) + 3
                         )
+                    elif bstate & curses.BUTTON1_PRESSED:
+                        # Click on a section's header row toggles collapse.
+                        hdr_row = header_rows.get(target_section, -1)
+                        if hdr_row >= 0 and my == hdr_row:
+                            collapsed_sections[target_section] = not (
+                                collapsed_sections.get(target_section, False)
+                            )
             elif key in (curses.KEY_ENTER, 10, 13):
                 mode = "action"
                 action_sel = 0
