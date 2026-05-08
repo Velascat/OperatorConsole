@@ -1107,16 +1107,17 @@ def _draw_main(
             loop += banner_payload + gap
         offset = (banner_offset or 0) % (len(banner_payload) + len(gap))
         view = loop[offset:offset + (w - 1)]
-        put(0, view, C["ERR"] | curses.A_BOLD | curses.A_REVERSE)
-        # Blank spacer row between banner and OC title.
-        put(1, "", 0)
-        put(2, f" Operations Center{spin}  {ts}", C["HEAD"] | curses.A_BOLD)
-        # Blank row between title and divider so the title visually
-        # detaches from the section grid below it. Divider sits
-        # immediately above the first section.
+        # Banner block layout: divider (0) → marquee (1) → divider (2) →
+        # blank (3) → Operations Center title (4). The two dividers
+        # frame the marquee so the alert reads as its own visual block.
+        _sep(stdscr, 0, h, w, C["DIM"])
+        put(1, view, C["ERR"] | curses.A_BOLD | curses.A_REVERSE)
+        _sep(stdscr, 2, h, w, C["DIM"])
         put(3, "", 0)
-        _sep(stdscr, 4, h, w, C["DIM"])
+        put(4, f" Operations Center{spin}  {ts}", C["HEAD"] | curses.A_BOLD)
     else:
+        # Header layout (no banner): title (0) → blank (1) → divider (2).
+        # First section starts at row 3 (middle_top below).
         put(0, f" Operations Center{spin}  {ts}", C["HEAD"] | curses.A_BOLD)
         put(1, "", 0)
         _sep(stdscr, 2, h, w, C["DIM"])
@@ -1143,11 +1144,14 @@ def _draw_main(
         sec["lines"][0] = (new_text, attr)
 
     bottom_h   = len(bottom_lines)
-    footer_h   = 2 if flash else 1
+    # Footer block (bottom-up): divider → footer hints → divider.
+    # When a flash is up, render flash on the row above the hints —
+    # so the footer block grows by 1 row.
+    footer_h   = 4 if flash else 3
     # Header rows (no banner): title (0) → blank (1) → divider (2);
     # first section starts at 3.
-    # Header rows (banner): marquee (0) → blank (1) → title (2) →
-    # blank (3) → divider (4); first section starts at 5.
+    # Header rows (banner): divider (0) → marquee (1) → divider (2) →
+    # blank (3) → title (4); first section starts at 5.
     middle_top = 5 if stale_roles else 3
     middle_bottom = h - bottom_h - footer_h
     middle_h   = max(0, middle_bottom - middle_top)
@@ -1236,12 +1240,16 @@ def _draw_main(
     if bottom_h > 0:
         section_rows["resources"] = (res_start, min(res_start + bottom_h, h - footer_h))
 
-    if flash:
-        put(h - 2, f" {flash}", C["HEAD"])
-    put(h - 1,
+    # Footer block (bottom-up): divider (h-1), hints (h-2), divider (h-3),
+    # optional flash (h-4 when present).
+    _sep(stdscr, h - 1, h, w, C["DIM"])
+    put(h - 2,
         " ↑↓ role  wheel scroll  click header collapse  +/- resize  = reset"
         "  enter actions  r refresh  q quit",
         C["DIM"])
+    _sep(stdscr, h - 3, h, w, C["DIM"])
+    if flash:
+        put(h - 4, f" {flash}", C["HEAD"])
     stdscr.refresh()
     return section_rows, header_rows
 
