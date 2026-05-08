@@ -215,3 +215,102 @@ class TestStatusCli:
         raise AssertionError(
             "operator_console.system_status should be deleted — watcher owns status"
         )
+
+
+# ---------------------------------------------------------------------------
+# Multi-banner conditions
+# ---------------------------------------------------------------------------
+
+
+class TestBannerConditions:
+    def _data(self, **overrides):
+        base = {
+            "roles": {r: {"alive": True, "pid": "1", "mtime": None}
+                      for r in ("intake", "goal", "test", "improve",
+                                "propose", "review", "spec", "watchdog")},
+            "sb": True,
+            "queue": [],
+            "resources": {"mem_total_gb": 32, "mem_used_gb": 8,
+                          "swap_total_gb": 0, "swap_used_gb": 0},
+            "resource_gate": {},
+            "backend_caps": {},
+            "backend_usage": {},
+        }
+        base.update(overrides)
+        return base
+
+    def test_healthy_when_no_conditions(self, monkeypatch):
+        from operator_console import watcher_status_pane as wsp
+        monkeypatch.setattr(wsp, "_stale_heartbeat_roles", lambda: [])
+        # Pass started_at far in the past so INFO doesn't fire.
+        result = wsp._banner_conditions(self._data(), started_at=0)
+        assert len(result) == 1
+        assert result[0][0] == wsp.BANNER_HEALTHY
+        assert "nominal" in result[0][1]
+
+    def test_critical_stall_takes_precedence(self, monkeypatch):
+        from operator_console import watcher_status_pane as wsp
+        monkeypatch.setattr(wsp, "_stale_heartbeat_roles", lambda: ["goal"])
+        result = wsp._banner_conditions(self._data(), started_at=0)
+        assert result[0][0] == wsp.BANNER_CRIT
+        assert "STALL" in result[0][1]
+
+    def test_switchboard_down_is_critical(self, monkeypatch):
+        from operator_console import watcher_status_pane as wsp
+        monkeypatch.setattr(wsp, "_stale_heartbeat_roles", lambda: [])
+        result = wsp._banner_conditions(self._data(sb=False), started_at=0)
+        assert any("SwitchBoard offline" in m for _, m in result)
+
+    def test_resource_gate_at_cap_is_critical(self, monkeypatch):
+        from operator_console import watcher_status_pane as wsp
+        monkeypatch.setattr(wsp, "_stale_heartbeat_roles", lambda: [])
+        d = self._data(
+            resource_gate={"max_concurrent": 2},
+            backend_usage={"kodo": {"in_flight": 2}},
+        )
+        result = wsp._banner_conditions(d, started_at=0)
+        assert any(s == wsp.BANNER_CRIT and "Global gate" in m
+                   for s, m in result)
+
+    def test_backend_saturation_is_warning(self, monkeypatch):
+        from operator_console import watcher_status_pane as wsp
+        monkeypatch.setattr(wsp, "_stale_heartbeat_roles", lambda: [])
+        d = self._data(
+            backend_caps={"kodo": {"max_concurrent": 1}},
+            backend_usage={"kodo": {"in_flight": 1}},
+        )
+        result = wsp._banner_conditions(d, started_at=0)
+        assert any(s == wsp.BANNER_WARN and "kodo" in m for s, m in result)
+
+    def test_queue_overflow_is_warning(self, monkeypatch):
+        from operator_console import watcher_status_pane as wsp
+        monkeypatch.setattr(wsp, "_stale_heartbeat_roles", lambda: [])
+        d = self._data(queue=[{"task_type": "goal"}] * 12)
+        result = wsp._banner_conditions(d, started_at=0)
+        assert any(s == wsp.BANNER_WARN and "Queue depth" in m
+                   for s, m in result)
+
+    def test_info_banner_during_first_30_seconds(self, monkeypatch):
+        import time
+        from operator_console import watcher_status_pane as wsp
+        monkeypatch.setattr(wsp, "_stale_heartbeat_roles", lambda: [])
+        result = wsp._banner_conditions(self._data(), started_at=time.time())
+        assert any(s == wsp.BANNER_INFO and "stabilizing" in m
+                   for s, m in result)
+
+    def test_critical_sorts_before_warning_sorts_before_info(
+        self, monkeypatch,
+    ):
+        import time
+        from operator_console import watcher_status_pane as wsp
+        monkeypatch.setattr(wsp, "_stale_heartbeat_roles", lambda: ["goal"])
+        d = self._data(
+            queue=[{"task_type": "goal"}] * 12,
+        )
+        result = wsp._banner_conditions(d, started_at=time.time())
+        levels = [s for s, _ in result]
+        # CRIT (stall) should come before WARN (queue depth) before INFO.
+        crit_idx = levels.index(wsp.BANNER_CRIT)
+        warn_idx = levels.index(wsp.BANNER_WARN)
+        info_idx = levels.index(wsp.BANNER_INFO)
+        assert crit_idx < warn_idx < info_idx

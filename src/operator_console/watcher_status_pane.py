@@ -200,6 +200,125 @@ def _pid_alive(pid: str) -> bool:
 
 _STALE_HEARTBEAT_S = 600  # 10 minutes — alert threshold
 
+# Banner severity ordering: CRIT > WARN > INFO > HEALTHY. The cycle
+# always renders all active conditions regardless of level; the
+# severity tag drives the banner's color.
+BANNER_CRIT = "critical"
+BANNER_WARN = "warning"
+BANNER_INFO = "info"
+BANNER_HEALTHY = "healthy"
+_BANNER_LEVEL_ORDER = (BANNER_CRIT, BANNER_WARN, BANNER_INFO, BANNER_HEALTHY)
+
+
+def _banner_color(level: str, C: dict) -> int:
+    """Pick the color attr for a banner of a given severity."""
+    return {
+        BANNER_CRIT:    C["BANNER_CRIT"],
+        BANNER_WARN:    C["BANNER_WARN"],
+        BANNER_INFO:    C["BANNER_INFO"],
+        BANNER_HEALTHY: C["BANNER_HEALTHY"],
+    }.get(level, C["BANNER_HEALTHY"]) | curses.A_BOLD
+
+
+def _banner_conditions(data: dict, started_at: float) -> list[tuple[str, str]]:
+    """Build the active banner list from a snapshot.
+
+    Returns a list of ``(severity, message)`` tuples sorted worst-first.
+    When nothing is wrong, returns a single HEALTHY entry so the always-on
+    ribbon still renders.
+    """
+    conds: list[tuple[str, str]] = []
+
+    # ── CRITICAL ──
+    stale = _stale_heartbeat_roles()
+    if stale:
+        conds.append((
+            BANNER_CRIT,
+            f"⚠  STALL ALERT — {len(stale)} role(s) silent > "
+            f"{_STALE_HEARTBEAT_S // 60}min: {', '.join(stale)}",
+        ))
+    if data.get("sb") is False:
+        conds.append((
+            BANNER_CRIT,
+            "⚠  SwitchBoard offline — lane selection unavailable",
+        ))
+    # Resource gate at saturation = critical
+    gate = data.get("resource_gate") or {}
+    usage = data.get("backend_usage") or {}
+    res = data.get("resources") or {}
+    total_in_flight = sum(int(b.get("in_flight", 0)) for b in usage.values())
+    mc = gate.get("max_concurrent")
+    if mc is not None and total_in_flight >= mc:
+        conds.append((
+            BANNER_CRIT,
+            f"⚠  Global gate at cap — {total_in_flight}/{mc} dispatches "
+            "in flight; new runs blocked",
+        ))
+    floor_mb = gate.get("min_available_memory_mb")
+    if floor_mb is not None:
+        free_ram_mb = int(max(0, (res.get("mem_total_gb", 0)
+                                  - res.get("mem_used_gb", 0))) * 1024)
+        free_swap_mb = int(max(0, (res.get("swap_total_gb", 0)
+                                   - res.get("swap_used_gb", 0))) * 1024)
+        free_mb = free_ram_mb + free_swap_mb
+        if free_mb and free_mb < floor_mb:
+            conds.append((
+                BANNER_CRIT,
+                f"⚠  Memory below gate floor — {free_mb}MB free, "
+                f"{floor_mb}MB required",
+            ))
+
+    # ── WARNING ──
+    caps = data.get("backend_caps") or {}
+    saturated_backends: list[str] = []
+    for backend, cap_cfg in caps.items():
+        bu = usage.get(backend) or {}
+        in_flight = int(bu.get("in_flight", 0))
+        backend_mc = cap_cfg.get("max_concurrent")
+        if backend_mc is not None and in_flight >= backend_mc:
+            saturated_backends.append(f"{backend} {in_flight}/{backend_mc}")
+    if saturated_backends:
+        conds.append((
+            BANNER_WARN,
+            "⚠  Backend(s) at concurrency cap: "
+            + ", ".join(saturated_backends),
+        ))
+    queue = data.get("queue") or []
+    if len(queue) >= 10:
+        conds.append((
+            BANNER_WARN,
+            f"⚠  Queue depth {len(queue)} ≥ 10 — backlog accumulating",
+        ))
+    # Free RAM near the gate floor (within 1.2× of the floor)
+    if floor_mb is not None:
+        free_ram_mb = int(max(0, (res.get("mem_total_gb", 0)
+                                  - res.get("mem_used_gb", 0))) * 1024)
+        free_swap_mb = int(max(0, (res.get("swap_total_gb", 0)
+                                   - res.get("swap_used_gb", 0))) * 1024)
+        free_mb = free_ram_mb + free_swap_mb
+        if free_mb and floor_mb <= free_mb < int(floor_mb * 1.2):
+            conds.append((
+                BANNER_WARN,
+                f"⚠  Memory near gate floor — {free_mb}MB free vs "
+                f"{floor_mb}MB required (1.2× margin)",
+            ))
+
+    # ── INFO ──
+    # First 30 seconds after launch — readings may not be populated yet.
+    if started_at and (time.time() - started_at) < 30:
+        conds.append((
+            BANNER_INFO,
+            "ℹ  Just started — readings stabilizing",
+        ))
+
+    if conds:
+        # Sort by severity, preserving insertion order within each level.
+        order = {lvl: i for i, lvl in enumerate(_BANNER_LEVEL_ORDER)}
+        conds.sort(key=lambda c: order.get(c[0], 99))
+        return conds
+
+    return [(BANNER_HEALTHY, "✓  All systems nominal")]
+
 
 def _stale_heartbeat_roles() -> list[str]:
     """Return role names that are not visibly healthy.
@@ -1063,6 +1182,9 @@ def _draw_main(
     size_mult: dict[str, float] | None = None,
     focused_section: str | None = None,
     banner_offset: int = 0,
+    current_banner: tuple[str, str] = (BANNER_HEALTHY, "✓  All systems nominal"),
+    banner_count: int = 1,
+    banner_index: int = 0,
 ) -> tuple[dict[str, tuple[int, int]], dict[str, int]]:
     """Render the main view with per-section scroll/collapse/size state.
 
@@ -1089,42 +1211,30 @@ def _draw_main(
     spin = " ⟳" if refreshing else "  "
     ts   = time.strftime("%H:%M:%S")
 
-    stale_roles = _stale_heartbeat_roles()
-    if stale_roles:
-        banner_payload = (
-            f" ⚠  STALL ALERT — {len(stale_roles)} role(s) silent > "
-            f"{_STALE_HEARTBEAT_S // 60}min: {', '.join(stale_roles)} "
-        )
-        # Streaming marquee: render `payload + gap + payload + gap` and
-        # slide a (w-1)-char window across it on each frame. The frame
-        # counter ticks once per redraw so the speed follows the pane's
-        # refresh tempo (faster when banner is active — see _pane()).
-        gap = "    "
-        loop = banner_payload + gap
-        # Repeat the loop until it's at least 2× window width so any
-        # offset slice contains a full banner copy without wrap glue.
-        while len(loop) < (w - 1) * 2:
-            loop += banner_payload + gap
-        offset = (banner_offset or 0) % (len(banner_payload) + len(gap))
-        view = loop[offset:offset + (w - 1)]
-        # Banner block layout: divider (0) → marquee (1) → divider (2) →
-        # blank (3) → title (4) → blank (5) → divider (6). The two
-        # banner-side dividers frame the marquee; the trailing blank+
-        # divider mirrors the no-banner case so the title→sections
-        # transition reads the same regardless of banner state.
-        _sep(stdscr, 0, h, w, C["DIM"])
-        put(1, view, C["ERR"] | curses.A_BOLD | curses.A_REVERSE)
-        _sep(stdscr, 2, h, w, C["DIM"])
-        put(3, "", 0)
-        put(4, f" Operations Center{spin}  {ts}", C["HEAD"] | curses.A_BOLD)
-        put(5, "", 0)
-        _sep(stdscr, 6, h, w, C["DIM"])
-    else:
-        # Header layout (no banner): title (0) → blank (1) → divider (2).
-        # First section starts at row 3 (middle_top below).
-        put(0, f" Operations Center{spin}  {ts}", C["HEAD"] | curses.A_BOLD)
-        put(1, "", 0)
-        _sep(stdscr, 2, h, w, C["DIM"])
+    # Always-on banner block. HEALTHY when no warnings; cycles through
+    # all active conditions worst-first. Layout (rows 0-6):
+    #   divider (0) → marquee (1) → divider (2) → blank (3) →
+    #   title (4) → blank (5) → divider (6) → first section (7).
+    severity, message = current_banner
+    counter = (
+        f"  [{banner_index + 1}/{banner_count}]" if banner_count > 1 else ""
+    )
+    banner_payload = f" {message}{counter} "
+    gap = "    "
+    loop = banner_payload + gap
+    # Repeat until at least 2× window width so any offset slice
+    # contains a full banner copy without wrap glue.
+    while len(loop) < (w - 1) * 2:
+        loop += banner_payload + gap
+    offset = (banner_offset or 0) % (len(banner_payload) + len(gap))
+    view = loop[offset:offset + (w - 1)]
+    _sep(stdscr, 0, h, w, C["DIM"])
+    put(1, view, _banner_color(severity, C))
+    _sep(stdscr, 2, h, w, C["DIM"])
+    put(3, "", 0)
+    put(4, f" Operations Center{spin}  {ts}", C["HEAD"] | curses.A_BOLD)
+    put(5, "", 0)
+    _sep(stdscr, 6, h, w, C["DIM"])
 
     sections, focused_idx = _build_sections(data, sel, w, C)
     bottom_lines = _resources_lines(data, C)
@@ -1152,12 +1262,10 @@ def _draw_main(
     # When a flash is up, render flash on the row above the hints —
     # so the footer block grows by 1 row.
     footer_h   = 4 if flash else 3
-    # Header rows (no banner): title (0) → blank (1) → divider (2);
-    # first section starts at 3.
-    # Header rows (banner): divider (0) → marquee (1) → divider (2) →
-    # blank (3) → title (4) → blank (5) → divider (6); first section
-    # starts at 7.
-    middle_top = 7 if stale_roles else 3
+    # Header rows (always banner): divider (0) → marquee (1) →
+    # divider (2) → blank (3) → title (4) → blank (5) → divider (6);
+    # first section starts at 7.
+    middle_top = 7
     middle_bottom = h - bottom_h - footer_h
     middle_h   = max(0, middle_bottom - middle_top)
 
@@ -1355,6 +1463,11 @@ def _pane(stdscr, profile_name: str) -> None:
     curses.init_pair(4, curses.COLOR_BLACK, curses.COLOR_WHITE)
     curses.init_pair(5, curses.COLOR_YELLOW, -1)
     curses.init_pair(6, curses.COLOR_RED,    -1)
+    # Banner pairs — explicit white-on-color for the marquee banners.
+    curses.init_pair(7,  curses.COLOR_WHITE, curses.COLOR_RED)     # CRITICAL
+    curses.init_pair(8,  curses.COLOR_WHITE, curses.COLOR_YELLOW)  # WARNING
+    curses.init_pair(9,  curses.COLOR_WHITE, curses.COLOR_GREEN)   # HEALTHY
+    curses.init_pair(10, curses.COLOR_WHITE, curses.COLOR_CYAN)    # INFO
 
     C = {
         "RUN":  curses.color_pair(1),
@@ -1363,6 +1476,10 @@ def _pane(stdscr, profile_name: str) -> None:
         "SEL":  curses.color_pair(4),
         "YLW":  curses.color_pair(5),
         "ERR":  curses.color_pair(6),
+        "BANNER_CRIT":    curses.color_pair(7),
+        "BANNER_WARN":    curses.color_pair(8),
+        "BANNER_HEALTHY": curses.color_pair(9),
+        "BANNER_INFO":    curses.color_pair(10),
     }
 
     repo_filter = _profile_repos(profile_name) if profile_name else None
@@ -1419,10 +1536,15 @@ def _pane(stdscr, profile_name: str) -> None:
     # mouse-wheel events update this so subsequent keyboard scrolling
     # follows the cursor.
     focused_section = "roles"
-    # Streaming banner offset for the stall-alert marquee. Advances when
-    # the banner is up (stale heartbeats present) and resets when it's
-    # cleared.
+    # Banner is always rendered now (HEALTHY when nothing is wrong).
+    # Marquee offset advances every frame; cycle index advances every
+    # _BANNER_CYCLE_FRAMES frames so each condition gets a steady
+    # readable window before the next one rotates in.
     banner_offset = 0
+    banner_index = 0
+    banner_frame_count = 0
+    pane_started_at = time.time()
+    _BANNER_CYCLE_FRAMES = 15  # at 200ms tick → 3s per condition
     # Collapsed sections show only their header row; +/- resize scales the
     # focused section's natural row count up or down. Default everything
     # collapsed so the pane opens compact — operators expand what they
@@ -1444,6 +1566,14 @@ def _pane(stdscr, profile_name: str) -> None:
             snap = {k: (dict(v) if isinstance(v, dict) else list(v) if isinstance(v, list) else v)
                     for k, v in data.items()}
 
+        # Banner conditions — always at least one entry (HEALTHY).
+        # Cycle index advances every _BANNER_CYCLE_FRAMES so each
+        # condition holds the screen long enough to read.
+        conditions = _banner_conditions(snap, pane_started_at)
+        if banner_index >= len(conditions):
+            banner_index = 0
+        current_banner = conditions[banner_index]
+
         if mode == "log":
             _draw_log_view(stdscr, _ROLES[role_sel], log_lines, C)
         elif mode == "action":
@@ -1456,22 +1586,21 @@ def _pane(stdscr, profile_name: str) -> None:
                 size_mult=size_mult,
                 focused_section=focused_section,
                 banner_offset=banner_offset,
+                current_banner=current_banner,
+                banner_count=len(conditions),
+                banner_index=banner_index,
             )
 
-        # Banner marquee: advance the offset 2 chars per frame and use
-        # a faster timeout while the banner is up so it scrolls smoothly.
-        # The stall flag lives on the role data — refresh it from the
-        # latest snapshot rather than re-running the heartbeat scan here.
-        any_stale = any(
-            not info.get("alive", False)
-            for info in snap.get("roles", {}).values()
-        ) and bool(_stale_heartbeat_roles())
-        if any_stale:
-            banner_offset += 2
-            stdscr.timeout(_BANNER_TICK_MS)
-        else:
-            banner_offset = 0
-            stdscr.timeout(_IDLE_TICK_MS)
+        # Marquee + cycle bookkeeping. Banner always animates; tick at
+        # the faster cadence so the scroll reads smoothly regardless of
+        # severity.
+        banner_offset += 2
+        banner_frame_count += 1
+        if banner_frame_count >= _BANNER_CYCLE_FRAMES and len(conditions) > 1:
+            banner_index = (banner_index + 1) % len(conditions)
+            banner_frame_count = 0
+            banner_offset = 0  # restart marquee for the next condition
+        stdscr.timeout(_BANNER_TICK_MS)
 
         key = stdscr.getch()
 
