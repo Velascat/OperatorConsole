@@ -1108,13 +1108,17 @@ def _draw_main(
         offset = (banner_offset or 0) % (len(banner_payload) + len(gap))
         view = loop[offset:offset + (w - 1)]
         # Banner block layout: divider (0) → marquee (1) → divider (2) →
-        # blank (3) → Operations Center title (4). The two dividers
-        # frame the marquee so the alert reads as its own visual block.
+        # blank (3) → title (4) → blank (5) → divider (6). The two
+        # banner-side dividers frame the marquee; the trailing blank+
+        # divider mirrors the no-banner case so the title→sections
+        # transition reads the same regardless of banner state.
         _sep(stdscr, 0, h, w, C["DIM"])
         put(1, view, C["ERR"] | curses.A_BOLD | curses.A_REVERSE)
         _sep(stdscr, 2, h, w, C["DIM"])
         put(3, "", 0)
         put(4, f" Operations Center{spin}  {ts}", C["HEAD"] | curses.A_BOLD)
+        put(5, "", 0)
+        _sep(stdscr, 6, h, w, C["DIM"])
     else:
         # Header layout (no banner): title (0) → blank (1) → divider (2).
         # First section starts at row 3 (middle_top below).
@@ -1151,8 +1155,9 @@ def _draw_main(
     # Header rows (no banner): title (0) → blank (1) → divider (2);
     # first section starts at 3.
     # Header rows (banner): divider (0) → marquee (1) → divider (2) →
-    # blank (3) → title (4); first section starts at 5.
-    middle_top = 5 if stale_roles else 3
+    # blank (3) → title (4) → blank (5) → divider (6); first section
+    # starts at 7.
+    middle_top = 7 if stale_roles else 3
     middle_bottom = h - bottom_h - footer_h
     middle_h   = max(0, middle_bottom - middle_top)
 
