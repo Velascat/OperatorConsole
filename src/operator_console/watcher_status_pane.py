@@ -1016,7 +1016,7 @@ def _bottom_sections(data: dict, C: dict) -> list[dict]:
     # ── 1. System Resources (raw host state) ──
     sr_lines: list[tuple[str, int]] = [
         (" System Resources", C["HEAD"] | curses.A_BOLD),
-        (f"  {'':15}  {'1m':>7} {'5m':>7} {'15m':>7}", C["DIM"]),
+        (f"  {'':15}  {'1 Min':>7} {'5 Min':>7} {'15 Min':>7}", C["DIM"]),
     ]
     load_str = res.get('load', '?')
     parts = load_str.split('/') if '/' in load_str else ['?', '?', '?']
@@ -1026,7 +1026,7 @@ def _bottom_sections(data: dict, C: dict) -> list[dict]:
     ))
     load_pct_str = res.get('load_pct', '?')
     num_cores = res.get('num_cores', 0)
-    cores_str = f"({num_cores} cores)" if num_cores > 0 else ""
+    cores_str = f"({num_cores} Cores)" if num_cores > 0 else ""
     pct_parts = load_pct_str.split('/') if '/' in load_pct_str else ['?', '?', '?']
     sr_lines.append((
         f"  {'CPU Utilization':15}  {pct_parts[0]:>7} {pct_parts[1]:>7} "
@@ -1087,12 +1087,16 @@ def _bottom_sections(data: dict, C: dict) -> list[dict]:
         else:
             ram_attr = C["DIM"]
             ram_cell = "Memory ≥ ∞"
-        worst = ram_attr if ram_attr is C["ERR"] else (
-            conc_attr if conc_attr is C["ERR"] else
-            ram_attr if ram_attr is C["YLW"] else
-            conc_attr if conc_attr is C["YLW"] else
-            C["DIM"]
-        )
+        # Worst-cell wins: ERR > YLW > RUN > DIM. When both cells are RUN
+        # (gate configured + healthy), header should be RUN (green), not DIM.
+        if ram_attr is C["ERR"] or conc_attr is C["ERR"]:
+            worst = C["ERR"]
+        elif ram_attr is C["YLW"] or conc_attr is C["YLW"]:
+            worst = C["YLW"]
+        elif ram_attr is C["RUN"] or conc_attr is C["RUN"]:
+            worst = C["RUN"]
+        else:
+            worst = C["DIM"]
         gg_lines = [
             (" Global Gate", worst | curses.A_BOLD),
             (f"    {conc_cell}", conc_attr),

@@ -168,3 +168,11 @@ anchored. Default-open: System Resources only; Gate + Rate collapsed.
   body if expanded), divider between sections
 - Click-on-header / 'c' / mouse-wheel hit-testing all work uniformly
 
+
+## 2026-05-08 — Fix Global Gate header DIM-when-healthy; expand load column headers
+
+- Worst-cell tier ladder now picks RUN over DIM when at least one cell
+  is RUN — gate header reads green when configured + healthy (not grey).
+- '1m / 5m / 15m' → '1 Min / 5 Min / 15 Min' (clearer time windows).
+- '(N cores)' → '(N Cores)' (title-case suffix).
+
