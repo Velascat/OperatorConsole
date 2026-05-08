@@ -926,28 +926,8 @@ def _build_sections(
             queue_lines.append((f"  {typ:<7} {repo:<14} {goal}", C["DIM"]))
         sections.append({"id": "queue", "lines": queue_lines, "sel_local": -1})
 
-    # ── global rate (across-all-backends rate cap; complements Backend
-    # Limits' per-backend rate caps and Global Gate's concurrency cap) ──
-    budget = data.get("budget", {})
-    if budget.get("found"):
-        # Compute the worst color across both windows so the section
-        # header reflects the overall state.
-        budget_worst = C["RUN"]
-        cells: list[str] = []
-        for win, used, cap in (
-            ("Hourly", budget.get("hourly_used", 0), budget.get("hourly_cap", 0)),
-            ("Daily",  budget.get("daily_used", 0),  budget.get("daily_cap", 0)),
-        ):
-            ratio = (used / cap) if cap else 0.0
-            if ratio >= 1:
-                budget_worst = C["ERR"]
-            elif ratio >= 0.8 and budget_worst is C["RUN"]:
-                budget_worst = C["YLW"]
-            cells.append(f"{win} {used}/{cap}")
-        budget_lines: list[tuple[str, int]] = [
-            (f" Global Rate    {' | '.join(cells)}", budget_worst | curses.A_BOLD),
-        ]
-        sections.append({"id": "budget", "lines": budget_lines, "sel_local": -1})
+    # Note: Global Rate moved to the bottom-anchored block alongside
+    # Global Gate and System Resources (see _bottom_sections).
 
     # ── backend caps (per-backend rate / concurrency / RAM) ──
     caps = data.get("backend_caps", {})
@@ -1023,50 +1003,57 @@ def _build_sections(
     return sections, focused_idx
 
 
-def _resources_lines(data: dict, C: dict) -> list[tuple[str, int]]:
-    """Build the System Resources block as lines. Always anchored to bottom."""
-    out: list[tuple[str, int]] = []
-    res = data.get("resources", {})
-    out.append((_SEP_MARKER, C["DIM"]))
-    # Blank spacer above the section title so the block visually
-    # detaches from whatever rendered above it.
-    out.append(("", 0))
-    out.append((" System Resources", C["HEAD"] | curses.A_BOLD))
-    out.append((f"  {'':15}  {'1m':>7} {'5m':>7} {'15m':>7}", C["DIM"]))
+def _bottom_sections(data: dict, C: dict) -> list[dict]:
+    """Build the three bottom-anchored sections (System Resources, Global
+    Gate, Global Rate). Each is independently collapsible.
 
+    Returns a list of ``{"id", "lines", "sel_local"}`` dicts in the order
+    they should render top-to-bottom: Resources → Gate → Rate.
+    """
+    sections: list[dict] = []
+    res = data.get("resources", {})
+
+    # ── 1. System Resources (raw host state) ──
+    sr_lines: list[tuple[str, int]] = [
+        (" System Resources", C["HEAD"] | curses.A_BOLD),
+        (f"  {'':15}  {'1m':>7} {'5m':>7} {'15m':>7}", C["DIM"]),
+    ]
     load_str = res.get('load', '?')
     parts = load_str.split('/') if '/' in load_str else ['?', '?', '?']
-    out.append((f"  {'Processes/Queue':15}  {parts[0]:>7} {parts[1]:>7} {parts[2]:>7}", C["DIM"]))
-
+    sr_lines.append((
+        f"  {'Processes/Queue':15}  {parts[0]:>7} {parts[1]:>7} {parts[2]:>7}",
+        C["DIM"],
+    ))
     load_pct_str = res.get('load_pct', '?')
     num_cores = res.get('num_cores', 0)
     cores_str = f"({num_cores} cores)" if num_cores > 0 else ""
     pct_parts = load_pct_str.split('/') if '/' in load_pct_str else ['?', '?', '?']
-    out.append((f"  {'CPU Utilization':15}  {pct_parts[0]:>7} {pct_parts[1]:>7} {pct_parts[2]:>7}  {cores_str}", C["DIM"]))
-
+    sr_lines.append((
+        f"  {'CPU Utilization':15}  {pct_parts[0]:>7} {pct_parts[1]:>7} "
+        f"{pct_parts[2]:>7}  {cores_str}",
+        C["DIM"],
+    ))
     mp  = res.get("mem_pct", 0)
     mug = res.get("mem_used_gb", 0)
     mtg = res.get("mem_total_gb", 0)
-    out.append((f"  {'RAM':15}  {_bar(mp):>7} {mp:>3d}%  {mug:.1f}/{mtg:.1f}G",
-                C["YLW"] if mp > 80 else C["DIM"]))
-
+    sr_lines.append((
+        f"  {'RAM':15}  {_bar(mp):>7} {mp:>3d}%  {mug:.1f}/{mtg:.1f}G",
+        C["YLW"] if mp > 80 else C["DIM"],
+    ))
     if res.get("swap_total_gb", 0) > 0:
         sp  = res.get("swap_pct", 0)
         sug = res.get("swap_used_gb", 0)
         stg = res.get("swap_total_gb", 0)
-        out.append((f"  {'Swap':15}  {_bar(sp):>7} {sp:>3d}%  {sug:.1f}/{stg:.1f}G",
-                    C["YLW"] if sp > 50 else C["DIM"]))
+        sr_lines.append((
+            f"  {'Swap':15}  {_bar(sp):>7} {sp:>3d}%  {sug:.1f}/{stg:.1f}G",
+            C["YLW"] if sp > 50 else C["DIM"],
+        ))
+    sections.append({"id": "system_resources", "lines": sr_lines, "sel_local": -1})
 
-    # ── Global resource gate (OC's resource_gate: block) ──
-    # Always render the row so operators can see whether the gate is
-    # configured at all. When unset, show "(unset)" so it's obvious
-    # the feature exists but no floor is enforced.
+    # ── 2. Global Gate (across-all-backends concurrency + memory floor) ──
     gate = data.get("resource_gate", {}) or {}
     usage = data.get("backend_usage", {}) or {}
     total_in_flight = sum(int(b.get("in_flight", 0)) for b in usage.values())
-    # Available memory = free RAM + free swap. Matches OC's
-    # UsageStore.available_memory_mb() so the watcher and the
-    # actual gate enforcement compare against the same number.
     mem_total_gb = res.get("mem_total_gb", 0)
     mem_used_gb = res.get("mem_used_gb", 0)
     swap_total_gb = res.get("swap_total_gb", 0)
@@ -1074,20 +1061,15 @@ def _resources_lines(data: dict, C: dict) -> list[tuple[str, int]]:
     free_ram_mb = int(max(0, (mem_total_gb - mem_used_gb)) * 1024) if mem_total_gb else 0
     free_swap_mb = int(max(0, (swap_total_gb - swap_used_gb)) * 1024) if swap_total_gb else 0
     free_mb = free_ram_mb + free_swap_mb
-
     mc = gate.get("max_concurrent")
     floor_mb = gate.get("min_available_memory_mb")
 
-    # Blank spacer before Global Gate so it visually detaches from
-    # the Swap row above.
-    out.append(("", 0))
-
     if mc is None and floor_mb is None:
-        out.append((" Global Gate", C["DIM"] | curses.A_BOLD))
-        out.append(("", 0))
-        out.append(("    (Unset)", C["DIM"]))
+        gg_lines: list[tuple[str, int]] = [
+            (" Global Gate", C["DIM"] | curses.A_BOLD),
+            ("    (Unset)", C["DIM"]),
+        ]
     else:
-        # Concurrency cell
         if mc is not None:
             ratio = (total_in_flight / mc) if mc else 0.0
             conc_attr = (
@@ -1099,31 +1081,52 @@ def _resources_lines(data: dict, C: dict) -> list[tuple[str, int]]:
         else:
             conc_attr = C["DIM"]
             conc_cell = f"In-Flight {total_in_flight}/∞"
-        # Memory-floor cell. "free" sums RAM + swap, matching OC's
-        # gate enforcement (UsageStore.available_memory_mb()).
         if floor_mb is not None:
             ram_attr = C["ERR"] if free_mb and free_mb < floor_mb else C["RUN"]
             ram_cell = f"Memory ≥ {floor_mb}MB ({free_mb} Free)"
         else:
             ram_attr = C["DIM"]
             ram_cell = "Memory ≥ ∞"
-        # Worst color wins for the sub-header
         worst = ram_attr if ram_attr is C["ERR"] else (
             conc_attr if conc_attr is C["ERR"] else
             ram_attr if ram_attr is C["YLW"] else
             conc_attr if conc_attr is C["YLW"] else
             C["DIM"]
         )
-        # Three-line layout (sub-header + two indented cells), with a blank
-        # spacer between the sub-header and the cells.
-        out.append((" Global Gate", worst | curses.A_BOLD))
-        out.append(("", 0))
-        out.append((f"    {conc_cell}", conc_attr))
-        out.append((f"    {ram_cell}", ram_attr))
-    # Blank spacer at the bottom so the block visually separates from
-    # whatever sits below it (typically the footer).
-    out.append(("", 0))
-    return out
+        gg_lines = [
+            (" Global Gate", worst | curses.A_BOLD),
+            (f"    {conc_cell}", conc_attr),
+            (f"    {ram_cell}", ram_attr),
+        ]
+    sections.append({"id": "global_gate", "lines": gg_lines, "sel_local": -1})
+
+    # ── 3. Global Rate (across-all-backends rate cap) ──
+    budget = data.get("budget", {})
+    if budget.get("found"):
+        budget_worst = C["RUN"]
+        cells: list[str] = []
+        for win, used, cap in (
+            ("Hourly", budget.get("hourly_used", 0), budget.get("hourly_cap", 0)),
+            ("Daily",  budget.get("daily_used", 0),  budget.get("daily_cap", 0)),
+        ):
+            ratio = (used / cap) if cap else 0.0
+            if ratio >= 1:
+                budget_worst = C["ERR"]
+            elif ratio >= 0.8 and budget_worst is C["RUN"]:
+                budget_worst = C["YLW"]
+            cells.append(f"{win} {used}/{cap}")
+        gr_lines: list[tuple[str, int]] = [
+            (" Global Rate", budget_worst | curses.A_BOLD),
+            (f"    {' | '.join(cells)}", budget_worst),
+        ]
+    else:
+        gr_lines = [
+            (" Global Rate", C["DIM"] | curses.A_BOLD),
+            ("    (No usage.json)", C["DIM"]),
+        ]
+    sections.append({"id": "global_rate", "lines": gr_lines, "sel_local": -1})
+
+    return sections
 
 
 _SIZE_MULT_MIN = 0.3
@@ -1290,27 +1293,39 @@ def _draw_main(
     _sep(stdscr, 6, h, w, C["DIM"])
 
     sections, focused_idx = _build_sections(data, sel, w, C)
-    bottom_lines = _resources_lines(data, C)
+    bottom_secs = _bottom_sections(data, C)
 
-    # Decorate section headers with a collapse indicator + focus highlight.
-    # Modifies sections in place — they're freshly built each frame.
-    for sec in sections:
+    def _decorate(sec: dict) -> None:
+        """Add ▶/▼ collapse marker + focus highlight to a section header."""
         if not sec["lines"]:
-            continue
+            return
         text, attr = sec["lines"][0]
         is_collapsed = collapsed.get(sec["id"], False)
         marker = "▶ " if is_collapsed else "▼ "
-        # Strip the original leading space so the marker takes its place.
         new_text = marker + text.lstrip()
         if focused_section == sec["id"]:
             new_text += "  ← Focused"
-        # Show non-default size multiplier so operators can see what they did.
         mult = size_mult.get(sec["id"], 1.0)
         if abs(mult - 1.0) > 0.01:
             new_text += f"  [{mult:.2f}×]"
         sec["lines"][0] = (new_text, attr)
 
-    bottom_h   = len(bottom_lines)
+    for sec in sections:
+        _decorate(sec)
+    for sec in bottom_secs:
+        _decorate(sec)
+
+    # Bottom block height = sum of effective heights (collapsed=1, else N+spacer)
+    # plus a divider above each except the first plus a leading spacer + divider
+    # between the middle and the bottom block.
+    def _sec_height(sec: dict) -> int:
+        return 1 if collapsed.get(sec["id"], False) else len(sec["lines"])
+
+    # 1 spacer + 1 divider before the first bottom section, then 1 divider
+    # between each subsequent section.
+    bottom_h   = sum(_sec_height(s) for s in bottom_secs) + (
+        2 + max(0, len(bottom_secs) - 1)
+    )
     # Footer block (bottom-up): divider → hint area → divider.
     # Hint area is one row when collapsed (default), or N wrapped rows
     # when expanded. Flash adds one row above the hints when present.
@@ -1398,18 +1413,39 @@ def _draw_main(
                 put(start_row + sec_h - 1, "▼" + " " * (w - 2), C["YLW"])
         section_rows[sec["id"]] = (start_row, start_row + sec_h)
 
-    # Bottom-anchored resources block (also scrollable as its own section).
-    res_start = middle_bottom
-    for i, (text, attr) in enumerate(bottom_lines):
-        r = res_start + i
+    # Bottom-anchored block: System Resources / Global Gate / Global Rate.
+    # Each is independently collapsible. Render top-down starting at
+    # middle_bottom: leading blank spacer + divider, then each section
+    # header (and body if expanded), divider between sections.
+    r = middle_bottom
+    if r < h - footer_h:
+        put(r, "", 0)
+        r += 1
+    if r < h - footer_h:
+        _put(stdscr, r, h, w, "─" * (w - 1), C["DIM"])
+        r += 1
+    for idx, sec in enumerate(bottom_secs):
         if r >= h - footer_h:
             break
-        if text == _SEP_MARKER:
-            _put(stdscr, r, h, w, "─" * (w - 1), attr)
-        else:
-            put(r, text, attr)
-    if bottom_h > 0:
-        section_rows["resources"] = (res_start, min(res_start + bottom_h, h - footer_h))
+        if idx > 0 and r < h - footer_h:
+            _put(stdscr, r, h, w, "─" * (w - 1), C["DIM"])
+            r += 1
+        sec_id = sec["id"]
+        sec_h = _sec_height(sec)
+        start_row = r
+        header_rows[sec_id] = start_row
+        for j in range(sec_h):
+            if r >= h - footer_h:
+                break
+            if j >= len(sec["lines"]):
+                break
+            text, attr = sec["lines"][j]
+            if text == _SEP_MARKER:
+                _put(stdscr, r, h, w, "─" * (w - 1), attr)
+            else:
+                put(r, text, attr)
+            r += 1
+        section_rows[sec_id] = (start_row, r)
 
     # Footer block (bottom-up): divider (h-1), hints (h-2), divider (h-3),
     # optional flash (h-4 when present).
@@ -1608,14 +1644,17 @@ def _pane(stdscr, profile_name: str) -> None:
     # Collapsed sections show only their header row; +/- resize scales the
     # focused section's natural row count up or down. Default everything
     # collapsed so the pane opens compact — operators expand what they
-    # need with click-on-header or `c`. (System Resources is bottom-
-    # anchored, not part of the collapsible section set.)
+    # need with click-on-header or `c`. Bottom-anchored sections also
+    # default-collapsed *except* System Resources, which is the canonical
+    # at-a-glance host-state block.
     collapsed_sections: dict[str, bool] = {
         sid: True for sid in (
-            "roles", "active", "recent", "board",
-            "campaigns", "queue", "budget", "backend_caps", "services",
+            "roles", "active", "recent", "campaigns", "board",
+            "queue", "backend_caps", "services",
+            "global_gate", "global_rate",
         )
     }
+    collapsed_sections["system_resources"] = False
     size_mult: dict[str, float] = {}
     # Hint bar starts collapsed — operators toggle with `?`.
     hints_collapsed = True
