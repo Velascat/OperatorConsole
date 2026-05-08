@@ -1208,12 +1208,8 @@ def _banner_unit_len(message: str, banner_count: int, banner_index: int, w: int)
     """
     counter = f"  [{banner_index + 1}/{banner_count}]" if banner_count > 1 else ""
     payload = f" {message}{counter} "
-    if banner_count == 1:
-        lp = " " * ((w - 1) // 4)
-        g  = " " * max(6, (w - 1) // 6)
-    else:
-        lp = ""
-        g  = "    "
+    lp = " " * ((w - 1) // 4)
+    g  = " " * max(6, (w - 1) // 6)
     return len(lp) + len(payload) + len(g)
 
 
@@ -1284,12 +1280,8 @@ def _draw_main(
         """Return (full_unit_text, severity) for one banner condition."""
         ctr = f"  [{b_idx + 1}/{banner_count}]" if banner_count > 1 else ""
         payload = f" {b_message}{ctr} "
-        if banner_count == 1:
-            lp = " " * ((w - 1) // 4)
-            g  = " " * max(6, (w - 1) // 6)
-        else:
-            lp = ""
-            g  = "    "
+        lp = " " * ((w - 1) // 4)
+        g  = " " * max(6, (w - 1) // 6)
         return lp + payload + g, b_severity
 
     severity, message = current_banner
