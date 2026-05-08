@@ -699,6 +699,19 @@ def _bar(pct: int, width: int = BAR_W) -> str:
     return "█" * filled + "░" * (width - filled)
 
 
+def _tc(s: str) -> str:
+    """Title-Case a snake_case identifier for display.
+
+    ``aider_local`` → ``Aider Local`` ; ``board_worker`` → ``Board Worker``.
+    Preserves internal capitalisation so PascalCase stays intact:
+    ``OperationsCenter`` → ``OperationsCenter``. Empty input returns empty.
+    """
+    if not s:
+        return s
+    parts = s.split("_")
+    return " ".join(p[:1].upper() + p[1:] if p else p for p in parts)
+
+
 def _uptime(start: float) -> str:
     e = int(time.time() - start)
     if e < 60:
@@ -811,10 +824,10 @@ def _build_sections(
         rb    = f" ↺{rc}" if rc else ""
         if alive:
             up   = _uptime(info["mtime"]) if info.get("mtime") else "?"
-            line = f"  ✓  {role:<11} up {up}{rb}"
+            line = f"  ✓  {_tc(role):<14} Up {up}{rb}"
             attr = C["RUN"]
         else:
-            line = f"  ✗  {role:<11} STOPPED{rb}"
+            line = f"  ✗  {_tc(role):<14} STOPPED{rb}"
             attr = C["ERR"]
         if i == sel:
             role_sel_local = len(role_lines)
@@ -832,9 +845,9 @@ def _build_sections(
             (f" Active ({len(active_tasks)} Running)", C["HEAD"] | curses.A_BOLD),
         ]
         for item in active_tasks:
-            repo  = item.get("repo", "?")[:10]
-            title = item.get("title", "?")[:max(w - 16, 8)]
-            active_lines.append((f"  ▶  {repo:<11} {title}", C["RUN"]))
+            repo  = _tc(item.get("repo", "?"))[:14]
+            title = item.get("title", "?")[:max(w - 20, 8)]
+            active_lines.append((f"  ▶  {repo:<14} {title}", C["RUN"]))
         sections.append({"id": "active", "lines": active_lines, "sel_local": -1})
 
     # ── recent activity (worker logs) ──
@@ -858,7 +871,7 @@ def _build_sections(
             else:
                 icon, attr = "·", C["DIM"]
             tag = f"{action}({status})" if status else action
-            recent_lines.append((f"  {icon}  {ts} {role:<8} {tag:<22} {title}", attr))
+            recent_lines.append((f"  {icon}  {ts} {_tc(role):<10} {tag:<22} {title}", attr))
         sections.append({"id": "recent", "lines": recent_lines, "sel_local": -1})
 
     # ── board ──
@@ -868,11 +881,11 @@ def _build_sections(
             (f" Board ({len(board_items)} Queued)", C["HEAD"] | curses.A_BOLD),
         ]
         for item in board_items:
-            repo  = item.get("repo", "?")[:10]
+            repo  = _tc(item.get("repo", "?"))[:14]
             state = item.get("state", "")
             icon  = "·" if "backlog" in state.lower() else "→"
-            title = item.get("title", "?")[:max(w - 16, 8)]
-            board_lines.append((f"  {icon}  {repo:<11} {title}", C["DIM"]))
+            title = item.get("title", "?")[:max(w - 20, 8)]
+            board_lines.append((f"  {icon}  {repo:<14} {title}", C["DIM"]))
         sections.append({"id": "board", "lines": board_lines, "sel_local": -1})
 
     # ── campaigns ──
@@ -907,10 +920,10 @@ def _build_sections(
             (f" Queue ({n_q} Pending)", q_attr | curses.A_BOLD),
         ]
         for item in queue:
-            typ  = (item.get("task_type") or "?")[:4]
-            repo = (item.get("repo_name") or "?")[:10]
-            goal = (item.get("goal") or "")[:max(w - 20, 8)]
-            queue_lines.append((f"  {typ:<5} {repo:<11} {goal}", C["DIM"]))
+            typ  = _tc((item.get("task_type") or "?"))[:6]
+            repo = _tc((item.get("repo_name") or "?"))[:14]
+            goal = (item.get("goal") or "")[:max(w - 24, 8)]
+            queue_lines.append((f"  {typ:<7} {repo:<14} {goal}", C["DIM"]))
         sections.append({"id": "queue", "lines": queue_lines, "sel_local": -1})
 
     # ── execution budget (global hourly/daily caps) ──
@@ -989,14 +1002,14 @@ def _build_sections(
                 if mem_avail_mb and mem_avail_mb < ram_floor:
                     worst_attr = C["ERR"]
                 cells.append(f"RAM ≥{ram_floor}MB")
-            row = "  ".join(cells) if cells else "(No Caps)"
-            bc_lines.append((f"  {backend:<10} {row}", worst_attr))
+            row = "  ".join(cells) if cells else "(No Limits)"
+            bc_lines.append((f"  {_tc(backend):<14} {row}", worst_attr))
             if worst_attr is C["ERR"]:
                 bc_section_worst = C["ERR"]
             elif worst_attr is C["YLW"] and bc_section_worst is C["RUN"]:
                 bc_section_worst = C["YLW"]
         sections.append({"id": "backend_caps", "lines": [
-            (" Backend Caps", bc_section_worst | curses.A_BOLD),
+            (" Backend Limits", bc_section_worst | curses.A_BOLD),
             *bc_lines,
         ], "sel_local": -1})
 
@@ -1414,16 +1427,17 @@ def _draw_submenu(stdscr, role: str, info: dict, sel: int, C: dict) -> None:
     stdscr.erase()
 
     alive  = info.get("alive", False)
-    status = f"running  pid {info['pid']}" if alive else "STOPPED"
+    status = f"Running  PID {info['pid']}" if alive else "STOPPED"
     status_attr = (C["HEAD"] | curses.A_BOLD) if alive else (C["ERR"] | curses.A_BOLD)
-    put(0, f" {role}  [ {status} ]", status_attr)
+    put(0, f" {_tc(role)}  [ {status} ]", status_attr)
     _sep(stdscr, 1, h, w, C["DIM"])
 
     for i, action in enumerate(_ACTIONS):
+        label = _tc(action.replace(" ", "_"))
         if i == sel:
-            put(i + 2, f"  ▶ {action}", C["SEL"] | curses.A_BOLD)
+            put(i + 2, f"  ▶ {label}", C["SEL"] | curses.A_BOLD)
         else:
-            put(i + 2, f"    {action}", 0)
+            put(i + 2, f"    {label}", 0)
 
     _sep(stdscr, len(_ACTIONS) + 2, h, w, C["DIM"])
     put(h - 1, " ↑↓ Select  ↵ Run  Esc Back", C["DIM"])
@@ -1438,7 +1452,7 @@ def _draw_log_view(stdscr, role: str, lines: list[str], C: dict) -> None:
         return _put(stdscr, r, h, w, t, a)
     stdscr.erase()
 
-    put(0, f" Circuit Breaker — {role} (Last {LOG_TAIL_LINES} Lines)", C["HEAD"] | curses.A_BOLD)
+    put(0, f" Circuit Breaker — {_tc(role)} (Last {LOG_TAIL_LINES} Lines)", C["HEAD"] | curses.A_BOLD)
     _sep(stdscr, 1, h, w, C["DIM"])
 
     for i, line in enumerate(lines[-(h - 3):]):
