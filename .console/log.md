@@ -176,3 +176,6 @@ anchored. Default-open: System Resources only; Gate + Rate collapsed.
 - '1m / 5m / 15m' → '1 Min / 5 Min / 15 Min' (clearer time windows).
 - '(N cores)' → '(N Cores)' (title-case suffix).
 
+
+## 2026-05-08 — Reorder bottom sections: Rate → Gate → Resources
+

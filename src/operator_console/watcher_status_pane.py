@@ -1130,7 +1130,12 @@ def _bottom_sections(data: dict, C: dict) -> list[dict]:
         ]
     sections.append({"id": "global_rate", "lines": gr_lines, "sel_local": -1})
 
-    return sections
+    # Reorder: Rate → Gate → Resources (top-down).  Resources is the
+    # always-open block and reads nicely as the final, full-detail anchor
+    # of the pane; Rate + Gate sit above as compact gate-state lines.
+    by_id = {s["id"]: s for s in sections}
+    return [by_id[k] for k in ("global_rate", "global_gate", "system_resources")
+            if k in by_id]
 
 
 _SIZE_MULT_MIN = 0.3
