@@ -1,5 +1,11 @@
 # Log
 
+## 2026-05-08 — Add .env.example
+
+OperatorConsole reads 7 env vars (CONSOLE_PROFILE, PORT_SWITCHBOARD,
+OPERATIONS_CENTER_*, ZELLIJ, ZELLIJ_SESSION_NAME) but had no documented
+reference. Added .env.example with all vars commented out and explained.
+
 _Chronological continuity log. Decisions, stop points, what changed and why._
 _Not a task tracker — that's backlog.md. Keep entries concise and dated._
 
