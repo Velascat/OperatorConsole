@@ -3,6 +3,8 @@
 _Chronological continuity log. Decisions, stop points, what changed and why._
 _Not a task tracker — that's backlog.md. Keep entries concise and dated._
 
+- Wire queue plumbing contract (2026-05-08, on chore/queue-plumbing-contract): Added `audit.plumbing` to `.custodian/config.yaml` for the queue artifact (OperatorConsole writes `~/.console/queue/<uuid>.json`, OC intake reads it). P1/P2/P3 all 0 findings live.
+
 - Wire cross_repo config (2026-05-08, on chore/wire-cross-repo-config): Added `audit.cross_repo.platform_manifest_repo: ../PlatformManifest` to `.custodian/config.yaml`. Enables X1/X2/X3 detectors; live run shows 0 findings.
 
 - codex --full-auto → -a never (2026-05-08, on fix/codex-full-auto): codex dropped --full-auto. Updated bootstrap.py default approval_mode to `-a never`; same fix applied to kodo sessions/codex.py, orchestrators/codex_cli.py, and benchmark/runner.py in that repo.
