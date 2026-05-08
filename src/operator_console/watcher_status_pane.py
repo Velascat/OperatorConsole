@@ -1330,9 +1330,11 @@ def _draw_main(
     def _sec_height(sec: dict) -> int:
         return 1 if collapsed.get(sec["id"], False) else len(sec["lines"])
 
-    # 1 divider directly under the last top section (Services), then 1
-    # divider between each subsequent bottom section.
-    bottom_h   = sum(_sec_height(s) for s in bottom_secs) + len(bottom_secs)
+    # 1 leading divider above the first bottom section + 1 between each
+    # subsequent. (A separate divider also renders under the last top
+    # section so when middle is short the divider stays glued there;
+    # when middle fills, the two dividers coincide at middle_bottom.)
+    bottom_h   = sum(_sec_height(s) for s in bottom_secs) + 1 + max(0, len(bottom_secs) - 1)
     # Footer block (bottom-up): divider → hint area → divider.
     # Hint area is one row when collapsed (default), or N wrapped rows
     # when expanded. Flash adds one row above the hints when present.
@@ -1420,11 +1422,18 @@ def _draw_main(
                 put(start_row + sec_h - 1, "▼" + " " * (w - 2), C["YLW"])
         section_rows[sec["id"]] = (start_row, start_row + sec_h)
 
+    # Divider directly under the last rendered top section (typically
+    # Services). Sits at `row`, NOT at middle_bottom — so when top
+    # sections are collapsed and don't fill the middle, the divider
+    # stays glued to Services instead of floating above the bottom block.
+    if row < middle_bottom:
+        _put(stdscr, row, h, w, "─" * (w - 1), C["DIM"])
+
     # Bottom-anchored block: Global Rate / Global Gate / System Resources.
     # Each is independently collapsible. Render top-down starting at
-    # middle_bottom with a divider directly under the last top section
-    # (Services), then each section header (and body if expanded), divider
-    # between sections.
+    # middle_bottom with a leading divider above Global Rate. (When the
+    # middle is short, this coincides with the under-Services divider
+    # at the same row — visually one line.)
     r = middle_bottom
     if r < h - footer_h:
         _put(stdscr, r, h, w, "─" * (w - 1), C["DIM"])
