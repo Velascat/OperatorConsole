@@ -21,7 +21,7 @@ console (shell wrapper)
     ├── queue.py / queue_status.py  ← OperationsCenter run-queue submission + display
     ├── runs.py / runs_cmd.py / last.py  ← `console runs` / `console last` inspectors
     ├── observer.py             ← repo observation snapshots for `console overview`
-    ├── system_status.py        ← `console status` (system readiness + watcher health)
+    ├── watcher_status_pane.py  ← `console status` (live curses pane: roles, queue, budget, backend caps, resources)
     ├── auto_once.py            ← single-shot autonomy helpers
     ├── clean.py                ← `console reset` / `console clear` cleanup
     └── commands.py             ← interactive TUI commands and run management
