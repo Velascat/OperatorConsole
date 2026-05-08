@@ -70,11 +70,21 @@ audit:
       # OperatorConsole is a TUI application — bootstrap, command dispatch,
       # and display modules are validated through integration use, not unit tests.
       - "src/operator_console/**/*.py"
+    T6:
+      # Same rationale: TUI modules used through CLI invocation, not name-import.
+      - "src/operator_console/**"
+    T7:
+      - "src/operator_console/**"
+    T8:
+      # Architecture-demo test exercises the layout via subprocess + curses.
+      - tests/test_architecture_demo.py
 
   # K1 suppressions: config key names in architecture docs that are not Python
   # def/class names but appear in implementation context ("has `status_repos`").
+  # git_watcher is a console subcommand name, not a Python symbol.
   common_words:
     - status_repos
+    - git_watcher
 
 tools:
   ruff: true
