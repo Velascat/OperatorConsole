@@ -202,23 +202,36 @@ _STALE_HEARTBEAT_S = 600  # 10 minutes — alert threshold
 
 
 def _stale_heartbeat_roles() -> list[str]:
-    """Return role names whose heartbeat file is older than _STALE_HEARTBEAT_S.
+    """Return role names that are not visibly healthy.
 
-    A heartbeat that hasn't ticked in 10+ minutes means the worker is
-    either crashed (and the supervisor isn't reviving it) or hung. Either
-    way, operator should know immediately.
+    A role is considered stalled when *any* of:
+      - its supervisor PID file is missing or the PID is dead
+        (the worker isn't running at all), OR
+      - its heartbeat file is missing (no proof of life), OR
+      - the heartbeat file is older than ``_STALE_HEARTBEAT_S``
+        (process up but not ticking — hung).
+
+    Iterating over the canonical ``_ROLES`` tuple guarantees every
+    declared worker gets evaluated, including ones that never started
+    (no heartbeat file would have been an invisible omission).
     """
-    if not _WATCH_DIR.exists():
-        return []
     now = time.time()
     stale: list[str] = []
-    for hb in _WATCH_DIR.glob("heartbeat_*.json"):
+    for role in _ROLES:
+        info = _role_info(role)
+        if not info.get("alive", False):
+            stale.append(role)
+            continue
+        hb = _WATCH_DIR / f"heartbeat_{role}.json"
+        if not hb.exists():
+            stale.append(role)
+            continue
         try:
             age = now - hb.stat().st_mtime
         except OSError:
+            stale.append(role)
             continue
         if age > _STALE_HEARTBEAT_S:
-            role = hb.stem.removeprefix("heartbeat_")
             stale.append(role)
     return sorted(stale)
 
