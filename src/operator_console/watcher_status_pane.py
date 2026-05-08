@@ -939,8 +939,7 @@ def _resources_lines(data: dict, C: dict) -> list[tuple[str, int]]:
     floor_mb = gate.get("min_available_memory_mb")
 
     if mc is None and floor_mb is None:
-        out.append((f"  {'Global gate':15}  (unset)  config: resource_gate.* in OC local.yaml",
-                    C["DIM"]))
+        out.append((f"  {'Global Gate':15}  (unset)", C["DIM"]))
     else:
         # Concurrency cell
         if mc is not None:
@@ -950,15 +949,15 @@ def _resources_lines(data: dict, C: dict) -> list[tuple[str, int]]:
                 else C["YLW"] if ratio >= 0.8
                 else C["RUN"]
             )
-            conc_cell = f"in_flight {total_in_flight}/{mc}"
+            conc_cell = f"i-f {total_in_flight}/{mc}"
         else:
             conc_attr = C["DIM"]
-            conc_cell = f"in_flight {total_in_flight}/∞"
-        # RAM-floor cell
+            conc_cell = f"i-f {total_in_flight}/∞"
+        # Memory-floor cell. "free" sums RAM + swap, matching OC's
+        # gate enforcement (UsageStore.available_memory_mb()).
         if floor_mb is not None:
             ram_attr = C["ERR"] if free_mb and free_mb < floor_mb else C["RUN"]
-            # "free" reads RAM + swap, matching OC's gate enforcement.
-            ram_cell = f"mem≥{floor_mb}MB ({free_mb} free, ram+swap)"
+            ram_cell = f"mem≥{floor_mb}MB ({free_mb} free)"
         else:
             ram_attr = C["DIM"]
             ram_cell = "mem≥∞"
@@ -969,7 +968,7 @@ def _resources_lines(data: dict, C: dict) -> list[tuple[str, int]]:
             conc_attr if conc_attr is C["YLW"] else
             C["DIM"]
         )
-        out.append((f"  {'Global gate':15}  {conc_cell}  {ram_cell}", worst))
+        out.append((f"  {'Global Gate':15}  {conc_cell}  {ram_cell}", worst))
     # Blank spacer at the bottom so the block visually separates from
     # whatever sits below it (typically the footer).
     out.append(("", 0))
