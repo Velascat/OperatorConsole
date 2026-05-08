@@ -205,3 +205,6 @@ top block flows behind them.
 - Dropped per-section scrolling for top sections (kept section_offsets
   signature for compatibility)
 
+
+## 2026-05-08 — Drop top-block auto-scroll (operator-driven only)
+
