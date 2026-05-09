@@ -240,3 +240,5 @@ top block flows behind them.
 
 ## 2026-05-08 — Pin 'Just Started' banner to front of cycle (override severity sort)
 
+
+- Status pane header layout (2026-05-09, on main): removed blank rows above and below "Operations Center" header (original rows 3 and 5); retained both separator lines; header now at row 3, blank breathing row at 4, sep at 5, content at 6. middle_top 7→6.

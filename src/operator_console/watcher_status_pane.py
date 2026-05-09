@@ -1325,10 +1325,9 @@ def _draw_main(
         except curses.error:
             pass
     _sep(stdscr, 2, h, w, C["DIM"])
-    put(3, "", 0)
-    put(4, f" Operations Center{spin}  {ts}", C["HEAD"] | curses.A_BOLD)
-    put(5, "", 0)
-    _sep(stdscr, 6, h, w, C["DIM"])
+    put(3, f" Operations Center{spin}  {ts}", C["HEAD"] | curses.A_BOLD)
+    put(4, "", 0)
+    _sep(stdscr, 5, h, w, C["DIM"])
 
     sections, focused_idx = _build_sections(data, sel, w, C)
     bottom_secs = _bottom_sections(data, C)
@@ -1376,7 +1375,7 @@ def _draw_main(
     # Header rows (always banner): divider (0) → marquee (1) →
     # divider (2) → blank (3) → title (4) → blank (5) → divider (6);
     # first section starts at 7.
-    middle_top = 7
+    middle_top = 6
     middle_bottom = h - bottom_h - footer_h
     middle_h   = max(0, middle_bottom - middle_top)
 
