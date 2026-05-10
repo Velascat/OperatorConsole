@@ -148,7 +148,7 @@ All run artifacts are written by OperationsCenter to:
   run_metadata.json
 ```
 
-See [docs/operator/run-artifacts.md](https://github.com/Velascat/OperationsCenter/blob/main/docs/operator/run-artifacts.md) in the OperationsCenter repo for full field reference.
+See [docs/operator/run-artifacts.md](https://github.com/ProtocolWarden/OperationsCenter/blob/main/docs/operator/run-artifacts.md) in the OperationsCenter repo for full field reference.
 
 ---
 

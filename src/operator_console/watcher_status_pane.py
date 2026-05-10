@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# Copyright (C) 2026 Velascat
+# Copyright (C) 2026 ProtocolWarden
 """Curses watcher-status pane — dense at-a-glance OperationsCenter monitor.
 
 Sections (always visible):

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# Copyright (C) 2026 Velascat
+# Copyright (C) 2026 ProtocolWarden
 """Local task queue — ~/.console/queue/
 
 Each pending task is a JSON file named <uuid>.json. OperationsCenter's

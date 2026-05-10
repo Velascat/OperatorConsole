@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# Copyright (C) 2026 Velascat
+# Copyright (C) 2026 ProtocolWarden
 """Phase 4: OperatorConsole speaks CxRP at its edges.
 
 Tests assert that operator-submitted work becomes a schema-valid CxRP
@@ -47,7 +47,7 @@ def test_build_task_proposal_validates_against_schema():
         title="t",
         objective="o",
         repo_key="velascat/x",
-        clone_url="https://github.com/Velascat/x.git",
+        clone_url="https://github.com/ProtocolWarden/x.git",
         submitter="velascat",
         constraints=["preserve public API"],
     )

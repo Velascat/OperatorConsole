@@ -90,7 +90,7 @@ _Not a task tracker — that's backlog.md. Keep entries concise and dated._
 
 - CI doctor: drop stale D7 exclude_paths (2026-05-06, on `main`): D7 (dead method param) was retired in Custodian's tool-first deprecation pass. `.custodian/config.yaml` still referenced D7 under exclude_paths, which `custodian-doctor --strict` flagged as an unknown detector. Removed the block.
 
-- CI license header (2026-05-06, on `main`): Added missing SPDX header to `.vulture_whitelist.py`. Same fix pattern applied across other Velascat repos. CI license-header job now passes.
+- CI license header (2026-05-06, on `main`): Added missing SPDX header to `.vulture_whitelist.py`. Same fix pattern applied across other ProtocolWarden repos. CI license-header job now passes.
 
 ## Notes
 
@@ -249,3 +249,8 @@ top block flows behind them.
 
 
 - Status pane header layout (2026-05-09, on main): removed blank rows above and below "Operations Center" header (original rows 3 and 5); retained both separator lines; header now at row 3, blank breathing row at 4, sep at 5, content at 6. middle_top 7→6.
+
+## 2026-05-10 — GitHub username migration
+
+- Updated repo-owned references from `Velascat` to `ProtocolWarden` after the GitHub account rename.
+- Scope: license headers, GitHub URLs, workflow install commands, manifests, dependency URLs, examples, and local owner defaults where present.

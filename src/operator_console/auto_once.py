@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# Copyright (C) 2026 Velascat
+# Copyright (C) 2026 ProtocolWarden
 """console cycle — execute exactly one autonomous cycle.
 
 Observe → Propose → Decide → Execute → Record

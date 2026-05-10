@@ -11,7 +11,7 @@ OperatorConsole is a local operator console for Claude-driven development — a 
 ## Development Setup
 
 ```bash
-git clone https://github.com/Velascat/OperatorConsole.git
+git clone https://github.com/ProtocolWarden/OperatorConsole.git
 cd OperatorConsole
 python3 -m venv .venv
 source .venv/bin/activate

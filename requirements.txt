@@ -1,2 +1,2 @@
 PyYAML>=6.0
-cxrp @ git+https://github.com/Velascat/CxRP.git
+cxrp @ git+https://github.com/ProtocolWarden/CxRP.git

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# Copyright (C) 2026 Velascat
+# Copyright (C) 2026 ProtocolWarden
 """runs.py — read Phase 7 canonical run artifacts from ~/.console/operations_center/runs/.
 
 Provides lightweight accessors so pipeline commands (console last, console status, etc.)

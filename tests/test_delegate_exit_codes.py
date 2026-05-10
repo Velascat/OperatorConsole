@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# Copyright (C) 2026 Velascat
+# Copyright (C) 2026 ProtocolWarden
 """Tests for run_delegate() — queue submission wizard.
 
 Verifies exit codes and queue file output without any subprocess calls
