@@ -127,6 +127,11 @@ Both `claude --resume` and `codex --resume` are first-class. `aider` does not
 support `--resume` — it always starts a fresh session, but bootstrap still
 manages its working directory and environment.
 
+Console-launched Codex sessions default to full local access:
+`codex -a never -s danger-full-access`. Profiles can opt out with
+`codex.approval_mode: ""` or `codex.sandbox_mode: ""`, or choose a different
+Codex sandbox with `codex.sandbox_mode`.
+
 The Claude project path is derived from the working directory: `<cwd>` with
 `/` → `-` (mirrors Claude Code's own storage layout under `~/.claude/projects/`).
 

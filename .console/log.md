@@ -1,5 +1,12 @@
 # Log
 
+## 2026-05-10 — Codex startup defaults to full access
+
+Updated OperatorConsole's Codex launcher to start Codex panes with
+`-a never -s danger-full-access` by default, matching the full-access operator
+session profile. Profiles can still opt out with `codex.approval_mode: ""` or
+`codex.sandbox_mode: ""`. Added startup tests for the default and opt-out paths.
+
 ## 2026-05-08 — Add .env.example
 
 OperatorConsole reads 7 env vars (CONSOLE_PROFILE, PORT_SWITCHBOARD,

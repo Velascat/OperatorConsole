@@ -184,10 +184,15 @@ def get_codex_command(
     codex_cfg    = profile.get("codex", {})
     codex_bin    = codex_cfg.get("bin", "codex")
     safe_bin     = codex_bin.replace("'", "'\\''")
-    # Default to -a never (no per-command approval prompts).
-    # Override per-profile with codex.approval_mode: "" to get default behaviour.
+    # Default to full local access for Console-launched Codex sessions:
+    # no per-command approval prompts and no filesystem sandbox. Override
+    # per-profile with codex.approval_mode: "" or codex.sandbox_mode: "" to
+    # get Codex defaults instead.
     approval     = codex_cfg.get("approval_mode", "-a never")
     approval_arg = f" {approval}" if approval else ""
+    sandbox      = codex_cfg.get("sandbox_mode", codex_cfg.get("sandbox", "-s danger-full-access"))
+    sandbox_arg  = f" {sandbox}" if sandbox else ""
+    codex_args   = f"{approval_arg}{sandbox_arg}"
 
     not_found_block = (
         "#!/usr/bin/env bash\n"
@@ -202,7 +207,7 @@ def get_codex_command(
         # Single-repo: let codex filter by cwd natively
         script = (
             not_found_block
-            + f"'{safe_bin}'{approval_arg} resume --last 2>/dev/null || '{safe_bin}'{approval_arg}\n"
+            + f"'{safe_bin}'{codex_args} resume --last 2>/dev/null || '{safe_bin}'{codex_args}\n"
             + "exec bash -l\n"
         )
         key = profile.get("name", "unknown").lower()
@@ -224,9 +229,9 @@ def get_codex_command(
                 # Refresh session file at launch — catches missed saves from abrupt shutdown
                 + _codex_save
                 + "if [ -f \"$SESSION_FILE\" ]; then\n"
-                + f"    '{safe_bin}'{approval_arg} resume \"$(cat \"$SESSION_FILE\")\" || '{safe_bin}'{approval_arg}\n"
+                + f"    '{safe_bin}'{codex_args} resume \"$(cat \"$SESSION_FILE\")\" || '{safe_bin}'{codex_args}\n"
                 + "else\n"
-                + f"    '{safe_bin}'{approval_arg}\n"
+                + f"    '{safe_bin}'{codex_args}\n"
                 + "fi\n"
                 # Save again after clean exit
                 + _codex_save
@@ -235,7 +240,7 @@ def get_codex_command(
         else:
             script = (
                 not_found_block
-                + f"'{safe_bin}'{approval_arg}\n"
+                + f"'{safe_bin}'{codex_args}\n"
                 + "exec bash -l\n"
             )
 
@@ -404,5 +409,4 @@ def update_clis(*, verbose: bool = False) -> dict[str, str]:
         except Exception as exc:
             results[name] = f"error: {exc}"
     return results
-
 
