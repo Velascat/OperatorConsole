@@ -254,3 +254,8 @@ top block flows behind them.
 
 - Updated repo-owned references from the previous GitHub username to `ProtocolWarden` after the account rename.
 - Scope: license headers, GitHub URLs, workflow install commands, manifests, dependency URLs, examples, and local owner defaults where present.
+
+## 2026-05-10 — Console setup and Custodian hook resolution
+
+- Added non-interactive `setup.sh` to bootstrap OperatorConsole and symlink `console` into `~/.local/bin`.
+- Updated the pre-push guard to prefer system `custodian-multi`, with repo venv and sibling Custodian venv fallbacks.
