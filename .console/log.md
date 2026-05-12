@@ -1,5 +1,12 @@
 # Log
 
+## 2026-05-12 — Remove WorkStation profile fallback
+
+Updated the platform group to target `PlatformDeployment` directly, removed the
+tracked `workstation.yaml` profile, and removed `WorkStation` fallback lookup
+from the providers/demo/workers paths so the interactive git watcher and
+platform commands resolve the deployment repo by its canonical name only.
+
 ## 2026-05-10 — Codex startup defaults to full access
 
 Updated OperatorConsole's Codex launcher to start Codex panes with

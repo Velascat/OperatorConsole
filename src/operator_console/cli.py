@@ -172,7 +172,7 @@ def show_help(_: list[str]) -> None:
             ("last --json",            "Machine-readable last run summary"),
             ("status",                 "System readiness: SwitchBoard, OperationsCenter, lanes"),
             ("status --json",          "Machine-readable system readiness"),
-            ("workers start",     "Start OperationsCenter watcher roles (via WorkStation)"),
+            ("workers start",     "Start OperationsCenter watcher roles (via PlatformDeployment)"),
             ("workers stop",      "Stop all watcher roles"),
             ("workers restart",   "Restart all watcher roles"),
             ("workers status",    "Show watcher role status"),

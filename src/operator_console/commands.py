@@ -926,20 +926,25 @@ def cmd_rewatch(args: list[str], console_dir: Path) -> None:
 
 # ── workers ───────────────────────────────────────────────────────────────────
 
-_WORKSTATION_ROOT = Path.home() / "Documents" / "GitHub" / "WorkStation"
-_WORKERS_SHIM = _WORKSTATION_ROOT / "scripts" / "workers.sh"
+def _platform_deployment_root() -> Path:
+    return Path.home() / "Documents" / "GitHub" / "PlatformDeployment"
+
+
+_WORKERS_SHIM = _platform_deployment_root() / "scripts" / "workers.sh"
 
 
 def cmd_workers(args: list[str]) -> int:
-    """Start, stop, restart, or check status of OperationsCenter watchers via WorkStation shim."""
+    """Start, stop, restart, or check status of OperationsCenter watchers via PlatformDeployment shim."""
     subcmd = args[0] if args else "status"
     if subcmd not in ("start", "stop", "restart", "status"):
         print(c("  Usage: console workers [start|stop|restart|status]", "YLW"))
         return 1
 
-    if not _WORKERS_SHIM.exists():
-        print(c(f"  WorkStation not found at {_WORKSTATION_ROOT}", "RED"))
-        print(c("  Set OPERATIONS_CENTER_ROOT or check WorkStation is installed", "DIM"))
+    deployment_root = _platform_deployment_root()
+    workers_shim = deployment_root / "scripts" / "workers.sh"
+    if not workers_shim.exists():
+        print(c(f"  PlatformDeployment not found at {deployment_root}", "RED"))
+        print(c("  Set OPERATIONS_CENTER_ROOT or check PlatformDeployment is installed", "DIM"))
         return 1
 
     label = {
@@ -950,5 +955,5 @@ def cmd_workers(args: list[str]) -> int:
     }[subcmd]
 
     print(c(f"\n  {label}…\n", "DIM"))
-    result = subprocess.run(["bash", str(_WORKERS_SHIM), subcmd], text=True)
+    result = subprocess.run(["bash", str(workers_shim), subcmd], text=True)
     return result.returncode

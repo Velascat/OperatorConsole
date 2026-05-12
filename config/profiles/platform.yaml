@@ -3,7 +3,7 @@ group:
   - operations_center
   - operator_console
   - switchboard
-  - workstation
+  - platformdeployment
   - custodian
   - cxrp
   - executorruntime

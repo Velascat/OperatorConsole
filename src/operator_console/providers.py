@@ -101,12 +101,18 @@ def run_providers(args: list[str]) -> int:
             return 1
 
     _section("Lane Inputs")
-    local_lane_cfg = _find_repo("WorkStation") / "config" / "workstation" / "local_lane.yaml"
+    deployment_root = _find_repo("PlatformDeployment")
+    local_lane_cfg = (
+        deployment_root / "config" / "platformdeployment" / "local_lane.yaml"
+    )
     if local_lane_cfg.exists():
         _ok(f"aider_local config present: {local_lane_cfg}")
     else:
         _fail("aider_local config missing")
-        _info("Copy WorkStation/config/workstation/local_lane.example.yaml to local_lane.yaml")
+        _info(
+            "Copy PlatformDeployment/config/platformdeployment/local_lane.example.yaml "
+            "to local_lane.yaml"
+        )
 
     for binary in ("claude", "codex", "aider"):
         if os.system(f"which {binary} >/dev/null 2>&1") == 0:

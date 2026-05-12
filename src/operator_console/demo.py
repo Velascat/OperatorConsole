@@ -5,7 +5,7 @@
 Runs the full stack in order:
 
   1. Preflight       — repos + config present
-  2. Stack           — WorkStation stack healthy
+  2. Stack           — PlatformDeployment stack healthy
   3. Health          — SwitchBoard reachable
   4. Route           — SwitchBoard returns a real LaneDecision
   5. Planning        — OperationsCenter builds TaskProposal + routes through SwitchBoard
@@ -130,8 +130,8 @@ def _repo_root(name: str) -> Path:
     return Path.home() / "Documents" / "GitHub" / name
 
 
-def _find_workstation() -> Path | None:
-    repo = _repo_root("WorkStation")
+def _find_platform_deployment() -> Path | None:
+    repo = _repo_root("PlatformDeployment")
     return repo if (repo / "scripts" / "ensure-up.sh").exists() else None
 
 
@@ -146,14 +146,14 @@ def _cp_python(cp_repo: Path) -> str:
 # ---------------------------------------------------------------------------
 
 
-def step_preflight(workstation_root: Path | None) -> StepResult:
+def step_preflight(platform_deployment_root: Path | None) -> StepResult:
     _section("1 · Preflight")
-    if workstation_root is None:
-        _fail("WorkStation repo not found")
-        return StepResult("preflight", False, "WorkStation not found")
+    if platform_deployment_root is None:
+        _fail("PlatformDeployment repo not found")
+        return StepResult("preflight", False, "PlatformDeployment not found")
 
     expected = {
-        "WorkStation": workstation_root,
+        "PlatformDeployment": platform_deployment_root,
         "SwitchBoard": _repo_root("SwitchBoard"),
         "OperationsCenter": _repo_root("OperationsCenter"),
     }
@@ -165,34 +165,36 @@ def step_preflight(workstation_root: Path | None) -> StepResult:
             _fail(f"{name} missing at {path}")
             missing.append(name)
 
-    env_file = workstation_root / ".env"
+    env_file = platform_deployment_root / ".env"
     if env_file.exists():
         _ok(".env present")
     else:
         _fail(".env missing")
         missing.append(".env")
 
-    endpoints = workstation_root / "config" / "workstation" / "endpoints.yaml"
-    endpoints_example = workstation_root / "config" / "workstation" / "endpoints.example.yaml"
+    endpoints = platform_deployment_root / "config" / "platformdeployment" / "endpoints.yaml"
+    endpoints_example = (
+        platform_deployment_root / "config" / "platformdeployment" / "endpoints.example.yaml"
+    )
     if endpoints.exists():
-        _ok("workstation endpoints config present")
+        _ok("platformdeployment endpoints config present")
     elif endpoints_example.exists():
         import shutil
         shutil.copy(endpoints_example, endpoints)
         _ok("endpoints.yaml bootstrapped from example")
     else:
-        _fail("config/workstation/endpoints.yaml missing")
+        _fail("config/platformdeployment/endpoints.yaml missing")
         missing.append("endpoints.yaml")
 
     return StepResult("preflight", not missing, ", ".join(missing) if missing else "all checks passed")
 
 
-def step_stack(workstation_root: Path) -> StepResult:
+def step_stack(platform_deployment_root: Path) -> StepResult:
     _section("2 · Stack")
-    script = workstation_root / "scripts" / "ensure-up.sh"
+    script = platform_deployment_root / "scripts" / "ensure-up.sh"
     result = subprocess.run(["bash", str(script)], capture_output=False)
     if result.returncode == 0:
-        _ok("WorkStation stack ready")
+        _ok("PlatformDeployment stack ready")
         return StepResult("stack", True, "healthy")
     _fail(f"ensure-up.sh exited {result.returncode}")
     return StepResult("stack", False, f"ensure-up.sh exited {result.returncode}")
@@ -400,21 +402,21 @@ def run_demo(args: list[str]) -> int:
 
     print(_c("\n  console demo", "B", "CYN") + _c(" — end-to-end architecture validation", "DIM"))
 
-    workstation_root = _find_workstation()
+    platform_deployment_root = _find_platform_deployment()
     cp_repo = _repo_root("OperationsCenter")
 
     result = DemoResult()
 
     # Step 1 — Preflight
-    preflight = step_preflight(workstation_root)
+    preflight = step_preflight(platform_deployment_root)
     result.add(preflight)
-    if not preflight.passed or workstation_root is None:
+    if not preflight.passed or platform_deployment_root is None:
         _print_summary(result)
         return 1
 
     # Step 2 — Stack
     if not no_start:
-        stack = step_stack(workstation_root)
+        stack = step_stack(platform_deployment_root)
         result.add(stack)
         if not stack.passed:
             _print_summary(result)
