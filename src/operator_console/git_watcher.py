@@ -91,6 +91,9 @@ def _draw(stdscr, repos: list[str], statuses: dict, branches: dict, sel: int, re
     C_DIRTY  = curses.color_pair(3)
     C_WAIT   = curses.color_pair(4)
 
+    name_w   = max((len(Path(r).name) for r in repos), default=18)
+    branch_w = max((len(branches.get(r, "?")) for r in repos), default=14)
+
     # header
     spin = " ⟳" if refreshing else "  "
     hdr = f" {_HELP}{spin}"
@@ -113,7 +116,7 @@ def _draw(stdscr, repos: list[str], statuses: dict, branches: dict, sel: int, re
         else:
             icon, detail, color = _CLEAN, "", C_CLEAN
 
-        label = f" {icon}  {name:<18} {branch:<14} {detail}"
+        label = f" {icon}  {name:<{name_w}} {branch:<{branch_w}} {detail}"
         label = label[:w - 1].ljust(w - 1)
 
         if i == sel:

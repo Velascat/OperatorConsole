@@ -273,6 +273,11 @@ top block flows behind them.
 - Updated repo-owned references from the previous GitHub username to `ProtocolWarden` after the account rename.
 - Scope: license headers, GitHub URLs, workflow install commands, manifests, dependency URLs, examples, and local owner defaults where present.
 
+## 2026-05-13 — Add repograph/protocolwarden profiles; fix git_watcher columns
+
+- Created `config/profiles/repograph.yaml` and `config/profiles/protocolwarden.github.io.yaml`; whitelisted both in `.gitignore`.
+- `git_watcher.py`: name and branch column widths now computed dynamically from actual repo names so long entries like `ProtocolWarden.github.io` don't clobber adjacent columns.
+
 ## 2026-05-10 — Console setup and Custodian hook resolution
 
 - Added non-interactive `setup.sh` to bootstrap OperatorConsole and symlink `console` into `~/.local/bin`.

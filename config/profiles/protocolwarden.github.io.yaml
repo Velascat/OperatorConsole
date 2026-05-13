@@ -1,0 +1,17 @@
+name: ProtocolWarden.github.io
+repo_root: /home/dev/Documents/GitHub/ProtocolWarden.github.io
+
+claude:
+  continue: true
+  bootstrap_files: []
+  peers: []
+
+panes:
+  git:
+    command: lazygit
+  shell:
+    command: bash
+
+helpers:
+  dev: mkdocs serve
+  build: mkdocs build
