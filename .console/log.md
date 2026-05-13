@@ -1,5 +1,9 @@
 # Log
 
+## 2026-05-13 — WorkStation → PlatformDeployment hard cutover
+
+- Updated `README.md` and `docs/history/` to replace all `WorkStation`/`workstation` references with `PlatformDeployment`/`platformdeployment`.
+
 ## 2026-05-12 — Expand platform profile to RepoGraph and ProtocolWarden docs
 
 Added `RepoGraph` and `ProtocolWarden.github.io` to the tracked `platform`

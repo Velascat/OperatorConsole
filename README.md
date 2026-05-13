@@ -107,7 +107,7 @@ group:
   - operations_center
   - operator_console
   - switchboard
-  - workstation
+  - platformdeployment
 ```
 
 ```bash
@@ -303,7 +303,7 @@ console overview --all --json    # machine-readable — useful for OperationsCen
 Repos are auto-discovered — no YAML needed for basic use. Create `config/profiles/<name>.yaml` to configure custom Claude context files, peer repo awareness, custom pane commands, or group multiple repos under one name.
 
 Profile visibility:
-- **Platform group members** (`operations_center`, `operator_console`, `switchboard`, `workstation`, `platform`) are tracked in git
+- **Platform group members** (`operations_center`, `operator_console`, `switchboard`, `platformdeployment`, `platform`) are tracked in git
 - **All other profiles** are gitignored by default — private repos never appear in tracked files
 
 See [docs/profiles.md](docs/profiles.md).

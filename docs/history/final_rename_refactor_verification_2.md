@@ -13,7 +13,7 @@
 | OperatorConsole | main | `28f0bed4e5feb0b7740bd5141cc720d62b324a2c` | PASS (files fixed) |
 | OperationsCenter | main | `d47e74ff313fd9ed519745556e7e64cda5f59df8` | PASS (no changes needed) |
 | SwitchBoard | main | `dd7fe71b4815dc020fd841313efae721b049aef5` | PASS (no changes needed) |
-| WorkStation | main | `809bf6bd908d8ee5d58cee275195f5a83d4c1166` | PASS (no changes needed) |
+| PlatformDeployment | main | `809bf6bd908d8ee5d58cee275195f5a83d4c1166` | PASS (no changes needed) |
 
 ---
 
@@ -59,9 +59,9 @@ All blocking findings were in `OperatorConsole` — the source code had already 
 | File | Repo | Term | Classification | Reason |
 |------|------|------|---------------|--------|
 | `docs/migration/fob-operator-flow-update.md` | OperatorConsole | `9router`, `control plane` | Historical | File header explicitly states: "Historical migration note. Retained only to record the cutover." |
-| `docs/architecture/adr/0001-remove-9router.md` | WorkStation | `9router` throughout | Historical / ADR | ADR explicitly documenting the 9router removal decision |
-| `docs/migration/workstation-9router-removal.md` | WorkStation | `9router` throughout | Historical | Titled "Archival Migration Note" |
-| `docs/architecture/final-phase-checklist-result.md` | WorkStation | `9router` | Historical | Checklist result for archival phase |
+| `docs/architecture/adr/0001-remove-9router.md` | PlatformDeployment | `9router` throughout | Historical / ADR | ADR explicitly documenting the 9router removal decision |
+| `docs/migration/platformdeployment-9router-removal.md` | PlatformDeployment | `9router` throughout | Historical | Titled "Archival Migration Note" |
+| `docs/architecture/final-phase-checklist-result.md` | PlatformDeployment | `9router` | Historical | Checklist result for archival phase |
 | `docs/architecture/phase6-boundary-decision.md` | OperationsCenter | `9router` | Historical / ADR | ADR containing the rule that 9router notes are only permitted in archival material |
 | `README.md:935` | OperationsCenter | "production distributed control plane" | False positive | Generic networking/systems architecture term (Kubernetes concept), not a reference to the renamed repo. Confirmed left by previous audit. |
 | `docs/audits/final_rename_refactor_verification.md` | OperationsCenter | Multiple legacy terms | Historical | Previous audit report — must not be modified |
@@ -90,7 +90,7 @@ Total: 6 files changed, all in OperatorConsole.
 | OperatorConsole | `PYTHONPATH=src .venv/bin/python -m pytest tests/ -x -v` | **93 passed** in 0.27s |
 | OperationsCenter | `.venv/bin/python -m pytest tests/ -x -q` | **1863 passed, 4 skipped** in 7.67s |
 | SwitchBoard | `.venv/bin/python -m pytest test/ -x -q` | **264 passed** in 0.81s |
-| WorkStation | `.venv/bin/python -m pytest test/ -x -q` | **147 passed, 3 skipped** in 2.47s |
+| PlatformDeployment | `.venv/bin/python -m pytest test/ -x -q` | **147 passed, 3 skipped** in 2.47s |
 
 All test suites green. Zero regressions introduced by fixes.
 
@@ -101,9 +101,9 @@ All test suites green. Zero regressions introduced by fixes.
 | File | Line | Term | Reason Allowed |
 |------|------|------|---------------|
 | `OperatorConsole/docs/migration/fob-operator-flow-update.md` | 6 | `9router`, `control plane` | Explicitly labeled historical; retained to record the cutover from the provider-proxy era |
-| `WorkStation/docs/architecture/adr/0001-remove-9router.md` | throughout | `9router` | ADR is the canonical record of why 9router was removed |
-| `WorkStation/docs/migration/workstation-9router-removal.md` | throughout | `9router` | Archival migration note, title says so |
-| `WorkStation/docs/architecture/final-phase-checklist-result.md` | 24 | `9router` | Historical checklist result |
+| `PlatformDeployment/docs/architecture/adr/0001-remove-9router.md` | throughout | `9router` | ADR is the canonical record of why 9router was removed |
+| `PlatformDeployment/docs/migration/platformdeployment-9router-removal.md` | throughout | `9router` | Archival migration note, title says so |
+| `PlatformDeployment/docs/architecture/final-phase-checklist-result.md` | 24 | `9router` | Historical checklist result |
 | `OperationsCenter/docs/architecture/phase6-boundary-decision.md` | 33 | `9router` | ADR that defines the allowlist rule itself |
 | `OperationsCenter/README.md` | 935 | "production distributed control plane" | Generic distributed systems term (same as Kubernetes control plane concept) — not a repo name reference |
 
