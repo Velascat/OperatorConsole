@@ -30,7 +30,7 @@ Other approaches you thought about and why you ruled them out.
 Confirm this belongs in OperatorConsole (operator UX layer) rather than:
 - OperationsCenter (planning / execution)
 - SwitchBoard (routing)
-- WorkStation (startup / infrastructure)
+- PlatformDeployment (startup / infrastructure)
 
 ## Additional Context
 
