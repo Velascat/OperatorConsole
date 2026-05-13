@@ -1,25 +1,23 @@
 #!/usr/bin/env bash
 # Custodian regression guard — pre-push hook.
-# Runs the same audit CI runs. Catches new findings before they hit GitHub.
-#
-# Install once per clone:
-#   git config core.hooksPath .hooks
-# Bypass intentionally: git push --no-verify
 set -e
 
 repo_root="$(git rev-parse --show-toplevel)"
-workspace_root="$(cd "$repo_root/.." && pwd)"
+
+if [ -z "${REPOGRAPH_BOUNDARY_ARTIFACT_FILE:-}" ] || [ ! -f "$REPOGRAPH_BOUNDARY_ARTIFACT_FILE" ]; then
+    echo "[custodian-pre-push] missing REPOGRAPH_BOUNDARY_ARTIFACT_FILE; failing closed"
+    echo "  Generate artifact from PrivateManifest first and export REPOGRAPH_BOUNDARY_ARTIFACT_FILE"
+    exit 1
+fi
 
 custodian_multi=""
 if command -v custodian-multi >/dev/null 2>&1; then
     custodian_multi="$(command -v custodian-multi)"
 fi
-
 for candidate in \
     "$custodian_multi" \
     "$repo_root/.venv/bin/custodian-multi" \
-    "$repo_root/.warehouse-venv/bin/custodian-multi" \
-    "$workspace_root/Custodian/.venv/bin/custodian-multi"
+    "$repo_root/.warehouse-venv/bin/custodian-multi"
 do
     if [ -x "$candidate" ]; then
         custodian_multi="$candidate"
@@ -28,10 +26,11 @@ do
 done
 
 if [ -z "$custodian_multi" ]; then
-    echo "[custodian-pre-push] custodian-multi not found — skipping audit guard"
-    echo "    install with: python -m pip install -e /home/dev/Documents/GitHub/Custodian"
-    exit 0
+    echo "[custodian-pre-push] custodian-multi not found"
+    echo "  install with: python -m pip install -e /home/dev/Documents/GitHub/Custodian"
+    exit 1
 fi
 
+echo "[custodian-pre-push] boundary artifact: $REPOGRAPH_BOUNDARY_ARTIFACT_FILE"
 echo "[custodian-pre-push] running audit guard..."
 "$custodian_multi" --repos "$repo_root" --fail-on-findings --no-color

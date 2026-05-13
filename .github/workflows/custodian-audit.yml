@@ -1,7 +1,3 @@
-# Custodian regression guard.
-# Runs on every push and PR to main. Fails CI on any new finding.
-# The repo is expected to be at zero findings on main; this guard
-# stops drift from creeping back in.
 name: custodian-audit
 
 on:
@@ -32,6 +28,36 @@ jobs:
             pip install -e . || true
           fi
 
+      - name: Materialize boundary artifact file
+        env:
+          REPOGRAPH_BOUNDARY_ARTIFACT_SOURCE: ${{ secrets.REPOGRAPH_BOUNDARY_ARTIFACT_FILE }}
+        run: |
+          if [ -z "${REPOGRAPH_BOUNDARY_ARTIFACT_SOURCE:-}" ]; then
+            echo "Missing REPOGRAPH_BOUNDARY_ARTIFACT_FILE secret" >&2
+            exit 1
+          fi
+          tmp_file="$(mktemp "${RUNNER_TEMP:-/tmp}/repograph-boundary-XXXXXX.json")"
+          python - "$REPOGRAPH_BOUNDARY_ARTIFACT_SOURCE" "$tmp_file" <<'PY'
+          import json
+          import shutil
+          import sys
+          import urllib.request
+          from pathlib import Path
+
+          source = sys.argv[1]
+          dest = Path(sys.argv[2])
+          src_path = Path(source)
+          if src_path.is_file():
+              shutil.copyfile(src_path, dest)
+          elif source.startswith(("http://", "https://")):
+              with urllib.request.urlopen(source) as response, dest.open("wb") as fh:
+                  shutil.copyfileobj(response, fh)
+          else:
+              raise SystemExit(f"Unsupported boundary artifact source: {source}")
+          data = json.loads(dest.read_text(encoding="utf-8"))
+          print(f"boundary_provenance={data.get('source_graph_id')}@{data.get('source_ref_or_commit')}")
+          PY
+          echo "REPOGRAPH_BOUNDARY_ARTIFACT_FILE=$tmp_file" >> "$GITHUB_ENV"
       - name: Run Custodian audit
         run: |
           custodian-multi --repos . --fail-on-findings --no-color
