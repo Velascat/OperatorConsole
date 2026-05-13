@@ -286,3 +286,8 @@ top block flows behind them.
 
 - Added non-interactive `setup.sh` to bootstrap OperatorConsole and symlink `console` into `~/.local/bin`.
 - Updated the pre-push guard to prefer system `custodian-multi`, with repo venv and sibling Custodian venv fallbacks.
+
+## 2026-05-13 — Add CLAUDE.md and .custodian/tmp*.yaml to .gitignore
+
+- Added CLAUDE.md to .gitignore
+- Added .custodian/tmp*.yaml to exclude custodian audit temp files

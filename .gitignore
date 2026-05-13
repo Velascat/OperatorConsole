@@ -7,6 +7,8 @@ __pycache__/
 !.console/backlog.md
 !.console/guidelines.md
 !.console/log.md
+CLAUDE.md
+.custodian/tmp*.yaml
 
 # Profiles are private by default; only platform-group members are tracked.
 config/profiles/*.yaml
