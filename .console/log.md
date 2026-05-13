@@ -1,5 +1,11 @@
 # Log
 
+## 2026-05-12 — Expand platform profile to RepoGraph and ProtocolWarden docs
+
+Added `RepoGraph` and `ProtocolWarden.github.io` to the tracked `platform`
+profile so the platform watcher and lazygit multi-repo view include both repos
+by default. Aligned the profile docs and demo wording to the new platform set.
+
 ## 2026-05-12 — Remove WorkStation profile fallback
 
 Updated the platform group to target `PlatformDeployment` directly, removed the

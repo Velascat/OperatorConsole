@@ -2,6 +2,8 @@ name: platform
 group:
   - operations_center
   - operator_console
+  - repograph
+  - protocolwarden.github.io
   - switchboard
   - platformdeployment
   - custodian

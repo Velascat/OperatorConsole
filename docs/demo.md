@@ -69,7 +69,7 @@ console demo --json
   ✓ SwitchBoard: ~/Documents/GitHub/SwitchBoard
   ✓ OperationsCenter: ~/Documents/GitHub/OperationsCenter
   ✓ .env present
-  ✓ workstation endpoints config present
+  ✓ PlatformDeployment endpoints config present
 
 ── 2 · Stack ─────────────────────────────────────────
   ✓ PlatformDeployment stack ready

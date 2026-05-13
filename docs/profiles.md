@@ -14,7 +14,9 @@ config/profiles/*.yaml        # gitignored
 !config/profiles/operations_center.yaml  # tracked
 !config/profiles/console.yaml           # tracked
 !config/profiles/switchboard.yaml   # tracked
-!config/profiles/workstation.yaml   # tracked
+!config/profiles/platformdeployment.yaml   # tracked
+!config/profiles/repograph.yaml     # tracked
+!config/profiles/protocolwarden.github.io.yaml  # tracked
 
 config/profiles/*.kdl         # always gitignored (saved live layouts)
 config/profiles/*.session     # always gitignored (Claude session IDs)
@@ -60,11 +62,13 @@ name: platform
 group:
   - operations_center
   - console
+  - repograph
+  - protocolwarden.github.io
   - switchboard
-  - workstation
+  - platformdeployment
 ```
 
-Groups appear in the picker with `▸` prefix and their member list. `console open platform` opens all four repos as a single multi-pane tab.
+Groups appear in the picker with `▸` prefix and their member list. `console open platform` opens the platform set as a single multi-pane tab.
 
 ## Adding a Profile
 
