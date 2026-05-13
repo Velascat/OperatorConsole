@@ -10,7 +10,7 @@ Runs six sequential steps across the full stack:
 
 ```
 1. Preflight       repos present, config bootstrapped
-2. Stack           WorkStation Docker stack healthy
+2. Stack           PlatformDeployment Docker stack healthy
 3. Health          SwitchBoard reachable at /health
 4. Route           SwitchBoard returns a real LaneDecision
 5. Planning        OperationsCenter builds TaskProposal, routes through SwitchBoard
@@ -25,7 +25,7 @@ by the execute entrypoint's `RunArtifactWriter`. Use `console last` to inspect t
 ## Prerequisites
 
 ```bash
-# From WorkStation:
+# From PlatformDeployment:
 ./scripts/up.sh          # start the full stack (SwitchBoard must be healthy)
 ```
 
@@ -34,7 +34,7 @@ OperationsCenter and SwitchBoard repos must be at:
 ```
 ~/Documents/GitHub/OperationsCenter/
 ~/Documents/GitHub/SwitchBoard/
-~/Documents/GitHub/WorkStation/
+~/Documents/GitHub/PlatformDeployment/
 ```
 
 ---
@@ -65,14 +65,14 @@ console demo --json
   console demo — end-to-end architecture validation
 
 ── 1 · Preflight ─────────────────────────────────────
-  ✓ WorkStation: ~/Documents/GitHub/WorkStation
+  ✓ PlatformDeployment: ~/Documents/GitHub/PlatformDeployment
   ✓ SwitchBoard: ~/Documents/GitHub/SwitchBoard
   ✓ OperationsCenter: ~/Documents/GitHub/OperationsCenter
   ✓ .env present
   ✓ workstation endpoints config present
 
 ── 2 · Stack ─────────────────────────────────────────
-  ✓ WorkStation stack ready
+  ✓ PlatformDeployment stack ready
 
 ── 3 · Health ────────────────────────────────────────
   ✓ SwitchBoard health: ok
@@ -128,8 +128,8 @@ ls ~/.console/operations_center/runs/         # list all runs
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| Step 1 fails (WorkStation not found) | Repo not at expected path | Clone WorkStation to `~/Documents/GitHub/WorkStation` |
-| Step 3 fails (HTTP 0) | SwitchBoard not running | Run `./scripts/up.sh` from WorkStation |
+| Step 1 fails (PlatformDeployment not found) | Repo not at expected path | Clone PlatformDeployment to `~/Documents/GitHub/PlatformDeployment` |
+| Step 3 fails (HTTP 0) | SwitchBoard not running | Run `./scripts/up.sh` from PlatformDeployment |
 | Step 5 fails (exit 1) | OperationsCenter venv missing | `cd OperationsCenter && pip install -e .` |
 | Step 6 — backend failure | Backend binary not installed | Install `kodo` or `aider`; result is still canonical |
 | Step 6 — policy skipped | Policy gate blocked the task | Check SwitchBoard policy config |

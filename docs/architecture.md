@@ -234,7 +234,7 @@ OperatorConsole also owns operator-facing validation commands for the shared pla
 - `console providers` — reports selector and lane readiness
 - `console providers --wait` — polls until the selector is healthy and then points the operator back to the demo flow
 
-These are operator UX commands. They do not move infrastructure ownership out of WorkStation.
+These are operator UX commands. They do not move infrastructure ownership out of PlatformDeployment.
 
 ## Dev Toolchain
 

@@ -6,10 +6,10 @@ Practical notes for repeated, reliable use.
 
 ## Normal Startup
 
-Start the WorkStation stack (SwitchBoard must be healthy before any task):
+Start the PlatformDeployment stack (SwitchBoard must be healthy before any task):
 
 ```bash
-cd ~/Documents/GitHub/WorkStation
+cd ~/Documents/GitHub/PlatformDeployment
 ./scripts/up.sh
 ```
 
@@ -216,7 +216,7 @@ console workers restart    # restart all roles
 **SwitchBoard unreachable:**
 ```bash
 console status             # confirm
-cd ~/Documents/GitHub/WorkStation && ./scripts/up.sh
+cd ~/Documents/GitHub/PlatformDeployment && ./scripts/up.sh
 ```
 
 **Run failed (backend not installed):**
@@ -259,7 +259,7 @@ Runs all six steps: preflight → stack → health → route → planning → ex
 | Single machine only | No distributed or multi-user support |
 | intake requires inotify-tools | Install with `sudo apt install inotify-tools`; falls back to 10s polling without it |
 | Backend binary required for execution | Execution without `kodo`/`aider` records `backend_error` — not a pipeline bug |
-| SwitchBoard must be running | All routing calls fail if WorkStation stack is down |
+| SwitchBoard must be running | All routing calls fail if PlatformDeployment stack is down |
 | No run search | `console runs` shows recent runs by time; no filtering by status or goal |
 | Partial runs counted | `console runs` shows partial artifacts alongside complete runs |
 | Queue files persist on intake failure | Inspect `~/.console/queue/` and remove manually |

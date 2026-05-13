@@ -6,13 +6,13 @@ The `aider_local` lane runs tasks locally via Aider + Ollama. It is free, CPU-on
 
 1. Ollama running at `http://localhost:11434`
 2. `qwen2.5-coder:3b` pulled: `ollama pull qwen2.5-coder:3b`
-3. WorkStation lane configured and enabled (see WorkStation docs)
+3. PlatformDeployment lane configured and enabled (see PlatformDeployment docs)
 
 Check readiness:
 
 ```bash
-cd ../WorkStation
-python -m workstation_cli lane doctor aider_local
+cd ../PlatformDeployment
+python -m platform_deployment_cli lane doctor aider_local
 ```
 
 ## Submitting a task to the aider_local lane

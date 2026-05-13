@@ -93,7 +93,7 @@ console queue --json    # machine-readable
 ### `console workers` — watcher lifecycle
 
 Start, stop, or check the OperationsCenter watcher roles (including intake).
-Delegates to WorkStation's shim — OperatorConsole never touches OperationsCenter
+Delegates to PlatformDeployment's shim — OperatorConsole never touches OperationsCenter
 directly.
 
 ```bash
@@ -103,7 +103,7 @@ console workers stop       # stop all roles
 console workers restart    # restart all roles
 ```
 
-Watchers are also started automatically by `./scripts/up.sh` in WorkStation and
+Watchers are also started automatically by `./scripts/up.sh` in PlatformDeployment and
 stopped by `./scripts/down.sh`.
 
 ---

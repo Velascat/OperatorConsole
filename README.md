@@ -15,7 +15,7 @@ OperatorConsole maintains a persistent workspace that you can leave and return t
 ## What OperatorConsole Is Not
 
 - A neutral bootstrap script or multiplexer-agnostic tool — Zellij is a core dependency, and persistence is the point
-- A platform lifecycle owner — stack up/down/health is delegated to WorkStation
+- A platform lifecycle owner — stack up/down/health is delegated to PlatformDeployment
 - A planning, routing, or execution engine — those are delegated to OperationsCenter and SwitchBoard via subprocess
 - A contract authority — canonical contracts live in CxRP/RxP
 
@@ -310,11 +310,11 @@ See [docs/profiles.md](docs/profiles.md).
 
 ## Ownership boundary
 
-OperatorConsole owns the operator experience: session management, workspace layout, context files, and execution pipeline commands (`console run`, `console cycle`, `console last`, `console runs`, `console demo`). OperatorConsole delegates platform lifecycle actions (stack up/down/health) to WorkStation and delegates all planning, routing, and execution to OperationsCenter and SwitchBoard via subprocess.
+OperatorConsole owns the operator experience: session management, workspace layout, context files, and execution pipeline commands (`console run`, `console cycle`, `console last`, `console runs`, `console demo`). OperatorConsole delegates platform lifecycle actions (stack up/down/health) to PlatformDeployment and delegates all planning, routing, and execution to OperationsCenter and SwitchBoard via subprocess.
 
-OperatorConsole does **not** own service Dockerfiles, compose manifests, routing policy, adapter logic, or contract definitions. Those belong to WorkStation (compose/Dockerfiles), SwitchBoard (routing policy), OperationsCenter (adapters), and CxRP/RxP (canonical contracts) respectively. OperatorConsole has no direct imports from any of those repos at runtime.
+OperatorConsole does **not** own service Dockerfiles, compose manifests, routing policy, adapter logic, or contract definitions. Those belong to PlatformDeployment (compose/Dockerfiles), SwitchBoard (routing policy), OperationsCenter (adapters), and CxRP/RxP (canonical contracts) respectively. OperatorConsole has no direct imports from any of those repos at runtime.
 
-For the full platform ownership model see `WorkStation/docs/architecture/system/ownership.md`.
+For the full platform ownership model see `PlatformDeployment/docs/architecture/system/ownership.md`.
 
 ---
 
